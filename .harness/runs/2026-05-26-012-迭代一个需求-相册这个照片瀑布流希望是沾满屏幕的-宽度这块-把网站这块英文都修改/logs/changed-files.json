@@ -1,0 +1,25 @@
+{
+  "runId": "2026-05-26-012-迭代一个需求-相册这个照片瀑布流希望是沾满屏幕的-宽度这块-把网站这块英文都修改",
+  "files": [
+    "apps/web/app/layout.tsx",
+    "apps/web/app/page.tsx",
+    "apps/web/app/photos/page.tsx",
+    "apps/web/app/photos/[id]/page.tsx",
+    "apps/web/app/photos/error.tsx",
+    "apps/web/app/photos/loading.tsx",
+    "apps/web/app/not-found.tsx",
+    "apps/web/app/globals.css",
+    "apps/web/components/photos/PhotoFilters.tsx",
+    "apps/web/components/photos/PhotoMasonryGrid.tsx",
+    "apps/web/components/states/EmptyState.tsx",
+    "apps/web/components/states/ErrorState.tsx",
+    "apps/web/components/article/ArticleList.tsx",
+    "apps/web/lib/site.ts",
+    ".harness/runs/2026-05-26-012-迭代一个需求-相册这个照片瀑布流希望是沾满屏幕的-宽度这块-把网站这块英文都修改/artifacts/test-report.md",
+    "docs/product/yearly-2026.md",
+    "docs/product/monthly-2026-05.md",
+    "docs/product/weekly-2026-w22.md",
+    "docs/product/runs/2026-05-26-012-迭代一个需求-相册这个照片瀑布流希望是沾满屏幕的-宽度这块-把网站这块英文都修改.md"
+  ],
+  "updatedAt": "2026-05-26T11:37:08.666Z"
+}
