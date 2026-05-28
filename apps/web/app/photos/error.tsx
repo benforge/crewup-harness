@@ -13,7 +13,11 @@ export default function PhotosError({ reset }: { error: Error; reset: () => void
         secondaryHref="/articles"
         secondaryLabel="回到文章归档"
       />
-      <button className="plain-action" type="button" onClick={reset}>
+      <button
+        className="mt-3.5 inline-flex min-h-10 cursor-pointer items-center rounded-md border border-[rgb(23_107_91_/_0.28)] bg-[var(--accent)] px-3.5 font-[inherit] font-[750] text-[var(--button-ink)]"
+        type="button"
+        onClick={reset}
+      >
         重试相册
       </button>
     </main>

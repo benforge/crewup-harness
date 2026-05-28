@@ -28,25 +28,41 @@ export default async function HomePage() {
 
   return (
     <main id="main-content">
-      <section className="home-hero" aria-labelledby="home-title">
-        <div className="hero-copy">
-          <p className="eyebrow">工程手记 / 2026</p>
-          <h1 id="home-title">把工程现场整理成能复用的手记。</h1>
-          <p className="lede">{siteDescription}</p>
-          <div className="hero-actions">
-            <Link className="primary-action" href="/articles">
+      <section
+        className="grid grid-cols-[minmax(0,1fr)_minmax(280px,0.44fr)] items-stretch gap-[42px] border-b border-[var(--rule)] py-9 pt-[58px] max-[860px]:grid-cols-1 max-[720px]:gap-7 max-[720px]:pt-[42px]"
+        aria-labelledby="home-title"
+      >
+        <div className="relative grid gap-5">
+          <p className="mb-0 font-mono text-[13px] font-[750] text-[var(--accent)]">工程手记 / 2026</p>
+          <h1 className="m-0 max-w-[820px] break-words font-serif text-[56px] font-[650] leading-[1.08] [text-wrap:balance] max-[720px]:text-[32px] max-[720px]:leading-[1.12]" id="home-title">
+            把工程现场整理成能复用的手记。
+          </h1>
+          <p className="m-0 max-w-[min(740px,100%)] text-lg leading-[1.78] text-[var(--muted)] [overflow-wrap:anywhere] max-[720px]:text-[17px]">{siteDescription}</p>
+          <div className="flex flex-wrap items-center gap-x-[18px] gap-y-3">
+            <Link
+              className="inline-flex min-h-[42px] items-center justify-center rounded-md border border-[color-mix(in_srgb,var(--accent)_44%,var(--rule))] bg-[var(--accent)] px-4 text-sm font-extrabold text-[var(--button-ink)] hover:bg-[var(--accent-hover)] hover:text-[var(--button-ink)]"
+              href="/articles"
+            >
               阅读文章
             </Link>
-            <Link className="text-link" href="/about">
+            <Link className="inline-flex max-w-full min-w-0 text-sm font-bold leading-[1.35] text-[var(--accent)] [overflow-wrap:anywhere]" href="/about">
               了解作者
             </Link>
           </div>
         </div>
-        <div className="hero-panel" aria-label="内容方向">
-          {writingSignals.map((signal) => (
-            <div className="signal-item" key={signal.label}>
-              <strong>{signal.label}</strong>
-              <span>{signal.text}</span>
+        <div className="grid content-start border-y border-[var(--rule)]" aria-label="内容方向">
+          {writingSignals.map((signal, index) => (
+            <div
+              className="min-w-0 border-l-2 border-[color-mix(in_srgb,var(--accent)_24%,transparent)] py-[18px] pl-3.5 [&+&]:border-t [&+&]:border-[var(--rule)]"
+              key={signal.label}
+            >
+              <strong className="mb-1.5 flex items-baseline gap-2 text-sm">
+                <span className="font-mono text-xs font-[750] text-[var(--amber)]" aria-hidden="true">
+                  0{index + 1}
+                </span>
+                {signal.label}
+              </strong>
+              <span className="text-[13px] leading-[1.55] text-[var(--muted)]">{signal.text}</span>
             </div>
           ))}
         </div>
@@ -65,30 +81,37 @@ export default async function HomePage() {
       ) : null}
 
       {leadArticle ? (
-        <section className="lead-note section-rule" aria-labelledby="lead-note-title">
-          <div className="section-heading">
-            <p className="eyebrow">当前重点</p>
-            <h2 id="lead-note-title">本期重点</h2>
+        <section className="grid grid-cols-[210px_minmax(0,1fr)] items-start gap-[42px] border-t border-[var(--rule)] py-9 max-[860px]:grid-cols-1" aria-labelledby="lead-note-title">
+          <div className="grid items-start gap-3">
+            <p className="mb-0 font-mono text-[13px] font-[750] text-[var(--accent)]">当前重点</p>
+            <h2 className="m-0 text-[27px] leading-[1.24] max-[720px]:text-2xl" id="lead-note-title">
+              本期重点
+            </h2>
           </div>
-          <Link className="featured-article" href={`/articles/${leadArticle.slug}`}>
-            <span className="meta">
+          <Link
+            className="grid gap-3.5 rounded-lg border border-l-4 border-[var(--rule)] border-l-[var(--accent)] bg-[linear-gradient(90deg,var(--accent-soft),transparent_44%),var(--surface-raised)] py-[22px] pl-5 hover:border-[rgb(23_107_91_/_0.38)] max-[720px]:p-[18px]"
+            href={`/articles/${leadArticle.slug}`}
+          >
+            <span className="m-0 font-mono text-[13px] text-[var(--soft)]">
               {formatPublishedAt(leadArticle.publishedAt)} / {getArticleReadingText(leadArticle)}
             </span>
-            <h2>{leadArticle.title}</h2>
-            <p>{leadArticle.summary}</p>
-            <span className="text-link">阅读这篇手记</span>
+            <h2 className="m-0 text-[25px] leading-[1.24]">{leadArticle.title}</h2>
+            <p className="mb-0 leading-[1.72] text-[var(--muted)]">{leadArticle.summary}</p>
+            <span className="inline-flex max-w-full min-w-0 text-sm font-bold leading-[1.35] text-[var(--accent)] [overflow-wrap:anywhere]">阅读这篇手记</span>
           </Link>
         </section>
       ) : null}
 
-      <section className="section-block editorial-grid section-rule" aria-labelledby="latest-title">
-        <div className="section-heading">
+      <section className="grid max-w-[1000px] grid-cols-[210px_minmax(0,1fr)] items-start gap-[42px] border-t border-[var(--rule)] py-9 max-[860px]:grid-cols-1 max-[720px]:py-[30px]" aria-labelledby="latest-title">
+        <div className="sticky top-6 grid items-start gap-3 max-[860px]:static">
           <div>
-            <p className="eyebrow">阅读队列</p>
-            <h2 id="latest-title">最近手记</h2>
+            <p className="mb-2.5 font-mono text-[13px] font-[750] text-[var(--accent)]">阅读队列</p>
+            <h2 className="m-0 text-[27px] leading-[1.24] max-[720px]:text-2xl" id="latest-title">
+              最近手记
+            </h2>
           </div>
-          <p>列表保持单列密度，优先让标题、摘要、时间、主题和阅读量都能快速扫读。</p>
-          <Link className="text-link" href="/articles">
+          <p className="m-0 leading-[1.65] text-[var(--muted)]">列表保持单列密度，优先让标题、摘要、时间、主题和阅读量都能快速扫读。</p>
+          <Link className="inline-flex max-w-full min-w-0 text-sm font-bold leading-[1.35] text-[var(--accent)] [overflow-wrap:anywhere]" href="/articles">
             查看全部文章
           </Link>
         </div>
@@ -108,18 +131,24 @@ export default async function HomePage() {
         )}
       </section>
 
-      <section className="home-tags section-rule" aria-labelledby="tag-title">
-        <div className="section-heading">
+      <section className="grid max-w-[1000px] grid-cols-[240px_minmax(0,1fr)] items-start gap-[42px] border-t border-[var(--rule)] py-9 max-[860px]:grid-cols-1" aria-labelledby="tag-title">
+        <div className="grid items-start gap-3">
           <div>
-            <p className="eyebrow">技术索引</p>
-            <h2 id="tag-title">技术索引</h2>
+            <p className="mb-2.5 font-mono text-[13px] font-[750] text-[var(--accent)]">技术索引</p>
+            <h2 className="m-0 text-[27px] leading-[1.24] max-[720px]:text-2xl" id="tag-title">
+              技术索引
+            </h2>
           </div>
-          <p>标签只做横向索引，用来串起框架、工具、方法和重复出现的工程问题。</p>
+          <p className="m-0 leading-[1.65] text-[var(--muted)]">标签只做横向索引，用来串起框架、工具、方法和重复出现的工程问题。</p>
         </div>
         {tags.length > 0 ? (
-          <div className="tag-list" aria-label="标签链接">
+          <div className="mt-0.5 flex min-w-0 flex-wrap gap-2" aria-label="标签链接">
             {tags.map((tag) => (
-              <Link className="tag" href={`/tags/${tag.slug}`} key={tag.slug}>
+              <Link
+                className="inline-flex min-h-[30px] max-w-full items-center rounded-full border border-[var(--tag-border)] bg-[var(--tag-bg)] px-2.5 py-1 text-[13px] leading-[1.35] text-[var(--tag-ink)] break-words"
+                href={`/tags/${tag.slug}`}
+                key={tag.slug}
+              >
                 {tag.name}
               </Link>
             ))}
@@ -137,13 +166,18 @@ export default async function HomePage() {
         )}
       </section>
 
-      <section className="photo-entry section-rule" aria-labelledby="photo-entry-title">
+      <section
+        className="grid max-w-[1000px] grid-cols-[minmax(0,1fr)_auto] items-start gap-[42px] border-t border-[var(--rule)] py-9 max-[860px]:grid-cols-1"
+        aria-labelledby="photo-entry-title"
+      >
         <div>
-          <p className="eyebrow">现场记录</p>
-          <h2 id="photo-entry-title">轻量现场档案</h2>
-          <p>照片墙保持次级入口，只在图像能补充项目现场、工作台细节或社区记录时出现。</p>
+          <p className="mb-2.5 font-mono text-[13px] font-[750] text-[var(--accent)]">现场记录</p>
+          <h2 className="m-0 text-[27px] leading-[1.24] max-[720px]:text-2xl" id="photo-entry-title">
+            轻量现场档案
+          </h2>
+          <p className="mb-0 max-w-[680px] leading-[1.72] text-[var(--muted)]">照片墙保持次级入口，只在图像能补充项目现场、工作台细节或社区记录时出现。</p>
         </div>
-        <Link className="text-link" href="/photos">
+        <Link className="inline-flex max-w-full min-w-0 text-sm font-bold leading-[1.35] text-[var(--accent)] [overflow-wrap:anywhere]" href="/photos">
           打开现场档案
         </Link>
       </section>

@@ -1,0 +1,394 @@
+{
+  "runId": "2026-05-27-015-现在需要迭代一个技术需求-要帮我把-web-和-admin-两个前端项目里已经做",
+  "generatedAt": "2026-05-27T10:31:12.947Z",
+  "mode": "codex_spawn_agent",
+  "max_parallel_subagents": 4,
+  "retention_capacity": {
+    "max_retained_subagents": 4,
+    "max_retained_implementation_agents": 2,
+    "max_retained_non_implementation_agents": 2,
+    "close_recommendation_priority": [
+      "release",
+      "reviewer",
+      "pm",
+      "requirements-plan",
+      "requirements",
+      "architect",
+      "tester",
+      "devops",
+      "database",
+      "backend",
+      "frontend"
+    ]
+  },
+  "lifecycle": {
+    "before_spawn": [
+      "Generate or refresh context with `npm run harness:context-pack -- <run-id> --agents=<agents>`.",
+      "Generate the native plan with `npm run harness:native-plan -- <run-id> --agents=<agents>`.",
+      "Check `npm run harness:native-state -- <run-id> status` and close `ready_to_close` agents before spawning more agents.",
+      "If retained agents exceed the retention capacity, run `npm run harness:native-state -- <run-id> recommend-close` and release low-value retained agents first.",
+      "Spawn only tasks that are independent enough to run without blocking the main agent's immediate next step.",
+      "Use disjoint write scopes for parallel worker agents."
+    ],
+    "during_run": [
+      "Do meaningful non-overlapping local work while subagents run.",
+      "Wait only when the next critical step needs the result.",
+      "Do not duplicate subagent work in the main window."
+    ],
+    "after_result": [
+      "Collect the final result.",
+      "Write or summarize the result under `.harness/runs/<run>/logs/native-subagents/<agent>.result.md`.",
+      "Review changed files before integration.",
+      "Do not close a subagent only because it returned a result.",
+      "Keep completed subagents in `waiting_review` for follow-up until user acceptance, explicit release by the main agent, or run done/archive cleanup.",
+      "Close subagents only after marking them `ready_to_close` and recording the close audit."
+    ]
+  },
+  "fallback_order": [
+    "desktop-prompts",
+    "api-orchestrate",
+    "blocked-waiting-for-subagents"
+  ],
+  "groups": [
+    {
+      "id": "intake",
+      "parallel": false,
+      "agents": [
+        "pm",
+        "requirements-plan",
+        "requirements",
+        "architect"
+      ]
+    },
+    {
+      "id": "implementation",
+      "parallel": true,
+      "agents": [
+        "frontend",
+        "database"
+      ]
+    },
+    {
+      "id": "verification_tester",
+      "parallel": false,
+      "agents": [
+        "tester"
+      ]
+    },
+    {
+      "id": "verification_reviewer",
+      "parallel": false,
+      "agents": [
+        "reviewer"
+      ]
+    },
+    {
+      "id": "verification_release",
+      "parallel": false,
+      "agents": [
+        "release"
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "agent": "pm",
+      "spawn_name": "2026-05-27-015-现在需要迭代一个技术需求-要帮我把-web-和-admin-两个前端项目里已经做:pm",
+      "agent_type": "explorer",
+      "prompt_path": ".harness/runs/2026-05-27-015-现在需要迭代一个技术需求-要帮我把-web-和-admin-两个前端项目里已经做/logs/native-subagents/pm.spawn.md",
+      "result_path": ".harness/runs/2026-05-27-015-现在需要迭代一个技术需求-要帮我把-web-和-admin-两个前端项目里已经做/logs/native-subagents/pm.result.md",
+      "state": "planned",
+      "wait_group": "intake",
+      "close_required": true,
+      "retention": {
+        "retain_after_result": true,
+        "prefer_resume_before_respawn": true,
+        "retained_status_after_completed_result": "waiting_review",
+        "close_status_before_close_agent": "ready_to_close",
+        "max_idle_minutes": null,
+        "keep_until": [
+          "user_acceptance",
+          "run_done_or_archive",
+          "explicit_release_by_main_agent"
+        ]
+      },
+      "context_mode": "full",
+      "context_reasons": [
+        "task mentions high-risk keyword: 迁移"
+      ],
+      "model_hint": "gpt-5.4-mini",
+      "reasoning_effort": "low",
+      "allowed_patterns": [
+        ".harness/runs/2026-05-27-015-现在需要迭代一个技术需求-要帮我把-web-和-admin-两个前端项目里已经做/artifacts/requirement.md",
+        ".harness/runs/2026-05-27-015-现在需要迭代一个技术需求-要帮我把-web-和-admin-两个前端项目里已经做/state.json"
+      ],
+      "write_owner": false
+    },
+    {
+      "agent": "requirements-plan",
+      "spawn_name": "2026-05-27-015-现在需要迭代一个技术需求-要帮我把-web-和-admin-两个前端项目里已经做:requirements-plan",
+      "agent_type": "explorer",
+      "prompt_path": ".harness/runs/2026-05-27-015-现在需要迭代一个技术需求-要帮我把-web-和-admin-两个前端项目里已经做/logs/native-subagents/requirements-plan.spawn.md",
+      "result_path": ".harness/runs/2026-05-27-015-现在需要迭代一个技术需求-要帮我把-web-和-admin-两个前端项目里已经做/logs/native-subagents/requirements-plan.result.md",
+      "state": "planned",
+      "wait_group": "intake",
+      "close_required": true,
+      "retention": {
+        "retain_after_result": true,
+        "prefer_resume_before_respawn": true,
+        "retained_status_after_completed_result": "waiting_review",
+        "close_status_before_close_agent": "ready_to_close",
+        "max_idle_minutes": null,
+        "keep_until": [
+          "user_acceptance",
+          "run_done_or_archive",
+          "explicit_release_by_main_agent"
+        ]
+      },
+      "context_mode": "full",
+      "context_reasons": [
+        "task mentions high-risk keyword: 迁移"
+      ],
+      "model_hint": "gpt-5.4",
+      "reasoning_effort": "medium",
+      "allowed_patterns": [
+        ".harness/runs/2026-05-27-015-现在需要迭代一个技术需求-要帮我把-web-和-admin-两个前端项目里已经做/artifacts/requirement-plan.md"
+      ],
+      "write_owner": false
+    },
+    {
+      "agent": "requirements",
+      "spawn_name": "2026-05-27-015-现在需要迭代一个技术需求-要帮我把-web-和-admin-两个前端项目里已经做:requirements",
+      "agent_type": "explorer",
+      "prompt_path": ".harness/runs/2026-05-27-015-现在需要迭代一个技术需求-要帮我把-web-和-admin-两个前端项目里已经做/logs/native-subagents/requirements.spawn.md",
+      "result_path": ".harness/runs/2026-05-27-015-现在需要迭代一个技术需求-要帮我把-web-和-admin-两个前端项目里已经做/logs/native-subagents/requirements.result.md",
+      "state": "planned",
+      "wait_group": "intake",
+      "close_required": true,
+      "retention": {
+        "retain_after_result": true,
+        "prefer_resume_before_respawn": true,
+        "retained_status_after_completed_result": "waiting_review",
+        "close_status_before_close_agent": "ready_to_close",
+        "max_idle_minutes": null,
+        "keep_until": [
+          "user_acceptance",
+          "run_done_or_archive",
+          "explicit_release_by_main_agent"
+        ]
+      },
+      "context_mode": "full",
+      "context_reasons": [
+        "task mentions high-risk keyword: 迁移"
+      ],
+      "model_hint": "gpt-5.4",
+      "reasoning_effort": "medium",
+      "allowed_patterns": [
+        ".harness/runs/2026-05-27-015-现在需要迭代一个技术需求-要帮我把-web-和-admin-两个前端项目里已经做/artifacts/requirement.md"
+      ],
+      "write_owner": false
+    },
+    {
+      "agent": "architect",
+      "spawn_name": "2026-05-27-015-现在需要迭代一个技术需求-要帮我把-web-和-admin-两个前端项目里已经做:architect",
+      "agent_type": "explorer",
+      "prompt_path": ".harness/runs/2026-05-27-015-现在需要迭代一个技术需求-要帮我把-web-和-admin-两个前端项目里已经做/logs/native-subagents/architect.spawn.md",
+      "result_path": ".harness/runs/2026-05-27-015-现在需要迭代一个技术需求-要帮我把-web-和-admin-两个前端项目里已经做/logs/native-subagents/architect.result.md",
+      "state": "planned",
+      "wait_group": "intake",
+      "close_required": true,
+      "retention": {
+        "retain_after_result": true,
+        "prefer_resume_before_respawn": true,
+        "retained_status_after_completed_result": "waiting_review",
+        "close_status_before_close_agent": "ready_to_close",
+        "max_idle_minutes": null,
+        "keep_until": [
+          "user_acceptance",
+          "run_done_or_archive",
+          "explicit_release_by_main_agent"
+        ]
+      },
+      "context_mode": "full",
+      "context_reasons": [
+        "task mentions high-risk keyword: 迁移"
+      ],
+      "model_hint": "gpt-5.5",
+      "reasoning_effort": "high",
+      "allowed_patterns": [
+        ".harness/runs/2026-05-27-015-现在需要迭代一个技术需求-要帮我把-web-和-admin-两个前端项目里已经做/artifacts/architecture.md",
+        ".harness/runs/2026-05-27-015-现在需要迭代一个技术需求-要帮我把-web-和-admin-两个前端项目里已经做/artifacts/implementation-plan.md"
+      ],
+      "write_owner": false
+    },
+    {
+      "agent": "frontend",
+      "spawn_name": "2026-05-27-015-现在需要迭代一个技术需求-要帮我把-web-和-admin-两个前端项目里已经做:frontend",
+      "agent_type": "worker",
+      "prompt_path": ".harness/runs/2026-05-27-015-现在需要迭代一个技术需求-要帮我把-web-和-admin-两个前端项目里已经做/logs/native-subagents/frontend.spawn.md",
+      "result_path": ".harness/runs/2026-05-27-015-现在需要迭代一个技术需求-要帮我把-web-和-admin-两个前端项目里已经做/logs/native-subagents/frontend.result.md",
+      "state": "planned",
+      "wait_group": "implementation",
+      "close_required": true,
+      "retention": {
+        "retain_after_result": true,
+        "prefer_resume_before_respawn": true,
+        "retained_status_after_completed_result": "waiting_review",
+        "close_status_before_close_agent": "ready_to_close",
+        "max_idle_minutes": null,
+        "keep_until": [
+          "user_acceptance",
+          "run_done_or_archive",
+          "explicit_release_by_main_agent"
+        ]
+      },
+      "context_mode": "full",
+      "context_reasons": [
+        "task mentions high-risk keyword: 迁移"
+      ],
+      "model_hint": "gpt-5.3-codex",
+      "reasoning_effort": "high",
+      "allowed_patterns": [
+        "apps/admin/**",
+        ".harness/runs/2026-05-27-015-现在需要迭代一个技术需求-要帮我把-web-和-admin-两个前端项目里已经做/artifacts/test-report.md",
+        "apps/web/**"
+      ],
+      "write_owner": true
+    },
+    {
+      "agent": "database",
+      "spawn_name": "2026-05-27-015-现在需要迭代一个技术需求-要帮我把-web-和-admin-两个前端项目里已经做:database",
+      "agent_type": "worker",
+      "prompt_path": ".harness/runs/2026-05-27-015-现在需要迭代一个技术需求-要帮我把-web-和-admin-两个前端项目里已经做/logs/native-subagents/database.spawn.md",
+      "result_path": ".harness/runs/2026-05-27-015-现在需要迭代一个技术需求-要帮我把-web-和-admin-两个前端项目里已经做/logs/native-subagents/database.result.md",
+      "state": "planned",
+      "wait_group": "implementation",
+      "close_required": true,
+      "retention": {
+        "retain_after_result": true,
+        "prefer_resume_before_respawn": true,
+        "retained_status_after_completed_result": "waiting_review",
+        "close_status_before_close_agent": "ready_to_close",
+        "max_idle_minutes": null,
+        "keep_until": [
+          "user_acceptance",
+          "run_done_or_archive",
+          "explicit_release_by_main_agent"
+        ]
+      },
+      "context_mode": "full",
+      "context_reasons": [
+        "role database requires full context",
+        "task mentions high-risk keyword: 迁移"
+      ],
+      "model_hint": "gpt-5.5",
+      "reasoning_effort": "high",
+      "allowed_patterns": [
+        "无"
+      ],
+      "write_owner": true
+    },
+    {
+      "agent": "tester",
+      "spawn_name": "2026-05-27-015-现在需要迭代一个技术需求-要帮我把-web-和-admin-两个前端项目里已经做:tester",
+      "agent_type": "worker",
+      "prompt_path": ".harness/runs/2026-05-27-015-现在需要迭代一个技术需求-要帮我把-web-和-admin-两个前端项目里已经做/logs/native-subagents/tester.spawn.md",
+      "result_path": ".harness/runs/2026-05-27-015-现在需要迭代一个技术需求-要帮我把-web-和-admin-两个前端项目里已经做/logs/native-subagents/tester.result.md",
+      "state": "planned",
+      "wait_group": "verification_tester",
+      "close_required": true,
+      "retention": {
+        "retain_after_result": true,
+        "prefer_resume_before_respawn": true,
+        "retained_status_after_completed_result": "waiting_review",
+        "close_status_before_close_agent": "ready_to_close",
+        "max_idle_minutes": null,
+        "keep_until": [
+          "user_acceptance",
+          "run_done_or_archive",
+          "explicit_release_by_main_agent"
+        ]
+      },
+      "context_mode": "full",
+      "context_reasons": [
+        "task mentions high-risk keyword: 迁移"
+      ],
+      "model_hint": "gpt-5.3-codex",
+      "reasoning_effort": "high",
+      "allowed_patterns": [
+        ".harness/runs/2026-05-27-015-现在需要迭代一个技术需求-要帮我把-web-和-admin-两个前端项目里已经做/artifacts/test-report.md"
+      ],
+      "write_owner": true
+    },
+    {
+      "agent": "reviewer",
+      "spawn_name": "2026-05-27-015-现在需要迭代一个技术需求-要帮我把-web-和-admin-两个前端项目里已经做:reviewer",
+      "agent_type": "explorer",
+      "prompt_path": ".harness/runs/2026-05-27-015-现在需要迭代一个技术需求-要帮我把-web-和-admin-两个前端项目里已经做/logs/native-subagents/reviewer.spawn.md",
+      "result_path": ".harness/runs/2026-05-27-015-现在需要迭代一个技术需求-要帮我把-web-和-admin-两个前端项目里已经做/logs/native-subagents/reviewer.result.md",
+      "state": "planned",
+      "wait_group": "verification_reviewer",
+      "close_required": true,
+      "retention": {
+        "retain_after_result": true,
+        "prefer_resume_before_respawn": true,
+        "retained_status_after_completed_result": "waiting_review",
+        "close_status_before_close_agent": "ready_to_close",
+        "max_idle_minutes": null,
+        "keep_until": [
+          "user_acceptance",
+          "run_done_or_archive",
+          "explicit_release_by_main_agent"
+        ]
+      },
+      "context_mode": "full",
+      "context_reasons": [
+        "task mentions high-risk keyword: 迁移"
+      ],
+      "model_hint": "gpt-5.5",
+      "reasoning_effort": "high",
+      "allowed_patterns": [
+        ".harness/runs/2026-05-27-015-现在需要迭代一个技术需求-要帮我把-web-和-admin-两个前端项目里已经做/artifacts/review-report.md"
+      ],
+      "write_owner": false
+    },
+    {
+      "agent": "release",
+      "spawn_name": "2026-05-27-015-现在需要迭代一个技术需求-要帮我把-web-和-admin-两个前端项目里已经做:release",
+      "agent_type": "explorer",
+      "prompt_path": ".harness/runs/2026-05-27-015-现在需要迭代一个技术需求-要帮我把-web-和-admin-两个前端项目里已经做/logs/native-subagents/release.spawn.md",
+      "result_path": ".harness/runs/2026-05-27-015-现在需要迭代一个技术需求-要帮我把-web-和-admin-两个前端项目里已经做/logs/native-subagents/release.result.md",
+      "state": "planned",
+      "wait_group": "verification_release",
+      "close_required": true,
+      "retention": {
+        "retain_after_result": true,
+        "prefer_resume_before_respawn": true,
+        "retained_status_after_completed_result": "waiting_review",
+        "close_status_before_close_agent": "ready_to_close",
+        "max_idle_minutes": null,
+        "keep_until": [
+          "user_acceptance",
+          "run_done_or_archive",
+          "explicit_release_by_main_agent"
+        ]
+      },
+      "context_mode": "full",
+      "context_reasons": [
+        "task mentions high-risk keyword: 迁移"
+      ],
+      "model_hint": "gpt-5.4-mini",
+      "reasoning_effort": "low",
+      "allowed_patterns": [
+        ".harness/runs/2026-05-27-015-现在需要迭代一个技术需求-要帮我把-web-和-admin-两个前端项目里已经做/artifacts/release-summary.md"
+      ],
+      "write_owner": false
+    }
+  ],
+  "tool_protocol": {
+    "spawn": "spawn_agent(agent_type, message)",
+    "wait": "wait_agent(targets)",
+    "close": "close_agent(target)",
+    "result_path": ".harness/runs/2026-05-27-015-现在需要迭代一个技术需求-要帮我把-web-和-admin-两个前端项目里已经做/logs/native-subagents/<agent>.result.md"
+  }
+}

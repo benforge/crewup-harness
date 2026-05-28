@@ -22,3 +22,31 @@
 #### 阻塞和下一步
 - 暂无明确阻塞项或下一步。
 <!-- harness:run-sync:end 2026-05-26-012-迭代一个需求-相册这个照片瀑布流希望是沾满屏幕的-宽度这块-把网站这块英文都修改 -->
+
+<!-- harness:run-sync:start 2026-05-27-015-现在需要迭代一个技术需求-要帮我把-web-和-admin-两个前端项目里已经做 -->
+### 2026-05-27 现在需要迭代一个技术需求，要帮我把 web 和 admin 两个前端项目里已经做
+
+- run: `2026-05-27-015-现在需要迭代一个技术需求-要帮我把-web-和-admin-两个前端项目里已经做`
+- 详情: [2026-05-27-015-现在需要迭代一个技术需求-要帮我把-web-和-admin-两个前端项目里已经做](runs/2026-05-27-015-现在需要迭代一个技术需求-要帮我把-web-和-admin-两个前端项目里已经做.md)
+
+#### 已完成
+- 本次发布范围已从原始 `web + admin` 需求收敛为仅处理 `apps/web` Tailwind-first 样式迁移。
+- `apps/admin`、API、数据库、infra、权限、路由语义、数据获取方式、SEO 元信息逻辑和生产配置均无变更。
+- 关键变更为 `apps/web` 已有公开页面和相关展示组件的页面/组件 class 迁移：布局、间距、宽度、对齐、响应式、交互状态、加载态、错误态和空态尽量改为 Tailwind utility class 表达。
+- `apps/web/app/globals.css` 已收敛为 Tailwind 入口、theme token、base、暗色主题变量、Markdown/第三方渲染覆盖、必要动画和少量跨页规则，不再继续沉淀单页面布局、卡片、列表、按钮等页级样式。
+- 本次变更文件集中在 `apps/web`，当前可见业务 diff 包括：
+- `apps/web/app/globals.css`
+
+#### 用户影响
+- 暂无明确用户影响。
+
+#### 验证
+- `npm --workspace apps/web run typecheck` 通过，退出码 0。
+- `npm --workspace apps/web run build` 通过，退出码 0。
+- 首页 `/` 返回 200。
+- 文章列表 `/articles` 返回 200。
+- 文章详情 `/articles/hello-world` 返回 200，并包含主内容结构。
+
+#### 阻塞和下一步
+- 暂无明确阻塞项或下一步。
+<!-- harness:run-sync:end 2026-05-27-015-现在需要迭代一个技术需求-要帮我把-web-和-admin-两个前端项目里已经做 -->

@@ -9,10 +9,17 @@ type PhotoMasonryGridProps = {
 
 export function PhotoMasonryGrid({ photos }: PhotoMasonryGridProps) {
   return (
-    <div className="photo-masonry" id="photo-wall-grid" aria-label="照片墙">
+    <div className="w-full max-w-full columns-[300px] gap-[18px] max-[860px]:columns-[260px] max-[720px]:columns-1" id="photo-wall-grid" aria-label="照片墙">
       {photos.map((photo, index) => (
-        <Link className="photo-card" href={`/photos/${photo.id}`} key={photo.id}>
-          <span className="photo-image-frame" style={{ aspectRatio: `${photo.width} / ${photo.height}` }}>
+        <Link
+          className="mb-[18px] grid w-full min-w-0 max-w-full break-inside-avoid gap-2.5 text-[var(--ink)] [&:hover_img]:scale-[1.025]"
+          href={`/photos/${photo.id}`}
+          key={photo.id}
+        >
+          <span
+            className="block w-full min-w-0 overflow-hidden rounded-lg border border-[var(--rule)] bg-[var(--surface-alt)] [&_img]:h-full [&_img]:w-full [&_img]:object-cover [&_img]:transition-transform [&_img]:duration-200 [&_img]:ease-[var(--ease-quiet)]"
+            style={{ aspectRatio: `${photo.width} / ${photo.height}` }}
+          >
             <PhotoImage
               alt={photo.alt}
               height={photo.height}
@@ -21,9 +28,9 @@ export function PhotoMasonryGrid({ photos }: PhotoMasonryGridProps) {
               width={photo.width}
             />
           </span>
-          <span className="photo-card-copy">
-            <strong>{photo.title}</strong>
-            <span>
+          <span className="grid gap-[3px] pb-1.5">
+            <strong className="break-words">{photo.title}</strong>
+            <span className="break-words text-[13px] text-[var(--muted)]">
               {photo.category ?? "照片"} / {formatPublishedAt(photo.takenAt)}
             </span>
           </span>
