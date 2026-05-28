@@ -53,6 +53,26 @@ npx eh finalize <run-id>
 
 `run` creates or prepares a run based on task complexity and generates a sub-agent plan. `finalize` attempts to move the run to `done` and triggers a git commit according to the archive policy after passing the gate.
 
+## Skill Layers
+
+Harness declares and routes skills, but it does not force every skill implementation into one directory. The recommended layout is:
+
+| Location | Purpose | Best for |
+| --- | --- | --- |
+| `.harness/config/skills.yaml` | Skill catalog and routing rules | Role-to-skill mapping, external candidates, install commands, activation notes |
+| `.harness/skills/*.md` | Internal Harness SOPs | Built-in workflow guidance such as build, test, ui-verify, and release-check |
+| `.agents/skills/<name>/SKILL.md` | Project-level skills | Skills that must be shared and reproduced with the repository |
+| `%USERPROFILE%/.codex/skills/<name>/SKILL.md` | User-global skills | Personal skills reused across projects |
+
+Use this rule of thumb:
+
+- Project-specific capabilities belong in `.agents/skills/`.
+- Personal cross-project capabilities belong in user-global `.codex/skills/`.
+- References and routing policy belong in `.harness/config/skills.yaml`.
+- `.cursor`, Claude, and similar directories are optional tool adapters, not the Harness source of truth.
+
+If a skill is installed and verified, Harness may reference its installed path. If it is only listed as a candidate, agents should treat it as guidance, not as an active tool.
+
 ## Runtime Modes and Authentication
 
 | Mode | Entry | Requires `OPENAI_API_KEY` | Notes |

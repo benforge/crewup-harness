@@ -78,6 +78,26 @@ npx eh finalize <run-id>
 
 `run` 会根据需求复杂度创建或准备 run，并生成子 agent 计划。`finalize` 会尝试推进到 `done`，通过门禁后按归档策略触发 git 提交。
 
+## Skills 分层
+
+Harness 只负责声明和调度 skills，不把所有 skill 本体绑死在一个目录里。推荐分层如下：
+
+| 位置 | 作用 | 适合放什么 |
+| --- | --- | --- |
+| `.harness/config/skills.yaml` | 技能目录和调度规则 | 角色对应哪些 skill、外部候选 skill、安装方式、是否启用 |
+| `.harness/skills/*.md` | Harness 内部 SOP | build / test / ui-verify / release-check 这类内置流程说明 |
+| `.agents/skills/<name>/SKILL.md` | 项目级 skill | 这个项目必须共享、需要跟仓库一起复现的 skill |
+| `%USERPROFILE%/.codex/skills/<name>/SKILL.md` | 用户全局 skill | 你个人长期复用、跨项目都要用的 skill |
+
+推荐原则很简单：
+
+- 项目专属能力放项目里
+- 个人通用能力放用户全局
+- 只做参考和编排的放 `.harness/config/skills.yaml`
+- 不要把 `.cursor`、Claude、Codex 的目录当成唯一真源，Harness 只把它们看作可选执行环境
+
+如果某个 skill 已经安装，Harness 会优先读取已安装路径；如果只是候选项，就只按配置和文档引导，不假设它已经可用。
+
 ## 角色协作模型
 
 ```mermaid

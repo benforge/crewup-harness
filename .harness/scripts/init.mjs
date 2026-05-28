@@ -438,7 +438,7 @@ function yaml(value, indent = 0) {
     const entries = Object.entries(value);
     if (entries.length === 0) return "{}";
     return entries.map(([key, child]) => {
-      if (isScalar(child) || (Array.isArray(child) && child.length === 0)) return `${space(indent)}${key}: ${yaml(child, 0)}`;
+      if (isScalar(child) || isEmptyCollection(child)) return `${space(indent)}${key}: ${yaml(child, 0)}`;
       return `${space(indent)}${key}:\n${yaml(child, indent + 2)}`;
     }).join("\n");
   }
@@ -449,11 +449,17 @@ function yaml(value, indent = 0) {
 
 function yamlInlineOrBlock(value, indent) {
   if (isScalar(value)) return yaml(value, 0);
+  if (isEmptyCollection(value)) return yaml(value, 0);
   return `\n${yaml(value, indent)}`;
 }
 
 function isScalar(value) {
   return value === null || value === undefined || ["string", "number", "boolean"].includes(typeof value);
+}
+
+function isEmptyCollection(value) {
+  if (Array.isArray(value)) return value.length === 0;
+  return Boolean(value && typeof value === "object" && Object.keys(value).length === 0);
 }
 
 function normalizeWorkspaces(workspaces) {

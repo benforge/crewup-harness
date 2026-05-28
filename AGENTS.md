@@ -18,6 +18,9 @@
 - `.harness/` 是可复用的工作流核心。
 - `.harness/project/` 是按目标项目生成的适配层，每个项目都可以重新生成。
 - `.harness/runs/`、`.harness/reports/`、`.harness/dashboard/`、`.harness/backlog/`、`.harness/knowledge/` 是运行态和状态目录。
+- `.harness/config/skills.yaml` 只声明 skill 映射、候选项和安装方式；不代表 skill 已安装。
+- 项目级 skill 放 `.agents/skills/<skill-name>/SKILL.md`；个人全局 skill 放 `%USERPROFILE%/.codex/skills/<skill-name>/SKILL.md`。
+- `.cursor`、Claude 等目录只作为工具适配层，不作为 Harness skill 的主真源。
 - 默认不假设当前存在任何产品源码、应用目录或业务领域。
 - 除非用户明确说“不要用 harness”，正式项目工作应进入 harness 工作流。
 - 主 agent 负责协调、委派、检查门禁和汇总；当实现类 agent 可用时，主 agent 不应直接完成正式业务代码实现。

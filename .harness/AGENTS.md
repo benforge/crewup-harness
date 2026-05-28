@@ -55,6 +55,16 @@ npm run harness:init
 
 可复用 harness 不应硬编码特定项目结构。无论目标项目是 web/admin/backend、Unity、Python、C++、services、libraries，还是单根应用，都应由适配层在检查后描述真实结构。
 
+## Skills 分层
+
+- `.harness/config/skills.yaml` 是 skill 目录和调度规则，只记录角色映射、候选 skill、安装命令和使用条件。
+- `.harness/skills/*.md` 是 Harness 内部 SOP，只用于 build、test、ui-verify、release-check 等工作流步骤。
+- `.agents/skills/<skill-name>/SKILL.md` 是项目级 skill，适合这个项目必须共享、必须随仓库迁移的能力。
+- `%USERPROFILE%/.codex/skills/<skill-name>/SKILL.md` 是用户全局 skill，适合个人跨项目复用能力。
+- `.cursor`、Claude 等目录可以作为各工具自己的适配层，但不作为 Harness 的主真源。
+
+agent 使用 skill 前必须区分“已安装能力”和“候选引用”。只有已验证 active 的 skill 才能按工具能力调用；未验证的 skill 只能作为普通文档上下文参考。
+
 ## 产物
 
 - 需求草稿、架构方案、实施计划、测试报告、评审报告、发布摘要、阻塞记录和子 agent 日志，写入 `.harness/runs/<run-id>/`。

@@ -9,6 +9,12 @@ skill_policy:
   install_locations:
     project: ".agents/skills/<skill-name>/SKILL.md"
     codex_user: "%USERPROFILE%/.codex/skills/<skill-name>/SKILL.md"
+  placement:
+    harness_config: ".harness/config/skills.yaml declares skill routing and candidates; it is not an installation directory."
+    harness_sop: ".harness/skills/*.md stores internal Harness SOPs only."
+    project_skill: ".agents/skills/<skill-name>/SKILL.md stores project-level reproducible skills."
+    user_global_skill: "%USERPROFILE%/.codex/skills/<skill-name>/SKILL.md stores personal cross-project skills."
+    adapter_dirs: ".cursor, Claude, and similar tool directories are optional adapters, not the Harness source of truth."
   prompt_hygiene:
     - "Generated prompts should include only the skills relevant to the target agent role."
     - "Run artifacts should record decisions and acceptance criteria, not repeat skill marketplace search results."
