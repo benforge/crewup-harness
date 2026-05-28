@@ -65,6 +65,8 @@ npm run harness:init
 
 agent 使用 skill 前必须区分“已安装能力”和“候选引用”。只有已验证 active 的 skill 才能按工具能力调用；未验证的 skill 只能作为普通文档上下文参考。
 
+Context7、Playwright、Figma、Browser、MCP 和其他插件都是可选增强，不是 Harness 的硬依赖。目标用户没有安装这些插件时，agent 不应报错中断；应降级使用项目内文件、README、锁文件、官方文档链接或普通上下文分析，并在产物中说明降级原因。
+
 ## 产物
 
 - 需求草稿、架构方案、实施计划、测试报告、评审报告、发布摘要、阻塞记录和子 agent 日志，写入 `.harness/runs/<run-id>/`。

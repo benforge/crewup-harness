@@ -145,6 +145,10 @@ node_modules/
 !.harness/reports/.gitkeep
 .harness/dashboard/*
 !.harness/dashboard/.gitkeep
+.harness/knowledge/*
+!.harness/knowledge/.gitkeep
+!.harness/knowledge/README.md
+!.harness/knowledge/lessons-learned.md
 .harness/project/inspect.json
 .harness/project/adapter-plan.json
 .harness/reports/skills*.md

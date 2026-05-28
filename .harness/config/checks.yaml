@@ -1,7 +1,7 @@
 checks:
   - id: "harness-check"
     name: "Harness structure and config check"
-    command: "npm run harness:check"
+    command: "npx eh check"
     required: true
     when_script_exists: null
 

@@ -308,6 +308,8 @@ function renderSkillContext(config, agentId, contextPolicy) {
   const lines = [
     "以下引用只是能力提示，不代表技能已经启用。",
     "请用 `npx skills list --json` 确认可用项目技能；只有相关时才读取 SKILL.md。",
+    "Context7、Playwright、Figma、Browser、MCP 和外部插件都是可选增强；未在当前会话工具列表或已安装 skill 中验证可用时，不要调用。",
+    "可选能力不可用时，请改用项目内文件、README、锁文件、官方文档链接或普通上下文分析，并在结果中说明降级原因。",
     "",
     "角色标签：",
     ...labels.map((item) => `- ${item}`)

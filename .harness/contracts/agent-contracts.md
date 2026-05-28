@@ -17,5 +17,6 @@
 
 - skill 是能力，不是权限。
 - agent 只能使用完成当前职责需要的 skill。
-- 涉及库、框架、SDK、CLI、云服务文档时，优先通过 Context7 获取当前文档。
-
+- Context7、Playwright、Figma、Browser、各类 MCP 和插件都是可选增强能力，不是 Harness 的硬依赖。
+- 只有当当前会话工具列表或已安装 skill 明确显示能力可用时，agent 才能调用对应工具。
+- 涉及库、框架、SDK、CLI、云服务文档时，若 Context7 可用则优先使用；若不可用，必须降级为项目内文档、README、锁文件、官方文档链接或普通上下文分析，并在产物中记录降级原因。

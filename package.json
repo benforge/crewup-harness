@@ -62,7 +62,7 @@
     "harness:orchestrate": "node .harness/scripts/orchestrate.mjs"
   },
   "dependencies": {
-    "@openai/agents": "latest",
+    "@openai/agents": "0.11.5",
     "yaml": "^2.6.1",
     "zod": "^4.0.0"
   }

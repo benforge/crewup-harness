@@ -20,9 +20,9 @@ npx eh install
 
 `eff-harness` is the npm package name and full CLI name; `eh` is the daily short command; `harness` remains as a compatibility alias for older scripts.
 
-## Quick Start
+## First Use
 
-Run this at the root of your target project:
+For a real project, start with this order:
 
 ```bash
 npx eh install
@@ -31,7 +31,30 @@ npx eh init --force
 npx eh check
 ```
 
-These commands install `.harness/` and `AGENTS.md`, inspect the real project tree, generate the `.harness/project/` adapter layer, and validate the core configuration.
+The flow is straightforward:
+
+1. `install` adds the shared workflow layer to the project
+2. `inspect` reads the real directory, language, and scripts
+3. `init` generates the project adapter layer
+4. `check` verifies the core files and configuration can close the loop
+
+Then use the normal iteration flow:
+
+```bash
+npx eh run "Implement now: ..."
+npx eh status
+npx eh report <run-id>
+npx eh finalize <run-id>
+```
+
+## Quick Start
+
+| Step | Command | Purpose |
+| --- | --- | --- |
+| Install workflow | `npx eh install` | Writes `.harness/` and repository-level `AGENTS.md` |
+| Inspect project | `npx eh inspect --no-ai` | Scans the real directory, language, package manager, and scripts |
+| Generate adapter | `npx eh init --force` | Creates the project profile and rule entry under `.harness/project/` |
+| Validate config | `npx eh check` | Verifies the core configuration, scripts, and templates |
 
 ## Workflow
 
@@ -72,6 +95,8 @@ Use this rule of thumb:
 - `.cursor`, Claude, and similar directories are optional tool adapters, not the Harness source of truth.
 
 If a skill is installed and verified, Harness may reference its installed path. If it is only listed as a candidate, agents should treat it as guidance, not as an active tool.
+
+Context7, Playwright, Figma, Browser, MCP tools, and similar integrations are optional enhancements. If they are not installed, Harness should continue with project files, README content, lockfiles, official documentation links, or ordinary context analysis.
 
 ## Runtime Modes and Authentication
 
@@ -146,22 +171,6 @@ AGENTS.md          # Repository-level agent entry
 In a target project, it is recommended to commit the workflow core under `.harness/`, plus `.harness/project/profile.yaml`, `.harness/project/overlay.yaml`, `AGENTS.md`, `README.md`, and `package.json`. The Eff Harness template package itself does not ship project-specific `.harness/project/*.yaml` files; they are generated inside the target project by `eh init`.
 
 It is usually not recommended to commit `.harness/runs/*`, `.harness/reports/*`, `.harness/dashboard/*`, `.harness/project/inspect.json`, `.harness/project/adapter-plan.json`, or temporary smoke-test backlog files.
-
-## Pre-release Checks
-
-```bash
-npm run harness:check
-node bin/harness.mjs --help
-npm pack --dry-run
-```
-
-Key checks:
-
-- `package.json` `name` is `eff-harness`
-- `author` is `Ben`
-- `version` matches the current release stage
-- `bin.eh`, `bin.eff-harness`, and `bin.harness` all point to `./bin/harness.mjs`
-- the npm tarball does not include old business projects, historical runs, or temporary test artifacts
 
 ## Scope
 

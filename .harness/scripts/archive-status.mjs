@@ -45,7 +45,6 @@ status.gateOk = await gateCheckLikelyPasses();
 
 if (!status.done) status.blockers.push(`run stage is ${status.stateStage}, not done`);
 if (!status.gateOk) status.blockers.push("quality gate has not been confirmed");
-if (status.changedFiles.length === 0) status.blockers.push("changed-files manifest is empty");
 if (!status.gitStatus.length) status.blockers.push("git worktree has no pending changes to archive");
 
 const policy = parseYaml(await readFile(archivePolicyPath, "utf8")).archive;

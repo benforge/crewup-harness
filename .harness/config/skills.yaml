@@ -5,6 +5,8 @@ skill_policy:
     - "A skill listed in this file is guidance for agents, not proof that the skill is installed or active."
     - "Before a run requires an external skill, verify it with `npx skills list --json` or the current Codex skill list."
     - "If a skill is not verified as active, agents may only use the written guidance in this file or the checked-in docs as normal context."
+    - "Optional plugins and MCP tools such as Context7, Playwright, Figma, Browser, or cloud CLIs must never be treated as required just because a role label mentions them."
+    - "When an optional plugin or MCP tool is unavailable, continue with local project evidence, checked-in documentation, official docs links, or a clearly documented fallback."
     - "Do not paste long 'Skill candidates' blocks into backlog items, run inputs, artifacts, or per-agent prompts. Reference this config instead."
   install_locations:
     project: ".agents/skills/<skill-name>/SKILL.md"

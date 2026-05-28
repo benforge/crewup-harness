@@ -5,6 +5,7 @@ import path from "node:path";
 import { parse as parseYaml } from "yaml";
 import { loadProjectProfile } from "./lib/project-profile.mjs";
 import { inferOverlayScopes, loadProjectOverlay, resolveImpactScopes } from "./lib/project-overlay.mjs";
+import { readJsonFile } from "./lib/json.mjs";
 
 const root = process.cwd();
 const args = process.argv.slice(2);
@@ -28,12 +29,15 @@ const checksConfig = parseYaml(await readFile(path.join(root, ".harness", "confi
 const { project_profile: projectProfile } = await loadProjectProfile(root);
 const projectOverlay = await loadProjectOverlay(root, projectProfile.ai_overlay?.profile, { projectProfile });
 const impactScopesConfig = resolveImpactScopes(projectProfile, projectOverlay.profile);
-const packageJson = JSON.parse(await readFile(path.join(root, "package.json"), "utf8"));
+const packageJson = await readJsonFile(path.join(root, "package.json"));
 const rootScripts = packageJson.scripts ?? {};
 const runInput = await readFile(path.join(runDir, "input.md"), "utf8").catch(() => "");
 const impactScopes = await resolveRunImpactScopes(runInput);
 const workspaceTargets = forceFull ? [] : await resolveWorkspaceTargets(impactScopes);
 const results = [];
+const hasEhInstall = existsSync(path.join(root, "node_modules", ".bin", process.platform === "win32" ? "eh.cmd" : "eh"))
+  || existsSync(path.join(root, "node_modules", ".bin", process.platform === "win32" ? "eff-harness.cmd" : "eff-harness"))
+  || existsSync(path.join(root, "node_modules", ".bin", process.platform === "win32" ? "harness.cmd" : "harness"));
 
 for (const check of checksConfig.checks ?? []) {
   const scriptName = scriptNameForCheck(check);
@@ -44,6 +48,19 @@ for (const check of checksConfig.checks ?? []) {
   }
 
   if (check.when_script_exists && !rootScripts[check.when_script_exists]) {
+    if (check.id === "harness-check" && hasEhInstall) {
+      const command = "npx eh check";
+      const result = await runCommand(command);
+      results.push({
+        ...check,
+        command,
+        status: result.exitCode === 0 ? "passed" : "failed",
+        exitCode: result.exitCode,
+        output: result.output,
+        scopeMode: forceFull ? "full" : "global"
+      });
+      continue;
+    }
     results.push({
       ...check,
       status: "skipped",

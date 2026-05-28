@@ -346,15 +346,35 @@ async function updateRunState({ workflowProfile, workloadAnalysis }) {
   const statePath = path.join(runDir, "state.json");
   if (!existsSync(statePath)) return;
   const state = JSON.parse(await readFile(statePath, "utf8"));
+  const now = new Date().toISOString();
   state.workflowProfile = workflowProfile;
   state.workloadAnalysis = {
     complexityScore: workloadAnalysis.complexityScore,
     complexityLevel: workloadAnalysis.complexityLevel,
     inferredProfile: workloadAnalysis.inferredProfile,
     needsRequirementsPlan: workloadAnalysis.needsRequirementsPlan,
-    updatedAt: new Date().toISOString()
+    updatedAt: now
   };
-  state.updatedAt = new Date().toISOString();
+
+  if (
+    state.stage === "requirements_plan"
+    && workloadAnalysis.needsRequirementsPlan === false
+    && workflowProfile === "lite"
+  ) {
+    state.stage = "implement";
+    state.owners = selectedAgents;
+    state.transitions = [
+      ...(state.transitions ?? []),
+      {
+        from: "requirements_plan",
+        to: "implement",
+        at: now,
+        reason: "lite_run_skips_requirements_plan"
+      }
+    ];
+  }
+
+  state.updatedAt = now;
   await writeFile(statePath, `${JSON.stringify(state, null, 2)}\n`, "utf8");
 }
 
