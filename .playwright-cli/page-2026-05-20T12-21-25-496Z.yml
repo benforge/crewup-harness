@@ -1,0 +1,88 @@
+- generic [active] [ref=e1]:
+  - link "跳到正文" [ref=e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - link "工程师手记 工程实践 / 架构取舍 / 项目复盘" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - text: 工程师手记
+        - generic [ref=e6]: 工程实践 / 架构取舍 / 项目复盘
+      - navigation "主导航" [ref=e7]:
+        - link "首页" [ref=e8] [cursor=pointer]:
+          - /url: /
+        - link "文章" [ref=e9] [cursor=pointer]:
+          - /url: /articles
+        - link "关于" [ref=e10] [cursor=pointer]:
+          - /url: /about
+    - main [ref=e11]:
+      - article [ref=e12]:
+        - generic [ref=e13]:
+          - paragraph [ref=e14]: 2026年5月18日 / 工程实践
+          - heading "搭建一个工程师技术站，需要先补齐什么" [level=1] [ref=e15]
+          - paragraph [ref=e16]: 从文章模型、分类标签、发布状态和可发现性出发，梳理技术博客 P0 阶段真正影响阅读体验的能力。
+          - generic "文章信息" [ref=e17]:
+            - generic [ref=e18]: 作者：Blog Admin
+            - generic [ref=e19]: 更新：2026年5月18日
+            - generic [ref=e20]: 1 分钟阅读
+            - link "分类：工程实践" [ref=e21] [cursor=pointer]:
+              - /url: /categories/engineering
+          - generic "标签" [ref=e22]:
+            - link "MVP 验证" [ref=e23] [cursor=pointer]:
+              - /url: /tags/mvp
+            - link "工作流" [ref=e24] [cursor=pointer]:
+              - /url: /tags/workflow
+        - complementary "阅读线索" [ref=e25]:
+          - strong [ref=e26]: 阅读线索
+          - paragraph [ref=e27]: 文章总结工程师技术站 P0 阶段需要先补齐内容模型、发现路径和验证策略。
+        - generic [ref=e28]:
+          - paragraph [ref=e29]: 博客系统不只是文章列表。面向工程师读者的技术站，需要让内容可信、可扫描、可归档，并且在失败时仍然有明确去向。
+          - heading "内容模型" [level=2] [ref=e30]
+          - paragraph [ref=e31]: 文章至少需要标题、slug、摘要、正文、分类、标签、发布时间和更新时间。管理端可以继续迭代，但公开站必须只展示已发布内容。
+          - heading "发现路径" [level=2] [ref=e32]
+          - paragraph [ref=e33]: 分类负责长期主题，比如工程实践和架构思考。标签负责横向索引，比如 Next.js、TypeScript、CI/CD 和性能优化。
+          - heading "可验证性" [level=2] [ref=e34]
+          - paragraph [ref=e35]: 每次体验改造都应该跑类型检查和构建检查。视觉上也要检查移动端是否横向溢出，代码块是否撑破正文宽度。
+          - list [ref=e36]:
+            - listitem [ref=e37]: 首页回答作者和内容方向。
+            - listitem [ref=e38]: 列表回答有哪些内容以及如何判断是否打开。
+            - listitem [ref=e39]: 详情页回答如何专注读完并继续阅读相关内容。
+      - navigation "上一篇和下一篇" [ref=e40]:
+        - link "已经是最新 回到文章时间线" [ref=e41] [cursor=pointer]:
+          - /url: /articles
+          - generic [ref=e42]: 已经是最新
+          - strong [ref=e43]: 回到文章时间线
+        - link "下一篇 / 继续往前读 技术站第一轮体验改造记录" [ref=e44] [cursor=pointer]:
+          - /url: /articles/hello-world
+          - generic [ref=e45]: 下一篇 / 继续往前读
+          - strong [ref=e46]: 技术站第一轮体验改造记录
+      - region "相关内容" [ref=e47]:
+        - heading "相关内容" [level=2] [ref=e49]
+        - region "相关内容" [ref=e50]:
+          - article [ref=e51]:
+            - generic [ref=e52]:
+              - generic [ref=e53]: 2026年5月15日
+              - generic [ref=e54]: /
+              - link "内容系统" [ref=e55] [cursor=pointer]:
+                - /url: /categories/product-notes
+              - generic [ref=e56]: /
+              - generic [ref=e57]: 1 分钟阅读
+            - heading "技术站第一轮体验改造记录" [level=2] [ref=e58]:
+              - link "技术站第一轮体验改造记录" [ref=e59] [cursor=pointer]:
+                - /url: /articles/hello-world
+            - paragraph [ref=e60]: 用一篇最小示例复盘公开博客从通用模板走向工程师技术站时，最先要稳定的阅读路径。
+            - generic "标签" [ref=e61]:
+              - link "入门复盘" [ref=e62] [cursor=pointer]:
+                - /url: /tags/intro
+              - link "MVP 验证" [ref=e63] [cursor=pointer]:
+                - /url: /tags/mvp
+              - link "SEO/GEO" [ref=e64] [cursor=pointer]:
+                - /url: /tags/seo
+    - contentinfo [ref=e65]:
+      - paragraph [ref=e66]: 内容优先的 IT 工程师技术站
+      - navigation "页脚导航" [ref=e67]:
+        - link "全部文章" [ref=e68] [cursor=pointer]:
+          - /url: /articles
+        - link "关于本站" [ref=e69] [cursor=pointer]:
+          - /url: /about
+  - button "Open Next.js Dev Tools" [ref=e75] [cursor=pointer]:
+    - img [ref=e76]

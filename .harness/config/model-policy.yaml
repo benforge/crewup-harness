@@ -1,0 +1,122 @@
+model_profiles:
+  low_cost:
+    model: "gpt-5.4-mini"
+    reasoning_effort: "low"
+    codex_model_hint: "gpt-5.4-mini"
+    use_for:
+      - "任务路由"
+      - "状态整理"
+      - "简单文档归档"
+      - "发布摘要初稿"
+    notes: "适合低风险、低复杂度、可由规则判断的工作。"
+
+  requirements_planning:
+    model: "gpt-5.4-mini"
+    reasoning_effort: "medium"
+    codex_model_hint: "gpt-5.4-mini"
+    mode_hint: "plan_only"
+    use_for:
+      - "需求扩写"
+      - "目标与非目标澄清"
+      - "验收标准草拟"
+      - "待确认问题整理"
+    notes: "用于正式开发前的 plan-only 需求扩写阶段；低成本中等推理，靠模板和 gate 保持约束力。"
+
+  standard_analysis:
+    model: "gpt-5.4"
+    reasoning_effort: "low"
+    codex_model_hint: "gpt-5.4"
+    use_for:
+      - "需求分析"
+      - "方案拆解"
+      - "影响范围判断"
+      - "DevOps 常规方案"
+    notes: "适合需求确认、常规架构边界和非编码分析；遇到高风险由主 agent 提升到 review_strong。"
+
+  coding_strong:
+    model: "gpt-5.4"
+    reasoning_effort: "high"
+    codex_model_hint: "gpt-5.3-codex"
+    use_for:
+      - "代码实现"
+      - "跨文件修改"
+      - "测试修复"
+    notes: "API orchestrator 默认使用通用强模型；在 Codex 内部委派时可优先使用 codex_model_hint。"
+
+  tester_standard:
+    model: "gpt-5.4"
+    reasoning_effort: "medium"
+    codex_model_hint: "gpt-5.4"
+    use_for:
+      - "测试执行"
+      - "测试报告"
+      - "常规回归验证"
+    notes: "测试 agent 默认使用中等推理；只有需要修测试或复杂自动化时再提升到 coding_strong。"
+
+  review_strong:
+    model: "gpt-5.4"
+    reasoning_effort: "high"
+    codex_model_hint: "gpt-5.4"
+    use_for:
+      - "代码评审"
+      - "架构风险检查"
+      - "安全和回归风险判断"
+    notes: "适合代码评审、架构风险和回归风险判断；保持高推理但不默认使用 5.5。"
+
+  critical_review:
+    model: "gpt-5.5"
+    reasoning_effort: "high"
+    codex_model_hint: "gpt-5.5"
+    use_for:
+      - "数据库迁移"
+      - "安全"
+      - "生产部署"
+      - "权限模型"
+      - "高风险回滚"
+    notes: "仅在数据库、安全、生产或不可逆风险明确时使用。"
+
+agent_model_policy:
+  main:
+    profile: "low_cost"
+    fallback_profile: "standard_analysis"
+
+  pm:
+    profile: "low_cost"
+
+  requirements-plan:
+    profile: "requirements_planning"
+
+  requirements:
+    profile: "standard_analysis"
+
+  architect:
+    profile: "standard_analysis"
+
+  frontend:
+    profile: "coding_strong"
+
+  backend:
+    profile: "coding_strong"
+
+  database:
+    profile: "critical_review"
+
+  devops:
+    profile: "standard_analysis"
+
+  tester:
+    profile: "tester_standard"
+
+  reviewer:
+    profile: "review_strong"
+
+  release:
+    profile: "low_cost"
+
+rules:
+  - "main agent 默认使用 low_cost profile 做路由和状态整理。"
+  - "需求扩写先使用 requirements_planning profile，以 plan-only 模式产出 requirement-plan.md。"
+  - "一旦任务需要写代码、改测试或跨文件修改，切换到 coding_strong profile。"
+  - "涉及数据库迁移、安全、生产部署、权限模型时，必须使用 critical_review profile 或人工确认。"
+  - "模型不可用时，main agent 应说明降级，并记录到 run 日志或最终汇总。"
+  - "不要为了省成本跳过 tester 和 reviewer。"

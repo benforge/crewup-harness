@@ -1,0 +1,83 @@
+- generic [active] [ref=e1]:
+  - link "跳到正文" [ref=e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - link "工程师手记 工程实践 / 架构取舍 / 项目复盘" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - text: 工程师手记
+        - generic [ref=e6]: 工程实践 / 架构取舍 / 项目复盘
+      - navigation "主导航" [ref=e7]:
+        - link "首页" [ref=e8] [cursor=pointer]:
+          - /url: /
+        - link "文章" [ref=e9] [cursor=pointer]:
+          - /url: /articles
+        - link "关于" [ref=e10] [cursor=pointer]:
+          - /url: /about
+    - main [ref=e11]:
+      - article [ref=e12]:
+        - generic [ref=e13]:
+          - paragraph [ref=e14]: 2026年5月15日 / 内容系统
+          - heading "技术站第一轮体验改造记录" [level=1] [ref=e15]
+          - paragraph [ref=e16]: 用一篇最小示例复盘公开博客从通用模板走向工程师技术站时，最先要稳定的阅读路径。
+          - generic "文章信息" [ref=e17]:
+            - generic [ref=e18]: 作者：Blog Admin
+            - generic [ref=e19]: 更新：2026年5月15日
+            - generic [ref=e20]: 1 分钟阅读
+            - link "分类：内容系统" [ref=e21] [cursor=pointer]:
+              - /url: /categories/product-notes
+          - generic "标签" [ref=e22]:
+            - link "入门复盘" [ref=e23] [cursor=pointer]:
+              - /url: /tags/intro
+            - link "MVP 验证" [ref=e24] [cursor=pointer]:
+              - /url: /tags/mvp
+            - link "SEO/GEO" [ref=e25] [cursor=pointer]:
+              - /url: /tags/seo
+        - complementary "阅读线索" [ref=e26]:
+          - strong [ref=e27]: 阅读线索
+          - paragraph [ref=e28]: 文章说明技术站第一轮体验改造应先收敛入口、稳定阅读，再补齐空态和 404。
+        - generic [ref=e29]:
+          - paragraph [ref=e30]: 第一轮改造不追求功能数量，而是确认读者进入站点后能快速判断三件事：作者是谁、内容写什么、从哪里开始读。
+          - heading "先收敛入口" [level=2] [ref=e31]
+          - paragraph [ref=e32]: 首页只保留首页、文章和关于三个主入口。分类和标签通过文章元信息进入，避免把导航做成后台菜单。
+          - heading "再稳定阅读" [level=2] [ref=e33]
+          - paragraph [ref=e34]: 文章详情页需要把标题、摘要、发布时间、分类、标签和阅读时间放在正文前。代码块必须可横向滚动，不能撑破移动端。
+          - code [ref=e36]: const primaryNavigation = ["首页", "文章", "关于"];
+          - heading "最后补齐状态" [level=2] [ref=e37]
+          - paragraph [ref=e38]: 空态和 404 不应该只是“暂无数据”。它们要说明发生了什么，以及读者下一步还能去哪里。
+      - navigation "上一篇和下一篇" [ref=e39]:
+        - link "上一篇 / 更新的内容 搭建一个工程师技术站，需要先补齐什么" [ref=e40] [cursor=pointer]:
+          - /url: /articles/building-a-complete-blog-system
+          - generic [ref=e41]: 上一篇 / 更新的内容
+          - strong [ref=e42]: 搭建一个工程师技术站，需要先补齐什么
+        - link "已经读到归档末尾 回到文章时间线" [ref=e43] [cursor=pointer]:
+          - /url: /articles
+          - generic [ref=e44]: 已经读到归档末尾
+          - strong [ref=e45]: 回到文章时间线
+      - region "相关内容" [ref=e46]:
+        - heading "相关内容" [level=2] [ref=e48]
+        - region "相关内容" [ref=e49]:
+          - article [ref=e50]:
+            - generic [ref=e51]:
+              - generic [ref=e52]: 2026年5月18日
+              - generic [ref=e53]: /
+              - link "工程实践" [ref=e54] [cursor=pointer]:
+                - /url: /categories/engineering
+              - generic [ref=e55]: /
+              - generic [ref=e56]: 1 分钟阅读
+            - heading "搭建一个工程师技术站，需要先补齐什么" [level=2] [ref=e57]:
+              - link "搭建一个工程师技术站，需要先补齐什么" [ref=e58] [cursor=pointer]:
+                - /url: /articles/building-a-complete-blog-system
+            - paragraph [ref=e59]: 从文章模型、分类标签、发布状态和可发现性出发，梳理技术博客 P0 阶段真正影响阅读体验的能力。
+            - generic "标签" [ref=e60]:
+              - link "MVP 验证" [ref=e61] [cursor=pointer]:
+                - /url: /tags/mvp
+              - link "工作流" [ref=e62] [cursor=pointer]:
+                - /url: /tags/workflow
+    - contentinfo [ref=e63]:
+      - paragraph [ref=e64]: 内容优先的 IT 工程师技术站
+      - navigation "页脚导航" [ref=e65]:
+        - link "全部文章" [ref=e66] [cursor=pointer]:
+          - /url: /articles
+        - link "关于本站" [ref=e67] [cursor=pointer]:
+          - /url: /about

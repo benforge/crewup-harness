@@ -1,0 +1,356 @@
+:root {
+  color-scheme: light;
+  color: #17202a;
+  background: #f4f6f8;
+  font-family:
+    ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-width: 320px;
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(244, 246, 248, 0) 240px),
+    #f4f6f8;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.login-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(320px, 0.92fr) minmax(340px, 420px);
+  gap: 48px;
+  align-items: center;
+  width: min(100% - 48px, 1040px);
+  margin: 0 auto;
+}
+
+.login-copy {
+  display: grid;
+  gap: 16px;
+  align-content: center;
+}
+
+.login-copy .ant-typography {
+  max-width: 620px;
+  margin: 0;
+}
+
+.login-copy h1.ant-typography {
+  max-width: 620px;
+  font-size: 44px;
+  line-height: 1.08;
+  font-weight: 720;
+}
+
+.frontstage-link {
+  justify-self: start;
+}
+
+.auth-panel {
+  border: 1px solid #dbe3ea;
+  box-shadow: 0 24px 70px rgba(28, 39, 49, 0.08);
+}
+
+.auth-panel .ant-card-head {
+  border-bottom-color: #e8edf2;
+}
+
+.auth-panel .ant-form {
+  display: grid;
+  gap: 4px;
+}
+
+.form-alert {
+  margin-bottom: 18px;
+}
+
+.login-actions {
+  width: 100%;
+}
+
+.admin-shell {
+  min-height: 100vh;
+}
+
+.sidebar {
+  position: sticky;
+  top: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 22px 14px;
+  border-right: 1px solid #dce4eb;
+  box-shadow: 1px 0 0 rgba(255, 255, 255, 0.8) inset;
+}
+
+.brand {
+  display: grid;
+  gap: 5px;
+  padding: 0 10px 18px;
+  border-bottom: 1px solid #eef2f5;
+}
+
+.brand .ant-typography {
+  margin: 0;
+}
+
+.brand h3.ant-typography {
+  line-height: 1.16;
+}
+
+.admin-menu {
+  flex: 1;
+  margin-top: 16px;
+  border-inline-end: 0 !important;
+}
+
+.sidebar-footer {
+  padding: 14px 6px 0;
+  border-top: 1px solid #eef2f5;
+}
+
+.workspace-topbar {
+  height: auto;
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 24px;
+  border-bottom: 1px solid #dce4eb;
+  line-height: 1.35;
+}
+
+.workspace-topbar strong {
+  display: block;
+  margin-top: 3px;
+  color: #17202a;
+}
+
+.workspace {
+  min-width: 0;
+  padding: 22px 24px 32px;
+}
+
+.page-heading {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.page-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid #dde5ed;
+}
+
+.page-title-row .ant-typography {
+  max-width: 820px;
+  margin: 0;
+}
+
+.page-title-row h2.ant-typography {
+  margin-bottom: 6px;
+  font-size: 26px;
+  line-height: 1.2;
+  font-weight: 680;
+}
+
+.workspace-alert {
+  margin-bottom: 16px;
+}
+
+.view-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.metric-card {
+  border: 1px solid #dfe6ed;
+}
+
+.metric-card-success {
+  border-left: 3px solid #237a57;
+}
+
+.metric-card-warning {
+  border-left: 3px solid #ad6800;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.36fr) minmax(420px, 1fr);
+  gap: 16px;
+}
+
+.action-list,
+.action-list .ant-space-item {
+  width: 100%;
+}
+
+.table-card {
+  border: 1px solid #dfe6ed;
+}
+
+.table-toolbar {
+  display: grid;
+  grid-template-columns: minmax(150px, 180px) minmax(180px, 220px) minmax(240px, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.table-toolbar.photos-toolbar {
+  grid-template-columns: minmax(150px, 180px) minmax(240px, 1fr) auto;
+}
+
+.editor-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+  gap: 16px;
+  align-items: start;
+}
+
+.editor-card {
+  border: 1px solid #dfe6ed;
+}
+
+.editor-aside {
+  display: grid;
+  gap: 14px;
+}
+
+.split-panel {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.42fr) minmax(440px, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 16px;
+}
+
+.wide {
+  grid-column: 1 / -1;
+}
+
+.taxonomy-note {
+  margin-top: 18px;
+}
+
+.link-button {
+  height: auto;
+  display: grid;
+  justify-items: start;
+  padding: 0;
+  text-align: left;
+  white-space: normal;
+}
+
+.link-button span {
+  max-width: 420px;
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+
+.status-screen {
+  min-height: 100vh;
+  display: grid;
+  gap: 16px;
+  place-content: center;
+  padding: 24px;
+  text-align: center;
+}
+
+.status-screen .ant-typography {
+  margin: 0;
+}
+
+.photo-thumb {
+  width: 58px;
+  height: 44px;
+  flex: 0 0 auto;
+  border: 1px solid #dbe3ea;
+  border-radius: 5px;
+  background: #eef2f5;
+  object-fit: cover;
+}
+
+.ant-card {
+  overflow: hidden;
+}
+
+.ant-empty {
+  padding: 24px 8px;
+}
+
+.ant-table-wrapper {
+  max-width: 100%;
+}
+
+@media (max-width: 1120px) {
+  .metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-grid,
+  .editor-grid,
+  .split-panel {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .login-shell {
+    grid-template-columns: 1fr;
+    width: min(100% - 28px, 520px);
+    gap: 24px;
+    padding: 28px 0;
+  }
+
+  .login-copy h1.ant-typography {
+    font-size: 34px;
+  }
+
+  .workspace {
+    padding: 18px 14px 28px;
+  }
+
+  .workspace-topbar,
+  .page-title-row {
+    display: grid;
+  }
+
+  .table-toolbar,
+  .table-toolbar.photos-toolbar,
+  .form-grid,
+  .metric-grid {
+    grid-template-columns: 1fr;
+  }
+}

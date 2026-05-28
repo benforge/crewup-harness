@@ -1,0 +1,165 @@
+agents:
+  pm:
+    title: "PM Agent"
+    owner: ".harness/agents/pm.md"
+    category: "planning"
+    default_stage: "intake"
+    model_profile: "low_cost"
+    scope:
+      - "需求入口"
+      - "优先级"
+      - "任务拆分"
+      - "是否允许进入开发"
+
+  requirements-plan:
+    title: "Requirements Plan Agent"
+    owner: ".harness/agents/requirements.md"
+    category: "planning"
+    default_stage: "requirements_plan"
+    model_profile: "requirements_planning"
+    scope:
+      - "自然语言需求扩写"
+      - "目标和非目标澄清"
+      - "验收标准草拟"
+      - "待确认问题整理"
+
+  requirements:
+    title: "Requirement Agent"
+    owner: ".harness/agents/requirements.md"
+    category: "planning"
+    default_stage: "requirements_confirm"
+    model_profile: "standard_analysis"
+    scope:
+      - "自然语言需求结构化"
+      - "验收标准"
+      - "目标和非目标"
+      - "依赖和疑问"
+
+  architect:
+    title: "Architect Agent"
+    owner: ".harness/agents/architect.md"
+    category: "planning"
+    default_stage: "plan"
+    model_profile: "standard_analysis"
+    scope:
+      - "影响范围判断"
+      - "模块边界"
+      - "技术方案"
+      - "风险识别"
+
+  frontend:
+    title: "Frontend Agent"
+    owner: ".harness/agents/frontend.md"
+    category: "implementation"
+    default_stage: "implement"
+    model_profile: "coding_strong"
+    impact_flags:
+      - "web"
+      - "admin"
+      - "frontend"
+    rule_files:
+      - ".harness/rules/frontend.md"
+    scope:
+      - "前端架构"
+      - "页面和路由"
+      - "组件体系"
+      - "状态管理"
+      - "数据请求"
+      - "表单和交互"
+      - "可访问性和性能"
+
+  backend:
+    title: "Backend Agent"
+    owner: ".harness/agents/backend.md"
+    category: "implementation"
+    default_stage: "implement"
+    model_profile: "coding_strong"
+    impact_flags:
+      - "api"
+      - "backend"
+    rule_files:
+      - ".harness/rules/backend.md"
+    scope:
+      - "后端架构"
+      - "服务边界"
+      - "API 契约"
+      - "领域逻辑"
+      - "权限和安全"
+      - "数据访问"
+      - "错误处理"
+      - "可靠性和性能"
+
+  database:
+    title: "Database Agent"
+    owner: ".harness/agents/database.md"
+    category: "implementation"
+    default_stage: "implement"
+    model_profile: "critical_review"
+    impact_flags:
+      - "db"
+      - "database"
+    rule_files:
+      - ".harness/rules/database.md"
+    scope:
+      - "表结构"
+      - "迁移"
+      - "索引"
+      - "数据一致性"
+
+  devops:
+    title: "DevOps Agent"
+    owner: ".harness/agents/devops.md"
+    category: "implementation"
+    default_stage: "implement"
+    model_profile: "standard_analysis"
+    impact_flags:
+      - "infra"
+      - "devops"
+    rule_files:
+      - ".harness/rules/devops.md"
+    scope:
+      - "Docker"
+      - "CI/CD"
+      - "环境变量"
+      - "部署和回滚"
+
+  tester:
+    title: "Tester Agent"
+    owner: ".harness/agents/tester.md"
+    category: "verification"
+    default_stage: "verify"
+    model_profile: "tester_standard"
+    rule_files:
+      - ".harness/rules/tester.md"
+    scope:
+      - "单元测试"
+      - "集成测试"
+      - "E2E"
+      - "测试报告"
+
+  reviewer:
+    title: "Reviewer Agent"
+    owner: ".harness/agents/reviewer.md"
+    category: "review"
+    default_stage: "review"
+    model_profile: "review_strong"
+    rule_files:
+      - ".harness/rules/reviewer.md"
+      - ".harness/rules/security.md"
+    scope:
+      - "代码审查"
+      - "安全风险"
+      - "回归风险"
+      - "完成定义检查"
+
+  release:
+    title: "Release Agent"
+    owner: ".harness/agents/release.md"
+    category: "release"
+    default_stage: "release"
+    model_profile: "low_cost"
+    scope:
+      - "发布摘要"
+      - "变更日志"
+      - "部署检查"
+      - "回滚说明"

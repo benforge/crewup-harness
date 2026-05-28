@@ -1,0 +1,21 @@
+quality_gates:
+  before_implementation:
+    - "Requirement artifact exists and includes background, goals, non-goals, and acceptance criteria."
+    - "Impact scope is marked: web/admin/api/db/infra/docs."
+    - "Testing expectations are documented."
+    - "Rollback or recovery approach is documented when the change has operational risk."
+    - "External skills required for the work are installed or an explicit fallback is documented."
+
+  before_review:
+    - "Code has been formatted when a formatter exists."
+    - "Relevant tests have run, or the reason they could not run is documented."
+    - "API, database, environment, and deployment changes are recorded in artifacts."
+    - "No unrelated refactors or unexplained broad changes are included."
+    - "Generated skill reports are current when skill behavior is part of the task."
+
+  before_done:
+    - "Acceptance criteria have been checked one by one."
+    - "review-report.md has no blocking issues."
+    - "test-report.md has clear results."
+    - "release-summary.md documents deployment and rollback notes."
+    - "User-facing summary names residual risks and manual follow-up actions."

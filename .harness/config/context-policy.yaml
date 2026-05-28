@@ -1,0 +1,139 @@
+context:
+  mode: "light_by_default"
+  max_files_per_agent: 4
+  max_bytes_per_file: 3000
+  max_total_bytes_per_agent: 8000
+
+  prompt_budgets:
+    run_input_chars: 1000
+    task_chars: 1200
+    role_rules_chars: 500
+    document_policy_chars: 400
+    context_pack_chars: 900
+    targeted_context_chars: 1800
+    artifact_index_chars: 900
+    skill_context_chars: 300
+    project_overlay_chars: 2200
+    native_overlay_chars: 800
+    full_context_chars: 6000
+
+  auto_escalation:
+    enabled: true
+    default_mode: "light"
+    targeted_mode: "targeted"
+    full_mode: "full"
+    force_full_roles:
+      - "database"
+      - "devops"
+    targeted_roles:
+      - "frontend"
+      - "backend"
+      - "tester"
+      - "reviewer"
+    full_path_patterns:
+      - ".github/workflows/**"
+      - "infra/**"
+      - "**/migrations/**"
+      - "**/*.sql"
+      - ".env"
+      - ".env.*"
+    targeted_path_patterns:
+      - "apps/**"
+      - "packages/**"
+      - "docs/product/**"
+    full_keywords:
+      - "database"
+      - "migration"
+      - "schema"
+      - "auth"
+      - "permission"
+      - "security"
+      - "secret"
+      - "password"
+      - "api token"
+      - "access token"
+      - "refresh token"
+      - "production"
+      - "deploy"
+      - "ci/cd"
+      - "rollback"
+      - "delete"
+      - "drop table"
+      - "truncate"
+      - "权限"
+      - "鉴权"
+      - "认证"
+      - "迁移"
+      - "数据库"
+      - "生产"
+      - "部署"
+      - "密钥"
+      - "删除"
+      - "回滚"
+    targeted_keywords:
+      - "frontend"
+      - "backend"
+      - "api"
+      - "route"
+      - "state"
+      - "form"
+      - "layout"
+      - "test"
+      - "review"
+      - "regression"
+      - "bug"
+      - "前端"
+      - "后端"
+      - "接口"
+      - "路由"
+      - "表单"
+      - "布局"
+      - "测试"
+      - "评审"
+      - "回归"
+      - "缺陷"
+
+  artifact_index:
+    path: ".harness/runs/<run>/logs/context/artifact-index.md"
+    max_chars_per_artifact: 350
+    max_lines_per_artifact: 8
+    knowledge_max_chars: 900
+    include_artifacts:
+      - "requirement.md"
+      - "architecture.md"
+      - "implementation-plan.md"
+      - "test-report.md"
+      - "review-report.md"
+
+  skill_context:
+    include_install_commands: false
+    include_external_candidates: false
+    include_installed_paths: false
+    max_role_labels: 6
+
+  include_extensions:
+    - ".ts"
+    - ".tsx"
+    - ".js"
+    - ".jsx"
+    - ".json"
+    - ".md"
+    - ".yaml"
+    - ".yml"
+    - ".css"
+    - ".scss"
+    - ".html"
+    - ".sql"
+    - ".prisma"
+
+  exclude_paths:
+    - "node_modules/**"
+    - ".git/**"
+    - ".agents/skills/**"
+    - ".harness/runs/**/logs/**"
+    - ".harness/reports/**"
+    - ".next/**"
+    - "dist/**"
+    - "build/**"
+    - "coverage/**"
+    - "package-lock.json"

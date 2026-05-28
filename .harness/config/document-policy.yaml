@@ -1,0 +1,37 @@
+document_policy:
+  purpose: "明确需求规划产物、run 过程产物和产品长期文档的落点。"
+
+  working_area:
+    path: ".harness/"
+    description: "正式需求的默认工作区。需求细化、设计方案、实施计划、测试、评审和发布摘要都先落在当前 run。"
+    planning_outputs:
+      requirement: ".harness/runs/<run>/artifacts/requirement.md"
+      architecture: ".harness/runs/<run>/artifacts/architecture.md"
+      implementation_plan: ".harness/runs/<run>/artifacts/implementation-plan.md"
+      blockers: ".harness/runs/<run>/artifacts/blockers.md"
+
+  product_area:
+    path: "docs/product/"
+    description: "产品长期沉淀区，只保存经过确认或发布阶段同步后的摘要、路线图和产品说明。"
+    allowed_when:
+      - "用户明确要求维护产品文档或路线图。"
+      - "run 已完成需求、方案、测试、评审和发布摘要，且用户确认可以沉淀。"
+      - "release 阶段通过 product-sync 从 run artifacts 生成摘要。"
+    forbidden_when:
+      - "刚收到功能需求，尚未创建或选择 run。"
+      - "仍处于需求细化、设计方案或实施计划阶段，尚未人工确认。"
+      - "子 agent 试图绕过 artifacts 直接写产品长期文档。"
+
+  checkpoints:
+    before_implementation:
+      required_user_confirmation: true
+      summary: "需求细化、验收标准、设计方案、风险和实施计划需要先给用户审核。"
+    before_product_sync:
+      required_user_confirmation: true
+      summary: "只有在测试、评审和发布摘要完成后，才允许同步到 docs/product；用户确认完成/归档并推进到 done 时视为同意沉淀。"
+
+  rules:
+    - "主 agent 收到正式需求后，必须先创建或选择 backlog/run，规划产物写入 run artifacts。"
+    - "PM、Requirements、Architect 不得把需求规划、设计方案或实施路线图直接写入 docs/product。"
+    - "Release Agent 默认只写 artifacts/release-summary.md；产品文档同步由 main agent 在用户确认完成/归档后通过 done transition 自动执行，也可手动重跑 product-sync。"
+    - "docs/product 不是需求规划草稿区；它是确认后的产品沉淀区。"

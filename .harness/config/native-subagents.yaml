@@ -1,0 +1,138 @@
+native_subagents:
+  mode: "codex_spawn_agent"
+  preferred_when_available: true
+  fallback_order:
+    - "desktop-prompts"
+    - "api-orchestrate"
+    - "blocked-waiting-for-subagents"
+
+  lifecycle:
+    before_spawn:
+      - "Generate or refresh context with `npm run harness:context-pack -- <run-id> --agents=<agents>`."
+      - "Generate the native plan with `npm run harness:native-plan -- <run-id> --agents=<agents>`."
+      - "Check `npm run harness:native-state -- <run-id> status` and close `ready_to_close` agents before spawning more agents."
+      - "If retained agents exceed the retention capacity, run `npm run harness:native-state -- <run-id> recommend-close` and release low-value retained agents first."
+      - "Spawn only tasks that are independent enough to run without blocking the main agent's immediate next step."
+      - "Use disjoint write scopes for parallel worker agents."
+    during_run:
+      - "Do meaningful non-overlapping local work while subagents run."
+      - "Wait only when the next critical step needs the result."
+      - "Do not duplicate subagent work in the main window."
+    after_result:
+      - "Collect the final result."
+      - "Write or summarize the result under `.harness/runs/<run>/logs/native-subagents/<agent>.result.md`."
+      - "Review changed files before integration."
+      - "Do not close a subagent only because it returned a result."
+      - "Keep completed subagents in `waiting_review` for follow-up until user acceptance, explicit release by the main agent, or run done/archive cleanup."
+      - "Close subagents only after marking them `ready_to_close` and recording the close audit."
+
+  runtime:
+    state_file: ".harness/runs/<run>/logs/native-subagents/native-state.json"
+    plan_file: ".harness/runs/<run>/logs/native-subagents/native-subagent-plan.json"
+    prompt_file_pattern: ".harness/runs/<run>/logs/native-subagents/<agent>.spawn.md"
+    result_file_pattern: ".harness/runs/<run>/logs/native-subagents/<agent>.result.md"
+    close_audit_required: true
+    handle_required_after_spawn: true
+    fallback_reason_required: true
+    status_values:
+      - "planned"
+      - "running"
+      - "waiting_review"
+      - "ready_to_close"
+      - "completed"
+      - "blocked"
+      - "needs_input"
+      - "error"
+      - "closed"
+    helper_commands:
+      status: "npm run harness:native-state -- <run-id> status"
+      recommend_close: "npm run harness:native-state -- <run-id> recommend-close"
+      mark_spawned: "npm run harness:native-state -- <run-id> mark-spawned <agent> <handle>"
+      mark_result: "npm run harness:native-state -- <run-id> mark-result <agent> <completed|blocked|needs_input>"
+      mark_ready_to_close: "npm run harness:native-state -- <run-id> mark-ready-to-close <agent>"
+      mark_resumed: "npm run harness:native-state -- <run-id> mark-resumed <agent>"
+      mark_closed: "npm run harness:native-state -- <run-id> mark-closed <agent>"
+      mark_fallback: "npm run harness:native-state -- <run-id> mark-fallback <reason>"
+
+  retention:
+    prefer_resume_before_respawn: true
+    capacity:
+      max_retained_subagents: 4
+      max_retained_implementation_agents: 2
+      max_retained_non_implementation_agents: 2
+      close_recommendation_priority:
+        - "release"
+        - "reviewer"
+        - "pm"
+        - "requirements-plan"
+        - "requirements"
+        - "architect"
+        - "tester"
+        - "devops"
+        - "database"
+        - "backend"
+        - "frontend"
+    implementation_agents:
+      retain_after_result: true
+      keep_until:
+        - "user_acceptance"
+        - "run_done_or_archive"
+        - "explicit_release_by_main_agent"
+      close_status_before_close_agent: "ready_to_close"
+      retained_status_after_completed_result: "waiting_review"
+    non_implementation_agents:
+      retain_after_result: true
+      keep_until:
+        - "user_acceptance"
+        - "run_done_or_archive"
+        - "explicit_release_by_main_agent"
+      close_after_result_capture: false
+      close_status_before_close_agent: "ready_to_close"
+      retained_status_after_completed_result: "waiting_review"
+
+  agent_type_by_role:
+    pm: "explorer"
+    requirements-plan: "explorer"
+    requirements: "explorer"
+    architect: "explorer"
+    frontend: "worker"
+    backend: "worker"
+    database: "worker"
+    devops: "worker"
+    tester: "worker"
+    reviewer: "explorer"
+    release: "explorer"
+
+  parallel_groups:
+    intake:
+      parallel: false
+      agents:
+        - "pm"
+        - "requirements-plan"
+        - "requirements"
+        - "architect"
+    implementation:
+      parallel: true
+      agents:
+        - "frontend"
+        - "backend"
+        - "database"
+        - "devops"
+    verification_tester:
+      parallel: false
+      agents:
+        - "tester"
+    verification_reviewer:
+      parallel: false
+      agents:
+        - "reviewer"
+    verification_release:
+      parallel: false
+      agents:
+        - "release"
+
+  safety:
+    require_close_agent: true
+    require_result_capture: true
+    max_parallel_subagents: 4
+    blocked_without_native_tools: "record fallback as blocked; do not let the main agent complete delegated formal work"

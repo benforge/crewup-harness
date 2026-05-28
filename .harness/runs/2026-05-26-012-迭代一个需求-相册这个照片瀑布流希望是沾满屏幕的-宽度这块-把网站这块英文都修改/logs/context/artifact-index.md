@@ -11,8 +11,8 @@
 | `requirement.md` | ready | # 需求说明 \| ## 背景 \| ## 目标 \| ## 非目标 | 背景<br>目标<br>非目标<br>用户故事<br>验收标准<br>影响范围<br>测试要求<br>回滚方式 | 346 | 优先阅读；关键章节：背景 |
 | `architecture.md` | ready | # 架构和影响范围 \| ## 影响范围 \| ## 方案 \| ## 风险 | 影响范围<br>方案<br>风险 | 162 | 优先阅读；关键章节：影响范围 |
 | `implementation-plan.md` | ready | # 实施计划 \| ## 任务摘要 \| ## 文件和模块 \| ## 步骤 | 任务摘要<br>文件和模块<br>步骤<br>风险<br>测试计划<br>完成检查 | 291 | 先看摘要即可，若要决策再打开全文。 |
-| `test-report.md` | ready | # 测试报告 \| ## Run \| ## 结果汇总 \| ## 执行项 | Run<br>结果汇总<br>执行项<br>通过项<br>失败 / 阻塞项<br>未覆盖风险 | 291 | 先看摘要即可，若要决策再打开全文。 |
-| `review-report.md` | ready | # 评审报告 \| ## 结论 \| ## 阻塞问题 \| ## 非阻塞建议 | 结论<br>阻塞问题<br>非阻塞建议<br>风险<br>测试缺口<br>是否满足完成定义<br>复查项 | 300 | 先看摘要即可，若要决策再打开全文。 |
+| `test-report.md` | ready | # Test Report \| ## Run \| ## 结果汇总 \| ## 执行项 | Run<br>结果汇总<br>执行项<br>通过项<br>失败 / 阻塞项<br>未覆盖风险 | 419 | 先看摘要即可，若要决策再打开全文。 |
+| `review-report.md` | ready | # Review Report \| ## 结论 \| ## 阻塞问题 \| ## 非阻塞建议 | 结论<br>阻塞问题<br>非阻塞建议<br>风险<br>测试缺口<br>是否满足完成定义 | 557 | 先看摘要即可，若要决策再打开全文。 |
 
 ## 详细卡片
 
@@ -39,67 +39,43 @@
 
 ### `test-report.md`
 - 状态：ready
-- 内容摘要：# 测试报告 | ## Run | ## 结果汇总 | ## 执行项
+- 内容摘要：# Test Report | ## Run | ## 结果汇总 | ## 执行项
 - 关键章节：Run / 结果汇总 / 执行项 / 通过项 / 失败 / 阻塞项 / 未覆盖风险
 - 读取建议：先看摘要即可，若要决策再打开全文。
-- 大小：291
+- 大小：419
 
 ### `review-report.md`
 - 状态：ready
-- 内容摘要：# 评审报告 | ## 结论 | ## 阻塞问题 | ## 非阻塞建议
-- 关键章节：结论 / 阻塞问题 / 非阻塞建议 / 风险 / 测试缺口 / 是否满足完成定义 / 复查项
+- 内容摘要：# Review Report | ## 结论 | ## 阻塞问题 | ## 非阻塞建议
+- 关键章节：结论 / 阻塞问题 / 非阻塞建议 / 风险 / 测试缺口 / 是否满足完成定义
 - 读取建议：先看摘要即可，若要决策再打开全文。
-- 大小：300
+- 大小：557
 
 ## Harness 知识层
 
-### dev-map.md
+### related-runs.md
 
-# Harness 项目导航地图
-## 项目
-- 名称：New project
-- 包管理器：npm
-- overlay: .harness/project/ai/profile.yaml
-- 本地规则文件：.ai/rules.md
-- 生成时间：2026-05-26T03:21:14.354Z
-## 标准命令
-- install: `npm install`
-- build: `npm run build`
-- test: `npm run test`
-- typecheck: `npm run typecheck`
-- lint: `npm run lint`
-## 模块
-## 影响范围
-## 角色使用方式
-- PM / requirements：扩写模糊需求前先看本文件，了解项目模块和当前 scope。
-- Architect：把 scope 和模块路径作为第一版影响地图，再通过读取真实代码确认。
-
-### task-board.md
-
-# Harness 任务看板
-- 生成时间：2026-05-26T03:21:14.334Z
-## 需求池（Backlog）
-### 新建（new）
-- 007-c端个性简约风格探索.md: C端个性简约风格探索
-### 已就绪（ready）
-- 007-c端个性简约风格探索.md: C端个性简约风格探索
-- 008-现在迭代一个功能-增加阅读量这个统计.md: 现在迭代一个功能，增加阅读量这个统计
-### 进行中（in-progress）
-- 暂无
-### 评审中（review）
-- 暂无
-### 已完成（done）
-- 002-complete-blog-system.md: 002 完善博客系统 MVP
-
-### decision-index.md
-
-# Harness 决策索引
-- 生成时间：2026-05-26T03:21:14.353Z
-- run 数量：9
-## 最近决策
+# 相关历史 run：2026-05-26-012-迭代一个需求-相册这个照片瀑布流希望是沾满屏幕的-宽度这块-把网站这块英文都修改
+- generatedAt: 2026-05-27T03:00:03.757Z
+- source: .harness/knowledge/run-index.json
+- currentScopes: web
 ## 使用规则
-- 新需求只默认读取本索引，不默认读取历史 run 全文。
-- 最多选择 3 个相关历史 run 
+- 需求和架构阶段必须说明：复用了哪些历史决策、与哪些历史方案冲突、是否没有命中相关历史。
+- 默认只深读下方最多 3 个历史 run；除非高风险或用户要求，不要展开所有历史 run。
+- 如果本摘要为空，也要在 `requirement.md` 或 `architecture.md` 写明“未命中相关历史 run”。
+## 命中结果
+### 2026-05-22-008-现在迭代一个功能-增加阅读量这个统计
+- title: 现在迭代一个功能，增加阅读量这个统计
+- status: done/done
+- updatedAt: 2026-05-22T10:58:24.822Z
+- score: 27
+- reasons: scope:web, term:迭代, term:代一, term:一个, term:迭代一, term:代一个, term:迭代一个, term:这个
+- modules: web, admin, api, db, docs
+#### 历史能力 / 决策摘要
+- 为已发布的公开文章补充阅读量统计能力，文章详情页在内容成功渲染后会触发一次计数，且不影响标题、摘要、正文和元信息展示。
+- 后端新增公开阅读记录接口 POST /api/articles/:slug/view，并保持 GET /api/articles/:slug 为纯读取。
+- Article / ArticleSummary / ArticleDetail 统一增加 viewCount 字段，API 响应和 SDK 解析结果同步更新。
+- backend：负责 API/types/repos
 
 ...(已截断；如需细节请读取源文件)
 

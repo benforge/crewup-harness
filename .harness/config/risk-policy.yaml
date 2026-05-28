@@ -1,0 +1,23 @@
+risk:
+  require_approval_flag: "--approve-risk"
+  high_risk_path_patterns:
+    - ".github/workflows/**"
+    - "infra/**"
+    - "**/migrations/**"
+    - "**/*.sql"
+    - ".env"
+    - ".env.*"
+  high_risk_content_patterns:
+    - "DROP TABLE"
+    - "TRUNCATE"
+    - "DELETE FROM"
+    - "ALTER TABLE"
+    - "process.env"
+    - "SECRET"
+    - "TOKEN"
+    - "PASSWORD"
+  rules:
+    - "命中高风险路径或内容时，必须显式传入 --approve-risk 才允许落盘。"
+    - "即使传入 --approve-risk，protected_paths 仍然禁止写入。"
+    - "风险判断结果必须写入 code-writes 审计日志。"
+

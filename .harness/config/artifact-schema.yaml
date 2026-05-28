@@ -1,0 +1,80 @@
+artifacts:
+  requirement-interview.md:
+    required: false
+    required_headings:
+      - "状态"
+      - "当前理解"
+      - "本轮问题"
+      - "已回答问题"
+      - "收敛判断"
+
+  requirement-plan.md:
+    required_headings:
+      - "原始需求摘要"
+      - "过往背景"
+      - "目标"
+      - "非目标"
+      - "验收标准"
+      - "影响范围候选"
+      - "待确认问题"
+
+  requirement.md:
+    required_headings:
+      - "背景"
+      - "过往背景"
+      - "复用的历史决策"
+      - "与历史方案的冲突或变化"
+      - "目标"
+      - "非目标"
+      - "验收标准"
+      - "影响范围"
+      - "测试要求"
+      - "回滚方式"
+
+  architecture.md:
+    required_headings:
+      - "影响范围"
+      - "历史架构约束"
+      - "方案"
+      - "本次延续 / 推翻 / 新增的决策"
+      - "风险"
+
+  implementation-plan.md:
+    required_headings:
+      - "任务摘要"
+      - "文件和模块"
+      - "步骤"
+      - "测试计划"
+      - "完成检查"
+
+  api-change.md:
+    required_headings:
+      - "是否涉及 API"
+
+  db-migration.md:
+    required_headings:
+      - "是否涉及数据库"
+
+  test-report.md:
+    required_headings:
+      - "Run"
+      - "结果汇总"
+      - "执行项"
+      - "通过项"
+      - "失败 / 阻塞项"
+      - "未覆盖风险"
+
+  review-report.md:
+    required_headings:
+      - "结论"
+      - "阻塞问题"
+      - "非阻塞建议"
+      - "风险"
+      - "测试缺口"
+      - "是否满足完成定义"
+
+  release-summary.md:
+    required_headings:
+      - "变更内容"
+      - "部署步骤"
+      - "回滚方式"

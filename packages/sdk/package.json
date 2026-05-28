@@ -1,0 +1,11 @@
+{
+  "name": "@blog/sdk",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "dependencies": {
+    "@blog/types": "0.1.0"
+  }
+}

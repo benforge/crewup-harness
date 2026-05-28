@@ -1,0 +1,71 @@
+delegation_policy:
+  default_mode: "delegate_for_project_work"
+  token_mode: "light_first"
+
+  direct_main_agent_allowed:
+    - id: "simple_question"
+      description: "解释概念、回答使用方式、查看状态、说明某个文件用途。"
+    - id: "tiny_doc_patch"
+      description: "很小的文档修补，不改变项目需求、架构或业务代码。"
+    - id: "status_or_command"
+      description: "运行状态查看、dashboard 刷新、只读检查命令。"
+
+  must_delegate:
+    - trigger: "new_feature"
+      agents:
+        - "pm"
+        - "requirements"
+      description: "用户提出新功能、正式迭代或 MVP 目标时，先交给 PM/Requirements 整理范围。"
+    - trigger: "requirements_or_acceptance"
+      agents:
+        - "requirements"
+      description: "需求分析、用户故事、验收标准、非目标、边界澄清必须交给 Requirements Agent。"
+    - trigger: "architecture_or_technical_plan"
+      agents:
+        - "architect"
+      description: "技术选型、系统边界、影响范围、跨模块方案必须交给 Architect Agent。"
+    - trigger: "frontend_change"
+      agents:
+        - "frontend"
+      description: "页面、组件、交互、前端架构、样式、状态管理交给 Frontend Agent。"
+    - trigger: "backend_change"
+      agents:
+        - "backend"
+      description: "API、服务、业务逻辑、认证、错误处理交给 Backend Agent。"
+    - trigger: "database_change"
+      agents:
+        - "database"
+      description: "schema、迁移、索引、种子数据、数据一致性交给 Database Agent。"
+    - trigger: "infra_or_ci_change"
+      agents:
+        - "devops"
+      description: "部署、CI/CD、Docker、环境变量、构建流水线交给 DevOps Agent。"
+    - trigger: "verification"
+      agents:
+        - "tester"
+        - "reviewer"
+      description: "测试验证和代码评审默认交给 Tester/Reviewer。"
+
+  main_agent_responsibilities:
+    - "判断是否需要进入 harness 工作流。"
+    - "创建或选择 run。"
+    - "选择需要启动的最少 agent 集合。"
+    - "生成 context pack 和 desktop prompts。"
+    - "启动新子 agent 前先检查现有 agent：同角色且上下文相关则复用，已完成且不再需要则关闭。"
+    - "委派子 agent 并收集最终结果。"
+    - "在阶段切换前关闭已收集结果的 completed/blocked agent，释放线程额度。"
+    - "处理子 agent 之间的冲突和阻塞。"
+    - "在需求和方案阶段结束后请求用户审核，确认后再进入开发。"
+    - "运行 verify、gate-check、dashboard；只有 release 完成且用户确认沉淀后才运行 product-sync。"
+    - "用中文向用户汇总结果和待确认事项。"
+    - "控制上下文体量：只给子 agent 必要 artifact、相关文件和明确任务，不转发无关长日志。"
+
+  escalation_rules:
+    - "如果当前环境不支持子 agent，主 agent 只能降级为协调/记录/阻塞，必须明确说明原因；不能继续完成正式规划、业务代码实现、测试、评审或发布工作。"
+    - "如果子 agent 线程额度已满，主 agent 必须先 wait 已有 agent、收集结果、关闭已完成或不再需要的 agent；清理后仍失败才可记录阻塞。"
+    - "线程额度满不是主 agent 直接接管正式开发、测试或评审的理由。"
+    - "如果用户明确要求不要使用子 agent，则主 agent 只能处理简单问答、只读检查或很小的文档修补；涉及业务代码时必须再次确认是否退出 harness。"
+    - "如果任务很小且启动子 agent 的成本明显高于收益，主 agent 只能直接处理不改业务代码的文档/状态类事项；任何正式业务代码改动都必须由开发类 agent 执行。"
+    - "涉及高风险文件或不可逆操作时，必须先请求用户确认。"
+    - "需求规划、设计方案和实施路线图不得直接写入 docs/product；它们必须先写入当前 run 的 artifacts，除非用户明确要求维护产品长期文档。"
+    - "如果产品型前端需求缺少路由图、权限边界或视觉验收标准，先补需求/架构，不直接进入开发。"

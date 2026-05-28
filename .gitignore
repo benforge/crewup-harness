@@ -1,0 +1,23 @@
+node_modules/
+.env
+.env.*
+!.env.example
+dist/
+build/
+.turbo/
+.next/
+coverage/
+*.log
+.DS_Store
+Thumbs.db
+
+# Harness generated runtime artifacts
+.harness/reports/*.json
+.harness/reports/*.md
+!.harness/reports/.gitkeep
+.harness/runs/*/logs/
+.harness/runs/*/tasks/
+.harness/runs/*/state.json
+
+# Project-installed agent skills are restored from skills-lock.json
+.agents/skills/

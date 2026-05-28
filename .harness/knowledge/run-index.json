@@ -1,0 +1,390 @@
+{
+  "generatedAt": "2026-05-28T02:53:06.580Z",
+  "maxEntryChars": 1200,
+  "runs": [
+    {
+      "runId": "2026-05-14-001-blog-mvp",
+      "title": "001 个人博客 MVP",
+      "stage": "plan",
+      "status": "in-progress",
+      "workflowProfile": null,
+      "updatedAt": "2026-05-14T07:22:34.454Z",
+      "sourceRequirement": ".harness/backlog/ready/001-blog-mvp.md",
+      "modules": [],
+      "capabilities": [],
+      "decisions": [],
+      "apiChanges": [],
+      "dbChanges": [],
+      "followups": []
+    },
+    {
+      "runId": "2026-05-15-001-blog-mvp",
+      "title": "001 个人博客 MVP",
+      "stage": "verify",
+      "status": "in-progress",
+      "workflowProfile": null,
+      "updatedAt": "2026-05-18T06:58:00.000Z",
+      "sourceRequirement": ".harness/backlog/ready/001-blog-mvp.md",
+      "modules": [
+        "web",
+        "admin",
+        "api",
+        "db",
+        "infra",
+        "docs"
+      ],
+      "capabilities": [
+        "前台 web 计划落地为 Next.js App Router，承载公开博客、文章详情、SEO/GEO。",
+        "后台 admin 计划落地为 React + Vite，承载登录、文章草稿和发布。",
+        "后端 API 计划落地为 NestJS REST 服务。",
+        "共享 SDK 和类型契约已更新。",
+        "新增 SQLite 初始 SQL migration 骨架。"
+      ],
+      "decisions": [
+        "第一个 MVP 阶段以分支和 PR 为回滚边界。",
+        "业务代码回滚通过 Git revert 完成。",
+        "数据库迁移必须提供 down migration 或清晰的手动回滚步骤。",
+        "若本轮只产出计划，不涉及业务代码和数据库变更，则回滚方式为删除本 run 目录或 revert 对 .harness/runs/2026-05-15-001-blog-mvp/ 的文档变更。"
+      ],
+      "apiChanges": [],
+      "dbChanges": [],
+      "followups": [
+        "从原生前端调整为 Next.js、从 Hono 调整为 NestJS，会扩大首轮依赖、脚本、构建和 CI 改动范围。",
+        "Next.js 和 NestJS 都更适合 TypeScript，当前仓库是 JavaScript 起步，下一轮建议同步迁移相关 app/package 到 TypeScript。",
+        "apps/web 与 apps/admin 分离后，认证态、API base URL、CORS 和部署路径需要显式配置。",
+        "GEO 的具体含义需要确认；当前方案按 Generative Engine Optimization 处理，不按地理定位处理。",
+        "SQLite 适合 MVP，但部署环境若要求多实例写入，需要重新评估数据库。"
+      ]
+    },
+    {
+      "runId": "2026-05-18-002-complete-blog-system",
+      "title": "002 完善博客系统 MVP",
+      "stage": "done",
+      "status": "archived",
+      "workflowProfile": null,
+      "updatedAt": "2026-05-19T08:00:00.000Z",
+      "sourceRequirement": ".harness/backlog/ready/002-complete-blog-system.md",
+      "modules": [
+        "web",
+        "admin",
+        "api",
+        "db",
+        "docs"
+      ],
+      "capabilities": [
+        "C 端 Web 补全专业简约博客体验：首页重点文章、继续阅读、文章列表、文章详情、分类页、标签页、关于页、404、导航、页脚、sitemap、SEO/GEO metadata 和 JSON-LD。",
+        "Admin 补全后台管理路由闭环：登录页、受保护路由、登录后回跳、会话恢复、退出、仪表盘、文章列表、文章编辑页、分类页、标签页和操作反馈。",
+        "API 补全 MVP+ REST 契约：公开分类/标签接口、按分类/标签查询文章、管理端当前用户、文章更新/下架、分类/标签管理。"
+      ],
+      "decisions": [
+        "P0：持久化、文章 CRUD、published 过滤、分类/标签、C 端页面完整性、管理端基础操作。",
+        "P1：SEO/GEO 字段、JSON-LD、sitemap 过滤、表单体验、错误反馈。",
+        "P2：相关文章入口、封面图 URL 展示、关于页内容占位优化。"
+      ],
+      "apiChanges": [],
+      "dbChanges": [],
+      "followups": [
+        "当前 API 仍以 in-memory repository 为主，若不先落地数据库 repository，管理端保存结果无法形成真实产品闭环。",
+        "现有数据库 migration 与 API 类型不完全一致，例如 category_id、seo_* 在 SQL 中已有，但 API 类型和管理表单尚未完全覆盖。"
+      ]
+    },
+    {
+      "runId": "2026-05-19-003-ui-framework-polish",
+      "title": "003 UI 框架化与交互体验优化",
+      "stage": "release",
+      "status": "ready-for-user-review",
+      "workflowProfile": null,
+      "updatedAt": "2026-05-19T09:20:00.000Z",
+      "sourceRequirement": ".harness/backlog/in-progress/003-ui-framework-polish.md",
+      "modules": [
+        "web",
+        "admin",
+        "docs"
+      ],
+      "capabilities": [
+        "Admin 侧接入 Ant Design v5，依赖解析为 antd@5.29.3，入口使用 antd/dist/reset.css、ConfigProvider、App 与主题 token。",
+        "Admin 后台外壳、导航、表单、表格、确认弹窗、消息提示、加载态、空态和错误态已用 Ant Design 基础组件收敛。",
+        "Admin 登录、受保护路由、未授权/会话失效回登录、退出确认等鉴权 UI 闭环已保留并补齐基础反馈。",
+        "Web C 端接入 Tailwind CSS v4，依赖解析为 tailwindcss@4.3.0、@tailwindcss/postcss@4.3.0，新增 PostCSS 配置并在全局 CSS 引入 @import \"tailwindcss\";。",
+        "Web 根布局保留现有页面结构，并增加最小 Tailwind 布局增强，包括 body 基础样式、站点 shell、sticky 顶部导航与轻量交互状态。"
+      ],
+      "decisions": [
+        "Admin 使用 Ant Design v5 作为后台 UI 基础，收敛布局、导航、表单、表格、消息反馈、确认弹窗、加载态、空态和错误态。",
+        "Web C 端使用 Tailwind CSS v4 作为样式组织基础，优先保证核心阅读路径的容器、间距、响应式和交互状态一致。",
+        "本轮保持现有 API、数据库和部署边界不变，只在前端工程与 run artifacts 内实施。",
+        "本阶段仅修改 run artifact，可通过恢复 .harness/runs/2026-05-19-003-ui-framework-polish/artifacts/requirement.md 回滚。"
+      ],
+      "apiChanges": [],
+      "dbChanges": [],
+      "followups": []
+    },
+    {
+      "runId": "2026-05-19-004-c-end-visual-polish",
+      "title": "004 C 端视觉与内容层级专项优化",
+      "stage": "release",
+      "status": "done",
+      "workflowProfile": null,
+      "updatedAt": "2026-05-20T07:28:59.092Z",
+      "sourceRequirement": ".harness/backlog/done/004-c-end-visual-polish.md",
+      "modules": [
+        "web",
+        "docs"
+      ],
+      "capabilities": [
+        "本 run 围绕 C 端 Web 的视觉专业化与内容层级整理收尾，目标是减少布局混乱、区块线条杂乱、卡片和边框噪音，提升首页、文章列表、文章详情、分类/标签、404/空态的阅读体验与扫描效率。",
+        "已按规划沉淀需求、架构、实施计划、测试报告和复核报告，明确本轮方向为“专业内容站 / 阅读体验”，而不是营销型首页、品牌重做或复杂动效。",
+        "实现侧复核记录显示，完成范围主要集中在 articles、categories、tags 三类列表/聚合页及共享 archive/list 样式，方向符合“减少卡片感、降低线条和边框噪音、提升列表扫描效率”的目标。",
+        "本 run 未记录越界修改 Admin、API、DB、infra 或 docs/product。"
+      ],
+      "decisions": [
+        "规划阶段回滚：仅回退当前 run 的 artifacts/requirement.md 变更。",
+        "开发阶段回滚：按页面组件或 Tailwind 样式层级回退，避免影响 Admin/API/DB/infra。"
+      ],
+      "apiChanges": [],
+      "dbChanges": [],
+      "followups": []
+    },
+    {
+      "runId": "2026-05-20-005-it-engineer-blog-experience-redesign",
+      "title": "005 IT 工程师博主博客体验专业化重设计",
+      "stage": "release",
+      "status": "done",
+      "workflowProfile": null,
+      "updatedAt": "2026-05-21T00:00:00.000Z",
+      "sourceRequirement": ".harness/backlog/done/005-it-engineer-blog-experience-redesign.md",
+      "modules": [
+        "web",
+        "admin",
+        "docs"
+      ],
+      "capabilities": [
+        "C 端从通用博客体验收敛为“IT 工程师博客”阅读体验，覆盖首页、文章列表、文章详情、分类归档、标签归档、关于页、404、空状态、错误/fallback 提示。",
+        "C 端文章列表已支持基于 URL 参数的搜索与分页展示，包括搜索无结果空状态、当前页/总页数、上一页/下一页导航。",
+        "C 端 API fallback 不再静默掩盖真实失败，使用备用内容时会展示明确的降级提示。",
+        "Admin 侧完成 CMS 工作台体验强化，覆盖登录/鉴权、Dashboard、文章列表、新建/编辑文章、分类管理、标签管理、反馈状态与危险操作确认。",
+        "Admin 登录页已移除默认预填账号密码，输入框初始为空，避免暴露示例凭据。"
+      ],
+      "decisions": [
+        "本阶段仅修改当前 run 的 artifacts/requirement.md。",
+        "若方案不符合预期，可直接回滚或重写该 artifact，不影响 apps/、docs/product/、数据库、API 或部署配置。"
+      ],
+      "apiChanges": [],
+      "dbChanges": [],
+      "followups": []
+    },
+    {
+      "runId": "2026-05-21-006-photo-wall-cos-markdown-homepage",
+      "title": "006 照片墙与内容体验增强规划",
+      "stage": "release",
+      "status": "done",
+      "workflowProfile": null,
+      "updatedAt": "2026-05-21T03:42:00.000Z",
+      "sourceRequirement": ".harness/backlog/done/006-photo-wall-cos-markdown-homepage.md",
+      "modules": [
+        "web",
+        "admin",
+        "api",
+        "db",
+        "docs"
+      ],
+      "capabilities": [
+        "明确首页信息架构：首屏和主体内容只围绕个人介绍、文章、标签展开；照片墙只作为轻量入口存在。",
+        "明确照片墙 C 端体验：规划 /photos、瀑布流、筛选、详情、加载态、空态、错误态、移动端、性能和无障碍要求。",
+        "明确后台照片管理需求：支持照片元数据、展示状态、排序、上传/登记流程、成功失败提示和权限边界。"
+      ],
+      "decisions": [
+        "将“照片”作为内容域的一等资源，但与文章域保持松耦合：新增 photos 负责公开展示和后台管理，新增 media_assets 负责存储对象、URL、尺寸、mime、hash、来源和访问策略。",
+        "C 端只消费 API 返回的可展示 URL、尺寸、alt 和元数据，不直接理解 COS SDK、不持有 SecretId/SecretKey。",
+        "后端通过 Storage Adapter 隔离本地/静态 URL/COS：首期可支持手工登记 URL 或对象 key；COS 接入时由 NestJS 服务端初始化 COS Node SDK，统一处理上传、签名 URL 和刷新。"
+      ],
+      "apiChanges": [],
+      "dbChanges": [],
+      "followups": [
+        "照片墙图片尺寸缺失会导致瀑布流抖动：API/DB 必须保存宽高，前端必须按比例预留空间。",
+        "签名 URL 与浏览器/CDN 缓存策略冲突会导致过期坏图：需要明确 URL TTL、刷新接口和缓存头策略。"
+      ]
+    },
+    {
+      "runId": "2026-05-22-008-现在迭代一个功能-增加阅读量这个统计",
+      "title": "现在迭代一个功能，增加阅读量这个统计",
+      "stage": "done",
+      "status": "done",
+      "workflowProfile": "standard",
+      "updatedAt": "2026-05-22T10:58:24.822Z",
+      "sourceRequirement": ".harness/backlog/ready/008-现在迭代一个功能-增加阅读量这个统计.md",
+      "modules": [
+        "web",
+        "admin",
+        "api",
+        "db",
+        "docs"
+      ],
+      "capabilities": [
+        "为已发布的公开文章补充阅读量统计能力，文章详情页在内容成功渲染后会触发一次计数，且不影响标题、摘要、正文和元信息展示。",
+        "后端新增公开阅读记录接口 POST /api/articles/:slug/view，并保持 GET /api/articles/:slug 为纯读取。",
+        "Article / ArticleSummary / ArticleDetail 统一增加 viewCount 字段，API 响应和 SDK 解析结果同步更新。"
+      ],
+      "decisions": [
+        "backend：负责 API/types/repository/service/controller 运行时改造，新增公开计数接口和 API e2e 覆盖。",
+        "database：负责新增迁移文件、默认值、兼容旧数据和回滚说明。",
+        "frontend/admin：负责 C 端详情展示与计数组件、Web fallback/normalize 缺省、Admin 列表或 Dashboard 展示。"
+      ],
+      "apiChanges": [],
+      "dbChanges": [],
+      "followups": [
+        "误计数风险：如果直接在 GET /api/articles/:slug 中自增，Next.js generateMetadata、generateStaticParams、服务端预渲染、链接预取或测试读取都可能产生阅读量。必须以独立 POS...",
+        "运行时与迁移脱节：当前生产样式运行时仍是 in-memory repository，进程重启会丢失阅读量；迁移文件只是为数据库持久化模型留痕。本轮交付需明确“当前运行时可验证、但不保证重启后持久”的现实，除非另有数据库 adapter 接入..."
+      ]
+    },
+    {
+      "runId": "2026-05-22-c端个性简约风格探索",
+      "title": "C端个性简约风格探索",
+      "stage": "review",
+      "status": "in-progress",
+      "workflowProfile": "standard",
+      "updatedAt": "2026-05-22T09:16:39.227Z",
+      "sourceRequirement": ".harness/backlog/ready/c端个性简约风格探索.md",
+      "modules": [
+        "web",
+        "docs"
+      ],
+      "capabilities": [
+        "C 端视觉方向落地为 工程手札 + 冷静编辑部秩序。",
+        "调整 Web 全局视觉 token 和共享样式，增强纸面、注释线、手记条目和低噪音工程感。",
+        "更新首页首屏、最近手记、技术索引、照片入口文案和结构。",
+        "更新文章列表、文章详情元信息、上下篇导航、关于页、照片墙、照片详情、loading/error/404 的语气与视觉细节。",
+        "保持文章为主线，照片墙仍作为次级现场档案入口。"
+      ],
+      "decisions": [
+        "像工程师长期维护的手记：真实、克制、有现场感。",
+        "像小型技术编辑部：有结构、有筛选、有标题秩序。",
+        "仍然是内容优先：文章阅读体验高于视觉展示。",
+        "frontend-design：要求选择清晰审美方向，避免模板化和 generic AI aesthetics；本轮以“工程手札”作为单一主方向。",
+        "information-architecture：先定义页面层级、导航、内容优先级，再做视觉实现。"
+      ],
+      "apiChanges": [],
+      "dbChanges": [],
+      "followups": [
+        "视觉过度：标注线、网格和纸面效果加多会破坏此前“减少线条噪音”的成果。",
+        "感知不足：如果只做颜色和间距微调，无法达到“个性”的目标。",
+        "中英文语气不统一：当前导航和部分文案使用英文，后续需要在实现中统一技术感与中文站点气质。",
+        "移动端拥挤：手札/编辑部元素容易占空间，移动端需要优先降级为单列、少装饰。",
+        "字体风险：外部字体依赖会增加加载与跨平台不确定性，本轮建议继续使用本地/系统字体栈。"
+      ]
+    },
+    {
+      "runId": "2026-05-26-011-c端设计稿调整开发-参照会话id-019e6260-2e94-7a02-9c5e",
+      "title": "C端设计稿调整开发。参照会话ID 019e6260-2e94-7a02-9c5e",
+      "stage": "requirements_plan",
+      "status": "blocked",
+      "workflowProfile": "standard",
+      "updatedAt": "2026-05-26T08:58:27.849Z",
+      "sourceRequirement": ".harness/backlog/ready/011-c端设计稿调整开发-参照会话id-019e6260-2e94-7a02-9c5e.md",
+      "modules": [],
+      "capabilities": [],
+      "decisions": [],
+      "apiChanges": [],
+      "dbChanges": [],
+      "followups": []
+    },
+    {
+      "runId": "2026-05-26-012-迭代一个需求-相册这个照片瀑布流希望是沾满屏幕的-宽度这块-把网站这块英文都修改",
+      "title": "012 迭代一个需求 相册这个照片瀑布流希望是沾满屏幕的 宽度这块 把网站这块英文都修改",
+      "stage": "done",
+      "status": "done",
+      "workflowProfile": "lite",
+      "updatedAt": "2026-05-26T11:37:08.518Z",
+      "sourceRequirement": ".harness/backlog/ready/012-迭代一个需求-相册这个照片瀑布流希望是沾满屏幕的-宽度这块-把网站这块英文都修改.md",
+      "modules": [],
+      "capabilities": [
+        "相册页改为更贴近全屏的瀑布流布局。",
+        "网站相关英文文案统一改为中文。"
+      ],
+      "decisions": [],
+      "apiChanges": [],
+      "dbChanges": [],
+      "followups": []
+    },
+    {
+      "runId": "2026-05-27-013-给-web-页面加一个搜索框",
+      "title": "给 web 页面加一个搜索框",
+      "stage": "requirements_plan",
+      "status": "in-progress",
+      "workflowProfile": "lite",
+      "updatedAt": "2026-05-27T06:11:45.573Z",
+      "sourceRequirement": ".harness/backlog/ready/013-给-web-页面加一个搜索框.md",
+      "modules": [],
+      "capabilities": [],
+      "decisions": [],
+      "apiChanges": [],
+      "dbChanges": [],
+      "followups": []
+    },
+    {
+      "runId": "2026-05-27-014-把-web-首页按钮文案改成开始使用",
+      "title": "把 web 首页按钮文案改成开始使用",
+      "stage": "requirements_plan",
+      "status": "in-progress",
+      "workflowProfile": "lite",
+      "updatedAt": "2026-05-27T06:11:45.583Z",
+      "sourceRequirement": ".harness/backlog/ready/014-把-web-首页按钮文案改成开始使用.md",
+      "modules": [],
+      "capabilities": [],
+      "decisions": [],
+      "apiChanges": [],
+      "dbChanges": [],
+      "followups": []
+    },
+    {
+      "runId": "2026-05-27-015-现在需要迭代一个技术需求-要帮我把-web-和-admin-两个前端项目里已经做",
+      "title": "现在需要迭代一个技术需求，要帮我把 web 和 admin 两个前端项目里已经做",
+      "stage": "done",
+      "status": "done",
+      "workflowProfile": "full",
+      "updatedAt": "2026-05-28T02:08:19.155Z",
+      "sourceRequirement": ".harness/backlog/ready/015-现在需要迭代一个技术需求-要帮我把-web-和-admin-两个前端项目里已经做.md",
+      "modules": [
+        "web"
+      ],
+      "capabilities": [
+        "本次发布范围已从原始 web + admin 需求收敛为仅处理 apps/web Tailwind-first 样式迁移。",
+        "apps/admin、API、数据库、infra、权限、路由语义、数据获取方式、SEO 元信息逻辑和生产配置均无变更。",
+        "关键变更为 apps/web 已有公开页面和相关展示组件的页面/组件 class 迁移：布局、间距、宽度、对齐、响应式、交互状态、加载态、错误态和空态尽量改为 Tailwind utility class 表达。"
+      ],
+      "decisions": [
+        "页面层：仅迁移 apps/web/app/**/page.tsx、layout.tsx、not-found.tsx、photos/loading.tsx、photos/error.tsx 中的页面级布局、容器、间距、对齐、排版、响应式、状态展示和交互外观。",
+        "组件层：仅迁移 ArticleList、MarkdownRenderer、PhotoMasonryGrid、PhotoFilters、PhotoImage、EmptyState、ErrorState、ThemeToggle 的样式表达；保留组件 props、数据处理、事件语义和可...",
+        "全局样式层：整理 apps/web/app/globals.css，保留 @theme、:root、.dark、base selector、Markdown 渲染规则、必要动画和少量跨页面 utility；将可内联到 JSX 的语义 class 样式迁移为 Tailwind cl..."
+      ],
+      "apiChanges": [],
+      "dbChanges": [],
+      "followups": [
+        "全局样式收敛可能影响多个页面共用的类名，降级方式是优先保留跨页基础规则，按页面逐步删除已迁移规则。",
+        "Markdown 渲染、代码块、表格、checkbox、图片等由 react-markdown 生成的内容无法完全依赖页面 JSX class，降级方式是在 globals.css 保留 .markdown-body 和 .markdown..."
+      ]
+    },
+    {
+      "runId": "2026-05-28-016-现在直接完善-harness-以会话id-019e4e5b-f80d-7a62",
+      "title": "现在直接完善 harness：以会话ID 019e4e5b-f80d-7a62-",
+      "stage": "requirements_plan",
+      "status": "in-progress",
+      "workflowProfile": "standard",
+      "updatedAt": "2026-05-28T02:53:06.163Z",
+      "sourceRequirement": ".harness/backlog/ready/016-现在直接完善-harness-以会话id-019e4e5b-f80d-7a62.md",
+      "modules": [],
+      "capabilities": [
+        "概述本轮用户可感知变更和技术变更。",
+        "写成可执行、可验收的目标列表。"
+      ],
+      "decisions": [
+        "说明本轮技术方案、模块边界和执行路径。",
+        "回滚本 run 产生的代码、配置和文档变更；涉及数据库、生产配置或迁移时由对应 agent 补充专门回滚步骤。"
+      ],
+      "apiChanges": [],
+      "dbChanges": [],
+      "followups": [
+        "无高风险项。"
+      ]
+    }
+  ]
+}

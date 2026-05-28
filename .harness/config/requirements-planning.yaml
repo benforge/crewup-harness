@@ -1,0 +1,46 @@
+requirements_planning:
+  enabled: true
+  agent_id: "requirements-plan"
+  agent_type: "explorer"
+  model_profile: "requirements_planning"
+  stage: "intake-plan"
+  input: ".harness/runs/<run>/input.md"
+  output: ".harness/runs/<run>/artifacts/requirement-plan.md"
+  promote_to: ".harness/runs/<run>/artifacts/requirement.md"
+  mode:
+    name: "plan_only"
+    no_code_changes: true
+    no_architecture_decision: true
+    no_implementation_task_spawn: true
+    require_user_acceptance_before_promote: true
+  interactive:
+    enabled: true
+    artifact: ".harness/runs/<run>/artifacts/requirement-interview.md"
+    state: ".harness/runs/<run>/logs/requirements-interview/state.json"
+    max_rounds: 3
+    max_questions_per_round: 3
+    sync_to_requirement_plan: true
+    stop_when:
+      - "目标、最小验收标准和边界已经明确"
+      - "剩余问题不影响方案阶段，可以写入待确认问题"
+      - "达到最大轮数后由用户决定继续问答或收敛"
+  sections:
+    - "需求背景"
+    - "目标"
+    - "非目标"
+    - "用户角色与权限"
+    - "核心用户流程"
+    - "页面与路由候选"
+    - "数据与接口线索"
+    - "验收标准"
+    - "风险与边界"
+    - "待确认问题"
+  completion_gate:
+    ready_when:
+      - "需求已从自然语言扩写为可验收条目"
+      - "待确认问题数量可控且逐条可回答"
+      - "影响范围候选已标注"
+    blocked_when:
+      - "用户目标互相冲突"
+      - "关键业务规则缺失"
+      - "涉及高风险操作但没有确认边界"

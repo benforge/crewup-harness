@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "skills": {
+    "adr-writer": {
+      "source": "patricio0312rev/skills",
+      "sourceType": "github",
+      "skillPath": "architecture/adr-writer/SKILL.md",
+      "computedHash": "2268d420cfad78ad0c914ee57f4ea3fad8d0edc2e10cbb7b35a825ae2a0885a0"
+    },
+    "changelog-writer": {
+      "source": "patricio0312rev/skills",
+      "sourceType": "github",
+      "skillPath": "foundation/changelog-writer/SKILL.md",
+      "computedHash": "9837999ebe59313ef15835e2426614b13a67d50e24a38e971d464bbf1b92c07b"
+    },
+    "codebase-explorer": {
+      "source": "quicksilversurfer/codebase-explorer",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "9e978f6795597f72d4ed322a6c028be4696510d6114e7bd39349171629fea6c3"
+    },
+    "deploy-checklist": {
+      "source": "anthropics/knowledge-work-plugins",
+      "sourceType": "github",
+      "skillPath": "engineering/skills/deploy-checklist/SKILL.md",
+      "computedHash": "9d0361235cd2cec686a5bcf52259e07785f48d139dd6420b67b4a01a90baf3a7"
+    },
+    "frontend-architecture": {
+      "source": "manutej/luxor-claude-marketplace",
+      "sourceType": "github",
+      "skillPath": "plugins/luxor-frontend-essentials/skills/frontend-architecture/SKILL.md",
+      "computedHash": "5e62e93d1705e62556448ef287f75eeb6b0331c13d4b5f1f2475f432c551cc00"
+    },
+    "frontend-design": {
+      "source": "https://www.modelscope.cn/skills/@anthropics/frontend-design",
+      "sourceType": "well-known",
+      "computedHash": "e8118284a6365753790d44bb2758a6032b3af27fa84696428d9233f2be0f4e78"
+    },
+    "github-actions-docs": {
+      "source": "xixu-me/skills",
+      "sourceType": "github",
+      "skillPath": "skills/github-actions-docs/SKILL.md",
+      "computedHash": "ead3fa2aff18e829c468dee593e1dc897aa95dc7a07d9ff8ff9f30c296b19af8"
+    },
+    "impact-analysis": {
+      "source": "datex/skills",
+      "sourceType": "github",
+      "skillPath": "skills/datex-studio/impact-analysis/SKILL.md",
+      "computedHash": "d1117116d95a7447e34bb5c92b27edb0060e2c2008718e93254863e25b84fe4b"
+    },
+    "information-architecture": {
+      "source": "julianoczkowski/designer-skills",
+      "sourceType": "github",
+      "skillPath": "information-architecture/SKILL.md",
+      "computedHash": "35b6a262d1fd0492804d00fada1400f3f54eadd008fad28ac506991cdedc6061"
+    },
+    "migration-planner": {
+      "source": "patricio0312rev/skills",
+      "sourceType": "github",
+      "skillPath": "architecture/migration-planner/SKILL.md",
+      "computedHash": "47769b11f39670e482032546b41d38310a9be497bcc2ac02a3600100fe3f9487"
+    },
+    "security-review": {
+      "source": "affaan-m/everything-claude-code",
+      "sourceType": "github",
+      "skillPath": "skills/security-review/SKILL.md",
+      "computedHash": "7e488eba549ed7145579a7177e7b491906b2c66319a052a31a068e5219c1ebcd"
+    },
+    "static-analysis": {
+      "source": "mohitmishra786/low-level-dev-skills",
+      "sourceType": "github",
+      "skillPath": "skills/build-systems/static-analysis/SKILL.md",
+      "computedHash": "2f3b7119b9c9795182310e8e101a651d6363ff5eed66eb70a4b5041cd0d1c764"
+    },
+    "tailwind-design-system": {
+      "source": "wshobson/agents",
+      "sourceType": "github",
+      "skillPath": "plugins/frontend-mobile-development/skills/tailwind-design-system/SKILL.md",
+      "computedHash": "f54f39ce967af3a4bba1f662c3600f0253467508d5fbbc7c545c67e102da2253"
+    },
+    "web-design-guidelines": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/web-design-guidelines/SKILL.md",
+      "computedHash": "f3bc47f890f42a44db1007ab390709ec368e4b8c089baee6b0007182236ac474"
+    }
+  }
+}

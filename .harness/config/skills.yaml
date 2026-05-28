@@ -1,0 +1,149 @@
+skill_policy:
+  purpose: "Centralize skill references for harness agents without treating references as installed tools."
+  rules:
+    - "`npx skills find` only discovers candidate skills; it does not install them."
+    - "A skill listed in this file is guidance for agents, not proof that the skill is installed or active."
+    - "Before a run requires an external skill, verify it with `npx skills list --json` or the current Codex skill list."
+    - "If a skill is not verified as active, agents may only use the written guidance in this file or the checked-in docs as normal context."
+    - "Do not paste long 'Skill candidates' blocks into backlog items, run inputs, artifacts, or per-agent prompts. Reference this config instead."
+  install_locations:
+    project: ".agents/skills/<skill-name>/SKILL.md"
+    codex_user: "%USERPROFILE%/.codex/skills/<skill-name>/SKILL.md"
+  prompt_hygiene:
+    - "Generated prompts should include only the skills relevant to the target agent role."
+    - "Run artifacts should record decisions and acceptance criteria, not repeat skill marketplace search results."
+
+internal_skill_sops:
+  build:
+    path: ".harness/skills/build.md"
+    roles:
+      - "frontend"
+      - "backend"
+      - "database"
+      - "devops"
+      - "tester"
+  test:
+    path: ".harness/skills/test.md"
+    roles:
+      - "frontend"
+      - "backend"
+      - "tester"
+      - "reviewer"
+  ui-verify:
+    path: ".harness/skills/ui-verify.md"
+    roles:
+      - "frontend"
+      - "tester"
+      - "reviewer"
+  release-check:
+    path: ".harness/skills/release-check.md"
+    roles:
+      - "tester"
+      - "reviewer"
+      - "release"
+
+role_skills:
+  common:
+    - "codebase-explorer"
+    - "context-summarizer"
+    - "diff-review"
+
+  pm:
+    - "requirement-normalizer"
+    - "roadmap-planner"
+
+  requirements:
+    - "document-reader"
+    - "acceptance-criteria-writer"
+    - "information-architecture"
+
+  architect:
+    - "context7-docs"
+    - "adr-writer"
+    - "impact-analysis"
+    - "route-map-planner"
+    - "auth-boundary-review"
+
+  frontend:
+    - "react-docs"
+    - "react-or-next-docs"
+    - "frontend-architecture"
+    - "tailwind-design-system"
+    - "design-system"
+    - "information-architecture"
+    - "route-flow-review"
+    - "auth-flow-review"
+    - "state-management"
+    - "form-design"
+    - "accessibility-check"
+    - "ui-review"
+    - "playwright"
+
+  backend:
+    - "node-api-docs"
+    - "openapi-writer"
+    - "security-review"
+
+  database:
+    - "orm-docs"
+    - "sql-review"
+    - "migration-planner"
+
+  devops:
+    - "docker-docs"
+    - "github-actions-docs"
+    - "deploy-checklist"
+
+  tester:
+    - "test-plan-writer"
+    - "api-test"
+    - "route-flow-test"
+    - "auth-flow-test"
+    - "responsive-layout-check"
+    - "playwright"
+
+  reviewer:
+    - "static-analysis"
+    - "security-review"
+    - "diff-review"
+    - "tailwind-design-system"
+    - "product-ux-review"
+    - "route-auth-review"
+
+  release:
+    - "changelog-writer"
+    - "deployment-summary"
+
+external_skill_candidates:
+  frontend-design:
+    source: "https://www.modelscope.cn/skills/@anthropics/frontend-design"
+    marketplace_ref: "anthropics/skills@frontend-design"
+    status: "installable_candidate"
+    roles:
+      - "frontend"
+      - "reviewer"
+    install_command: "npx skills add https://www.modelscope.cn/skills/@anthropics/frontend-design -a codex --copy -y"
+    use_when: "Frontend implementation or UX review needs stronger visual hierarchy, composition, interaction, and polish guidance."
+    note: "Do not assume this is active only because .agents/skills/frontend-design exists; verify with `npx skills list --json` and restart Codex when needed."
+
+  web-design-guidelines:
+    source: "skills marketplace search result"
+    marketplace_ref: "vercel-labs/agent-skills@web-design-guidelines"
+    status: "installable_candidate"
+    roles:
+      - "frontend"
+      - "requirements"
+      - "architect"
+      - "reviewer"
+    install_command: "npx skills add vercel-labs/agent-skills --skill web-design-guidelines -a codex --copy -y"
+    use_when: "Modern web page layout, content-site rhythm, and visual guideline support are needed."
+
+  tailwind-design-system:
+    source: "skills marketplace search result"
+    marketplace_ref: "wshobson/agents@tailwind-design-system"
+    status: "installable_candidate"
+    roles:
+      - "frontend"
+      - "reviewer"
+    install_command: "npx skills add wshobson/agents --skill tailwind-design-system -a codex --copy -y"
+    use_when: "Tailwind token, spacing, utility organization, and design-system consistency need explicit support."

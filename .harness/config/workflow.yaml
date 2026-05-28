@@ -1,0 +1,162 @@
+workflow:
+  name: "通用 AI 协作工作流"
+  version: "0.2.0"
+  language: "zh-CN"
+  primary_runner: "native-subagents"
+  fallback_runners:
+    - "desktop-prompts"
+    - "api-orchestrate"
+    - "blocked-waiting-for-subagents"
+
+  state_file: ".harness/runs/<run>/state.json"
+  transition_log: ".harness/runs/<run>/logs/transitions.md"
+
+  stages:
+    - id: "intake"
+      name: "需求入口判定"
+      owner: "main"
+      input: "用户原始请求"
+      output: ".harness/backlog/new/*.md 或 .harness/backlog/ready/*.md 或 existing run"
+      gate: "intake_decision"
+
+    - id: "requirements_plan"
+      name: "需求扩写"
+      owner: "requirements-plan"
+      input: ".harness/runs/<run>/input.md"
+      output: ".harness/runs/<run>/artifacts/requirement-plan.md"
+      gate: "requirement_plan_created"
+
+    - id: "requirements_confirm"
+      name: "需求确认"
+      owner: "main"
+      input: ".harness/runs/<run>/artifacts/requirement-plan.md"
+      output: ".harness/runs/<run>/artifacts/requirement.md"
+      gate: "requirement_promoted_or_confirmed"
+
+    - id: "plan"
+      name: "架构与实施计划"
+      owner: "architect"
+      input: ".harness/runs/<run>/artifacts/requirement.md"
+      output: ".harness/runs/<run>/artifacts/architecture.md 和 implementation-plan.md"
+      gate: "planning_artifacts_ready"
+
+    - id: "implement"
+      name: "实现"
+      owner: "implementation_agents"
+      input: ".harness/runs/<run>/artifacts/implementation-plan.md"
+      output: "业务代码、测试和变更说明 artifacts"
+      gate: "user_approved_implementation"
+
+    - id: "verify"
+      name: "验证"
+      owner: "tester"
+      input: "业务代码和测试计划"
+      output: ".harness/runs/<run>/artifacts/test-report.md"
+      gate: "verification_recorded"
+
+    - id: "review"
+      name: "评审"
+      owner: "reviewer"
+      input: "代码 diff、run artifacts、测试报告"
+      output: ".harness/runs/<run>/artifacts/review-report.md"
+      gate: "review_passed"
+
+    - id: "release"
+      name: "发布准备"
+      owner: "release"
+      input: "已通过评审的变更"
+      output: ".harness/runs/<run>/artifacts/release-summary.md"
+      gate: "release_summary_ready"
+
+    - id: "done"
+      name: "完成归档"
+      owner: "main"
+      input: "通过测试、评审和发布门禁的 run"
+      output: "backlog/done 或 product sync"
+      gate: "done_definition_met"
+
+  transitions:
+    intake:
+      allowed_next:
+        - "requirements_plan"
+        - "requirements_confirm"
+        - "plan"
+    requirements_plan:
+      allowed_next:
+        - "requirements_confirm"
+    requirements_confirm:
+      allowed_next:
+        - "plan"
+    plan:
+      allowed_next:
+        - "implement"
+    implement:
+      allowed_next:
+        - "verify"
+    verify:
+      allowed_next:
+        - "review"
+    review:
+      allowed_next:
+        - "release"
+    release:
+      allowed_next:
+        - "done"
+    done:
+      allowed_next: []
+
+  confirmations:
+    before_implement:
+      required: true
+      evidence_field: "confirmations.implementation_approved_at"
+    before_product_sync:
+      required: true
+      evidence_field: "confirmations.product_sync_approved_at"
+      note: "transition --to=done 自动记录该确认并执行 product-sync。"
+
+  status_values:
+    - "in-progress"
+    - "waiting_user"
+    - "blocked"
+    - "done"
+    - "archived"
+
+  workflow_profiles:
+    lite:
+      description: "小修、小文档、小范围 bug；仍保留实现、tester、reviewer、release 的轻量闭环，避免实现完成后主 agent 直接结束。"
+      default_agents:
+        - "tester"
+        - "reviewer"
+        - "release"
+      required_gates:
+        - "impact_scope_known"
+        - "verification_recorded"
+        - "review_recorded"
+    standard:
+      description: "常规功能迭代；需求、方案、实现、验证、评审、发布摘要闭环。"
+      default_agents:
+        - "requirements"
+        - "architect"
+        - "tester"
+        - "reviewer"
+        - "release"
+      required_gates:
+        - "acceptance_criteria_ready"
+        - "implementation_approved"
+        - "verification_recorded"
+        - "review_passed"
+        - "release_summary_ready"
+    full:
+      description: "高风险或跨模块变更；完整 PM/需求/架构/实现/测试/评审/发布流程。"
+      default_agents:
+        - "pm"
+        - "requirements"
+        - "architect"
+        - "tester"
+        - "reviewer"
+        - "release"
+      required_gates:
+        - "risk_reviewed"
+        - "manual_approval_recorded"
+        - "rollback_documented"
+        - "native_results_recorded"
