@@ -18,7 +18,7 @@
 - `.harness/AGENTS.md`
 - `.harness/agents/backend.md`
 - `.harness/rules/backend.md`
-- `.harness/project/ai/profile.yaml` 以及其中声明的当前项目后端规则
+- `.harness/project/overlay.yaml` 以及其中声明的当前项目后端规则
 - `.harness/config/skills.yaml`
 - 当前 run 的 `input.md`
 - 当前 run 的 `artifacts/requirement.md`

@@ -1,10 +1,12 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+﻿import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { parse as parseYaml } from "yaml";
+import { loadProjectProfile } from "./lib/project-profile.mjs";
 import { loadProjectOverlay, resolveImpactScopes } from "./lib/project-overlay.mjs";
 import {
+  configureDelegationGuard,
   collectWorkspaceChanges,
   evaluateDelegationGuard,
   nativeExecutionProblems,
@@ -41,7 +43,8 @@ await mkdir(logsDir, { recursive: true });
 const workflow = parseYaml(await readFile(path.join(root, ".harness", "config", "workflow.yaml"), "utf8")).workflow;
 const archivePolicy = parseYaml(await readFile(path.join(root, ".harness", "config", "archive-policy.yaml"), "utf8")).archive;
 const artifactSchema = parseYaml(await readFile(path.join(root, ".harness", "config", "artifact-schema.yaml"), "utf8")).artifacts ?? {};
-const projectProfile = parseYaml(await readFile(path.join(root, ".harness", "config", "project-profile.yaml"), "utf8")).project_profile;
+const { project_profile: projectProfile } = await loadProjectProfile(root);
+configureDelegationGuard(projectProfile);
 const projectOverlay = await loadProjectOverlay(root, projectProfile.ai_overlay?.profile, { projectProfile });
 const impactScopesConfig = resolveImpactScopes(projectProfile, projectOverlay.profile);
 const state = JSON.parse(await readFile(statePath, "utf8"));
@@ -437,3 +440,5 @@ function fail(message) {
   console.error(message);
   process.exit(1);
 }
+
+

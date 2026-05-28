@@ -46,4 +46,4 @@
 ## 文档落点
 
 - 需求细化、验收标准、非目标和待确认问题只写入当前 run 的 `artifacts/requirement.md`。
-- 不直接写 `docs/product/`。
+- 不直接写长期文档目录。

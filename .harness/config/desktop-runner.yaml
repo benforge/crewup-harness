@@ -38,7 +38,7 @@ desktop_runner:
     - "子 agent 必须把结果写回 logs/desktop-agents/<agent>.result.md，或在最终回复中给主 agent 汇总。"
     - "开发类子 agent 可以修改文件，但必须遵守 task 的允许修改范围和 write-policy。"
     - "PM、Requirements、Architect、Reviewer、Release 默认不直接写业务代码。"
-    - "需求规划、设计方案和实施路线图写入 run artifacts；docs/product 只在 release 完成并经用户确认后同步。"
+    - "需求规划、设计方案和实施路线图写入 run artifacts；产品长期文档目录只在 release 完成并经用户确认后同步。"
 
   visible_outputs:
     - "右侧 tabs 中的子 agent 对话"

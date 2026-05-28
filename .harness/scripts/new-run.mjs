@@ -7,16 +7,16 @@ const root = process.cwd();
 const arg = process.argv[2];
 
 if (!arg) {
-  console.error("Please provide a backlog/ready task file name, for example: npm run harness:new-run -- 001-blog-mvp.md");
-  console.error("Run intake first when starting from a raw user request: npm run harness:intake -- --text=\"<request>\"");
+  console.error("请提供 ready 队列文件名，例如：npm run harness:new-run -- 001-xxx.md");
+  console.error("如果你是从原始需求开始，请先运行：npm run harness:intake -- --text=\"<request>\"");
   process.exit(1);
 }
 
 const readyFile = path.join(root, ".harness", "backlog", "ready", arg);
 
 if (!existsSync(readyFile)) {
-  console.error(`Ready backlog item not found: ${path.relative(root, readyFile)}`);
-  console.error("new-run only creates runs from .harness/backlog/ready/. Use harness:intake before creating a run.");
+  console.error(`未找到 ready backlog 项：${path.relative(root, readyFile)}`);
+  console.error("new-run 只会从 .harness/backlog/ready/ 创建 run。");
   process.exit(1);
 }
 
@@ -33,7 +33,7 @@ const logsDir = path.join(runDir, "logs");
 const initialStage = "requirements_plan";
 
 if (existsSync(runDir)) {
-  console.error(`Run already exists: ${path.relative(root, runDir)}`);
+  console.error(`Run 已存在：${path.relative(root, runDir)}`);
   process.exit(1);
 }
 
@@ -86,13 +86,48 @@ for (const name of templates) {
   if (existsSync(source)) await copyFile(source, target);
 }
 
-const testReport = `# 测试报告\n\n## Run\n\n- runId: ${runId}\n\n## 结果汇总\n\n待 Tester Agent 补充。\n\n## 执行项\n\n-\n\n## 通过项\n\n-\n\n## 失败 / 阻塞项\n\n-\n\n## 未覆盖风险\n\n-\n`;
+const testReport = `# 测试报告
+
+## Run
+
+- runId: ${runId}
+
+## 结果汇总
+
+待 Tester Agent 补充。
+
+## 执行项
+
+-
+
+## 通过项
+
+-
+
+## 失败 / 阻塞项
+
+-
+
+## 未覆盖风险
+
+-
+`;
 await writeFile(path.join(artifactsDir, "test-report.md"), testReport, "utf8");
 
 const input = await readFile(readyFile, "utf8");
 await writeFile(
   path.join(logsDir, "created.md"),
-  `# Run 创建记录\n\n- runId: ${runId}\n- source: ${path.relative(root, readyFile).replaceAll("\\", "/")}\n- createdAt: ${now}\n- intake: backlog_ready\n\n## 原始需求快照\n\n${input}\n`,
+  `# Run 创建记录
+
+- runId: ${runId}
+- source: ${path.relative(root, readyFile).replaceAll("\\", "/")}
+- createdAt: ${now}
+- intake: backlog_ready
+
+## 原始需求快照
+
+${input}
+`,
   "utf8"
 );
 

@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
+import { loadProjectProfile, productDocsPath, productDocsRunsPath } from "./lib/project-profile.mjs";
 
 const root = process.cwd();
 const args = process.argv.slice(2);
@@ -20,15 +21,23 @@ if (!approved) {
 const runDir = path.join(root, ".harness", "runs", runId);
 const artifactsDir = path.join(runDir, "artifacts");
 const statePath = path.join(runDir, "state.json");
-const productDir = path.join(root, "docs", "product");
-const productRunsDir = path.join(productDir, "runs");
+const { project_profile: projectProfile } = await loadProjectProfile(root);
+const productDocsRel = productDocsPath(projectProfile);
+const productDocsRunsRel = productDocsRunsPath(projectProfile);
+
+if (!productDocsRel || !productDocsRunsRel) {
+  console.log("Product docs sync is disabled for this project profile.");
+  process.exit(0);
+}
+const productDir = path.join(root, productDocsRel);
+const productRunsDir = path.join(root, productDocsRunsRel);
 
 if (!existsSync(runDir)) {
   console.error(`找不到 run：${path.relative(root, runDir)}`);
   process.exit(1);
 }
 if (!existsSync(statePath)) {
-  console.error("缺少 state.json，不允许同步到 docs/product。");
+  console.error(`缺少 state.json，不允许同步到 ${productDocsRel}。`);
   process.exit(1);
 }
 
@@ -58,7 +67,7 @@ const reviewReport = await readOptional(path.join(artifactsDir, "review-report.m
 const state = JSON.parse(await readFile(statePath, "utf8"));
 
 if (!releaseSummary.trim() || releaseSummary.includes("待 Release Agent 补充")) {
-  console.error("release-summary.md 尚未完成，不允许同步到 docs/product。");
+  console.error(`release-summary.md 尚未完成，不允许同步到 ${productDocsRel}。`);
   process.exit(1);
 }
 if (!["release", "done"].includes(state.stage)) {
@@ -66,11 +75,11 @@ if (!["release", "done"].includes(state.stage)) {
   process.exit(1);
 }
 if (hasRequiredCheckFailure(testReport)) {
-  console.error("test-report.md 存在必需检查失败，不允许同步到 docs/product。");
+  console.error(`test-report.md 存在必需检查失败，不允许同步到 ${productDocsRel}。`);
   process.exit(1);
 }
 if (reviewHasBlockingIssues(reviewReport)) {
-  console.error("review-report.md 未通过或仍有阻塞问题，不允许同步到 docs/product。");
+  console.error(`review-report.md 未通过或仍有阻塞问题，不允许同步到 ${productDocsRel}。`);
   process.exit(1);
 }
 

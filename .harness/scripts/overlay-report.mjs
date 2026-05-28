@@ -1,6 +1,7 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+﻿import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { parse as parseYaml } from "yaml";
+import { loadProjectProfile } from "./lib/project-profile.mjs";
 import { inferOverlayScopeMatches, loadProjectOverlay, overlayRuleFilesForAgent, resolveImpactScopes } from "./lib/project-overlay.mjs";
 
 const root = process.cwd();
@@ -11,7 +12,7 @@ const reportsDir = path.join(root, ".harness", "reports");
 const markdownPath = path.join(reportsDir, "overlay-report.md");
 const jsonPath = path.join(reportsDir, "overlay-report.json");
 
-const projectProfile = parseYaml(await readFile(path.join(root, ".harness", "config", "project-profile.yaml"), "utf8")).project_profile;
+const { project_profile: projectProfile } = await loadProjectProfile(root);
 const projectOverlay = await loadProjectOverlay(root, projectProfile.ai_overlay?.profile, { projectProfile });
 const impactScopes = resolveImpactScopes(projectProfile, projectOverlay.profile);
 const matchedScopeDetails = text ? inferOverlayScopeMatches(projectOverlay.profile, { taskText: text }) : [];
@@ -93,8 +94,8 @@ function renderMarkdown(data) {
   }
 
   lines.push("", "## Notes", "");
-  lines.push("- App/package scopes are auto-discovered from workspace directories, package.json, and local `.ai/rules.md` files.");
-  lines.push("- Keep `.ai/rules.md` next to the code it constrains. Use `.harness/project/ai/profile.yaml` only for common rules and exceptional overrides.");
+  lines.push("- App/package scopes are auto-discovered from workspace directories and package.json metadata.");
+  lines.push("- Keep project-level AI rules in `.harness/project/`; avoid scattering local rule files by default.");
   lines.push("");
   return lines.join("\n");
 }
@@ -112,3 +113,5 @@ function valueOf(prefix) {
 function rel(target) {
   return path.relative(root, target).replaceAll("\\", "/");
 }
+
+

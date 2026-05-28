@@ -4,46 +4,23 @@ import path from "node:path";
 import { parse as parseYaml } from "yaml";
 import { matchPattern, normalizeRelPath } from "./context-mode.mjs";
 
-const defaultOverlayPath = ".harness/project/ai/profile.yaml";
-const defaultLocalRuleFile = ".ai/rules.md";
-const discoveryExcludes = new Set([
-  ".git",
-  ".harness",
-  ".next",
-  ".playwright-cli",
-  ".agents",
-  "node_modules",
-  "dist",
-  "build",
-  "coverage",
-  "output"
-]);
+const defaultOverlayPath = ".harness/project/overlay.yaml";
+const defaultLocalRuleFile = null;
+const discoveryExcludes = new Set([".git", ".harness", ".next", ".playwright-cli", ".agents", "node_modules", "dist", "build", "coverage", "output"]);
 
 export async function loadProjectOverlay(root, configuredPath = defaultOverlayPath, { projectProfile = null } = {}) {
-  const relPath = configuredPath || defaultOverlayPath;
-  const fallbackLocalRuleFile = resolveLocalRuleFile(projectProfile, null);
+  const relPath = resolveOverlayPath(configuredPath || defaultOverlayPath);
   const absolutePath = path.join(root, relPath);
+  const fallbackLocalRuleFile = resolveLocalRuleFile(projectProfile, null);
   if (!existsSync(absolutePath)) {
-    return {
-      path: relPath,
-      exists: false,
-      localRuleFile: fallbackLocalRuleFile,
-      profile: null,
-      discoveredScopes: []
-    };
+    return { path: relPath, exists: false, localRuleFile: fallbackLocalRuleFile, profile: null, discoveredScopes: [] };
   }
 
-  const parsed = parseYaml(await readFile(absolutePath, "utf8"));
+  const parsed = parseYaml(await readFile(absolutePath, "utf8")) ?? {};
   const baseProfile = parsed.ai_project ?? parsed.project ?? parsed;
   const localRuleFile = resolveLocalRuleFile(projectProfile, baseProfile);
   const { profile, discoveredScopes } = await withDiscoveredScopes(root, baseProfile, projectProfile, { localRuleFile });
-  return {
-    path: relPath,
-    exists: true,
-    localRuleFile,
-    profile,
-    discoveredScopes
-  };
+  return { path: relPath, exists: true, localRuleFile, profile, discoveredScopes };
 }
 
 export function resolveImpactScopes(projectProfile = {}, overlayProfile = null) {
@@ -63,10 +40,7 @@ export function resolveImpactScopes(projectProfile = {}, overlayProfile = null) 
   }
 
   for (const [scope, manual] of Object.entries(manualScopes)) {
-    resolved[scope] = {
-      ...(resolved[scope] ?? {}),
-      ...manual
-    };
+    resolved[scope] = { ...(resolved[scope] ?? {}), ...manual };
   }
 
   return resolved;
@@ -77,20 +51,18 @@ export function overlayRuleFilesForAgent(overlay, agentId, options = {}) {
   if (!profile) return [];
   const common = asRuleFiles(profile.rules?.common);
   const roleRules = asRuleFiles(profile.rules?.roles?.[agentId]);
-  const matchedScopes = inferOverlayScopes(profile, options)
-    .filter((scope) => shouldInjectScopeRulesForAgent(profile, scope, agentId));
+  const matchedScopes = inferOverlayScopes(profile, options).filter((scope) => shouldInjectScopeRulesForAgent(profile, scope, agentId));
   const scopeRules = matchedScopes.flatMap((scope) => collectScopeRuleFiles(profile, scope));
   return unique([...common, ...roleRules, ...scopeRules]).filter(Boolean);
 }
 
 export function inferOverlayScopes(profile, { allowedPatterns = [], taskText = "", runInput = "", impactScopes = [] } = {}) {
-  return inferOverlayScopeMatches(profile, { allowedPatterns, taskText, runInput, impactScopes })
-    .map((item) => item.scope);
+  return inferOverlayScopeMatches(profile, { allowedPatterns, taskText, runInput, impactScopes }).map((item) => item.scope);
 }
 
 export function inferOverlayScopeMatches(profile, { allowedPatterns = [], taskText = "", runInput = "", impactScopes = [] } = {}) {
   const scopes = profile?.rules?.scopes ?? {};
-  if (!scopes || Object.keys(scopes).length === 0) return [];
+  if (!Object.keys(scopes).length) return [];
 
   const matches = [];
   const normalizedPatterns = allowedPatterns.map(normalizeRelPath).filter(Boolean);
@@ -114,9 +86,7 @@ export function inferOverlayScopeMatches(profile, { allowedPatterns = [], taskTe
       reasons.push(`path:${pathHits.slice(0, 3).join(",")}`);
     }
 
-    const textPathHits = config.paths
-      .map((pattern) => globPrefix(normalizeRelPath(pattern)))
-      .filter((prefix) => prefix && haystack.includes(prefix.toLowerCase()));
+    const textPathHits = config.paths.map((pattern) => globPrefix(normalizeRelPath(pattern))).filter((prefix) => prefix && haystack.includes(prefix.toLowerCase()));
     if (textPathHits.length > 0) {
       score += 60;
       reasons.push(`path_text:${textPathHits.slice(0, 3).join(",")}`);
@@ -128,14 +98,7 @@ export function inferOverlayScopeMatches(profile, { allowedPatterns = [], taskTe
       reasons.push(`keyword:${keywordHits.slice(0, 5).join(",")}`);
     }
 
-    if (score > 0) {
-      matches.push({
-        scope,
-        score,
-        confidence: confidenceForScore(score),
-        reasons
-      });
-    }
+    if (score > 0) matches.push({ scope, score, confidence: confidenceForScore(score), reasons });
   }
 
   return matches.sort((left, right) => right.score - left.score || left.scope.localeCompare(right.scope));
@@ -178,12 +141,7 @@ export function overlaySummary(overlay) {
   const profile = overlay?.profile;
   if (!profile) return "No project overlay configured.";
   const scopeCount = Object.keys(profile.rules?.scopes ?? {}).length;
-  return [
-    `overlay: ${overlay.path}`,
-    `project: ${profile.name ?? "unnamed"}`,
-    `language: ${profile.language?.communication ?? "unspecified"}`,
-    `scope_rules: ${scopeCount}`
-  ].join("\n");
+  return [`overlay: ${overlay.path}`, `project: ${profile.name ?? "unnamed"}`, `language: ${profile.language?.communication ?? "unspecified"}`, `scope_rules: ${scopeCount}`].join("\n");
 }
 
 function unique(items) {
@@ -198,10 +156,7 @@ function collectScopeRuleFiles(profile, scope, seen = new Set()) {
   if (!rawConfig) return [];
 
   const config = normalizeScopeConfig(rawConfig);
-  return [
-    ...config.files,
-    ...config.includeScopes.flatMap((item) => collectScopeRuleFiles(profile, item, seen))
-  ];
+  return [...config.files, ...config.includeScopes.flatMap((item) => collectScopeRuleFiles(profile, item, seen))];
 }
 
 function shouldInjectScopeRulesForAgent(profile, scope, agentId) {
@@ -213,9 +168,7 @@ function shouldInjectScopeRulesForAgent(profile, scope, agentId) {
 }
 
 function normalizeScopeConfig(rawConfig) {
-  if (!rawConfig) {
-    return { agents: [], artifacts: [], files: [], paths: [], keywords: [], includeScopes: [] };
-  }
+  if (!rawConfig) return { agents: [], artifacts: [], files: [], paths: [], keywords: [], includeScopes: [] };
   if (typeof rawConfig === "string" || Array.isArray(rawConfig)) {
     return { agents: [], artifacts: [], files: asRuleFiles(rawConfig), paths: [], keywords: [], includeScopes: [] };
   }
@@ -318,10 +271,7 @@ async function discoverLocalScopes(root, projectProfile, profile, localRuleFile)
     rawScopes.push({ id, relDir, hasRule, packageJson, ruleMeta });
   }
 
-  return rawScopes.map((scope) => {
-    const config = scopeConfigFromDiscovery(scope, packageNameToScope, localRuleFile);
-    return { id: scope.id, config };
-  });
+  return rawScopes.map((scope) => ({ id: scope.id, config: scopeConfigFromDiscovery(scope, packageNameToScope, localRuleFile) }));
 }
 
 async function discoverWorkspaceDirs(root, projectProfile, profile) {
@@ -329,7 +279,8 @@ async function discoverWorkspaceDirs(root, projectProfile, profile) {
   const packageWorkspaces = normalizeWorkspaces(rootPackage?.workspaces);
   const configuredWorkspaces = asRuleFiles(projectProfile?.workspace_globs ?? projectProfile?.workspaces);
   const overlayWorkspaces = asRuleFiles(profile?.discovery?.workspace_globs ?? profile?.discovery?.workspaces);
-  const patterns = unique([...packageWorkspaces, ...configuredWorkspaces, ...overlayWorkspaces, "apps/*", "packages/*"]);
+  const configuredPatterns = unique([...packageWorkspaces, ...configuredWorkspaces, ...overlayWorkspaces]);
+  const patterns = configuredPatterns.length ? configuredPatterns : ["src", "app", "lib", "libs/*", "services/*", "modules/*", "projects/*"];
   const dirs = [];
 
   for (const pattern of patterns) {
@@ -342,6 +293,7 @@ async function discoverWorkspaceDirs(root, projectProfile, profile) {
 async function discoverLocalRuleDirs(root, localRuleFile) {
   const dirs = [];
   const ruleFile = normalizeRelPath(localRuleFile || defaultLocalRuleFile);
+  if (!ruleFile) return dirs;
 
   async function walk(current, depth) {
     if (depth > 5) return;
@@ -382,9 +334,7 @@ function scopeConfigFromDiscovery(scope, packageNameToScope, localRuleFile) {
   const dependencies = dependencyNames(scope.packageJson);
   const metaAgents = asRuleFiles(scope.ruleMeta?.agents ?? scope.ruleMeta?.agent);
   const agents = metaAgents.length ? metaAgents : inferAgentsFromPackage(scope.relDir, scope.packageJson);
-  const includeScopes = dependencies
-    .map((dependency) => packageNameToScope.get(dependency))
-    .filter((item) => item && item !== scope.id);
+  const includeScopes = dependencies.map((dependency) => packageNameToScope.get(dependency)).filter((item) => item && item !== scope.id);
   const metaPaths = resolveScopeRelativePaths(scope.relDir, scope.ruleMeta?.paths ?? scope.ruleMeta?.write_paths);
   const metaFiles = resolveScopeRelativePaths(scope.relDir, scope.ruleMeta?.files ?? scope.ruleMeta?.rules);
   const metaIncludes = asRuleFiles(scope.ruleMeta?.include_scopes ?? scope.ruleMeta?.includeScopes);
@@ -407,15 +357,10 @@ function inferAgentsFromPackage(relDir, packageJson) {
   const dependencies = dependencyNames(packageJson).map((item) => item.toLowerCase());
   const has = (name) => dependencies.includes(name);
 
-  if (has("@nestjs/common") || has("express") || has("fastify") || loweredPath.includes("/api") || loweredPath.endsWith("api")) {
-    return ["backend"];
-  }
-  if (has("next") || has("react") || has("vue") || has("@angular/core") || has("vite") || loweredPath.includes("/ui") || loweredPath.endsWith("ui")) {
-    return ["frontend"];
-  }
+  if (has("@nestjs/common") || has("express") || has("fastify") || loweredPath.includes("/api") || loweredPath.endsWith("api")) return ["backend"];
+  if (has("next") || has("react") || has("vue") || has("@angular/core") || has("vite") || loweredPath.includes("/ui") || loweredPath.endsWith("ui")) return ["frontend"];
   if (loweredPath.includes("sdk")) return ["frontend"];
   if (loweredPath.includes("types") || loweredPath.includes("schema")) return ["backend"];
-  if (loweredPath.startsWith("apps/")) return ["frontend"];
   return ["frontend"];
 }
 
@@ -425,25 +370,17 @@ function inferAgentsFromScope(scope, config) {
 }
 
 function inferKeywords(scopeId, relDir, packageJson, dependencies) {
-  const base = [
-    scopeId,
-    relDir,
-    path.basename(relDir),
-    packageJson?.name,
-    packageJson?.name?.split("/").pop(),
-    ...scopeAliases(scopeId, relDir),
-    ...frameworkKeywords(dependencies)
-  ];
+  const base = [scopeId, relDir, path.basename(relDir), packageJson?.name, packageJson?.name?.split("/").pop(), ...scopeAliases(scopeId, relDir), ...frameworkKeywords(dependencies)];
   return unique(base.filter(Boolean));
 }
 
 function scopeAliases(scopeId, relDir) {
   const normalized = `${scopeId} ${relDir}`.toLowerCase();
   const aliases = [];
-  if (/\bweb\b/.test(normalized)) aliases.push("web", "c端", "C 端", "公开站点", "公开访问", "首页", "文章详情", "阅读页", "照片墙");
-  if (/\badmin\b/.test(normalized)) aliases.push("admin", "后台", "管理端", "cms", "CMS", "登录", "受保护路由", "表单", "表格");
-  if (/\bapi\b/.test(normalized)) aliases.push("api", "后端", "接口", "服务", "controller", "鉴权", "认证");
-  if (/\bui\b/.test(normalized)) aliases.push("共享组件", "组件库");
+  if (/\bweb\b/.test(normalized)) aliases.push("web", "网站", "前台", "首页", "文章", "详情页", "内容页");
+  if (/\badmin\b/.test(normalized)) aliases.push("admin", "后台", "管理台", "cms", "登录", "表单", "表格");
+  if (/\bapi\b/.test(normalized)) aliases.push("api", "后端", "接口", "服务", "controller", "认证", "授权");
+  if (/\bui\b/.test(normalized)) aliases.push("ui", "共享组件", "组件库");
   if (/\btypes\b/.test(normalized)) aliases.push("types", "类型", "schema", "契约", "zod");
   if (/\bsdk\b/.test(normalized)) aliases.push("sdk", "SDK", "api client", "客户端", "请求封装");
   return aliases;
@@ -455,7 +392,7 @@ function frameworkKeywords(dependencies) {
   if (lowered.includes("next")) keywords.push("next", "next.js", "web", "frontend", "前端", "页面");
   if (lowered.includes("react")) keywords.push("react", "frontend", "前端");
   if (lowered.includes("vite")) keywords.push("vite", "frontend", "前端");
-  if (lowered.includes("antd")) keywords.push("antd", "admin", "后台", "管理端");
+  if (lowered.includes("antd")) keywords.push("antd", "admin", "后台", "管理台");
   if (lowered.includes("@nestjs/common")) keywords.push("nestjs", "api", "backend", "后端", "接口");
   if (lowered.includes("zod")) keywords.push("schema", "types", "类型", "契约");
   return keywords;
@@ -463,12 +400,7 @@ function frameworkKeywords(dependencies) {
 
 function dependencyNames(packageJson) {
   if (!packageJson) return [];
-  return unique([
-    ...Object.keys(packageJson.dependencies ?? {}),
-    ...Object.keys(packageJson.devDependencies ?? {}),
-    ...Object.keys(packageJson.peerDependencies ?? {}),
-    ...Object.keys(packageJson.optionalDependencies ?? {})
-  ]);
+  return unique([...Object.keys(packageJson.dependencies ?? {}), ...Object.keys(packageJson.devDependencies ?? {}), ...Object.keys(packageJson.peerDependencies ?? {}), ...Object.keys(packageJson.optionalDependencies ?? {})]);
 }
 
 function defaultArtifactsForAgents(agents) {
@@ -519,25 +451,28 @@ async function readLocalRuleMetadata(target) {
 }
 
 function resolveLocalRuleFile(projectProfile, profile) {
-  return normalizeRelPath(
-    projectProfile?.ai_overlay?.local_rule_file
-      ?? profile?.discovery?.local_rule_file
-      ?? defaultLocalRuleFile
-  );
+  const configured = projectProfile?.ai_overlay?.local_rule_file ?? profile?.discovery?.local_rule_file ?? defaultLocalRuleFile;
+  return configured ? normalizeRelPath(configured) : null;
+}
+
+function resolveOverlayPath(configuredPath) {
+  return normalizeRelPath(configuredPath || defaultOverlayPath);
 }
 
 function resolveScopeRelativePaths(relDir, values) {
-  return asRuleFiles(values).map((value) => {
-    const raw = String(value).trim().replaceAll("\\", "/");
-    const normalized = normalizeRelPath(raw);
-    if (!normalized) return "";
-    if (isRepoRootPattern(normalized) || normalized === relDir || normalized.startsWith(`${relDir}/`)) return normalized;
-    return normalizeRelPath(path.posix.join(relDir, normalized));
-  }).filter(Boolean);
+  return asRuleFiles(values)
+    .map((value) => {
+      const raw = String(value).trim().replaceAll("\\", "/");
+      const normalized = normalizeRelPath(raw);
+      if (!normalized) return "";
+      if (isRepoRootPattern(normalized) || normalized === relDir || normalized.startsWith(`${relDir}/`)) return normalized;
+      return normalizeRelPath(path.posix.join(relDir, normalized));
+    })
+    .filter(Boolean);
 }
 
 function isRepoRootPattern(pattern) {
-  return /^(apps|packages|infra|docs|\.harness|\.github)\//.test(pattern);
+  return /^(apps|packages|services|libs|modules|projects|infra|docs|\.harness|\.github)\//.test(pattern);
 }
 
 function normalizeScopeId(value) {

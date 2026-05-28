@@ -1,7 +1,8 @@
-import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+﻿import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { parse as parseYaml } from "yaml";
+import { loadProjectProfile } from "./lib/project-profile.mjs";
 import { loadProjectOverlay, resolveImpactScopes } from "./lib/project-overlay.mjs";
 
 const root = process.cwd();
@@ -13,7 +14,7 @@ const backlogRoot = path.join(root, ".harness", "backlog");
 await mkdir(knowledgeDir, { recursive: true });
 await mkdir(reportsDir, { recursive: true });
 
-const projectProfile = parseYaml(await readFile(path.join(root, ".harness", "config", "project-profile.yaml"), "utf8")).project_profile;
+const { project_profile: projectProfile } = await loadProjectProfile(root);
 const overlay = await loadProjectOverlay(root, projectProfile.ai_overlay?.profile, { projectProfile });
 const scopes = resolveImpactScopes(projectProfile, overlay.profile);
 const packages = await collectPackages();
@@ -40,18 +41,19 @@ console.log(`- ${rel(path.join(knowledgeDir, "lessons-learned.md"))}`);
 async function collectPackages() {
   const dirs = await discoverPackageDirs();
   const items = [];
+  const localRuleFile = projectProfile.ai_overlay?.local_rule_file ?? null;
   for (const dir of dirs) {
     const packagePath = path.join(root, dir, "package.json");
-    const aiRulePath = path.join(root, dir, projectProfile.ai_overlay?.local_rule_file ?? ".ai/rules.md");
+    const aiRulePath = localRuleFile ? path.join(root, dir, localRuleFile) : null;
     const packageJson = existsSync(packagePath) ? await readJson(packagePath) : null;
-    if (!packageJson && !existsSync(aiRulePath)) continue;
+    if (!packageJson && !(aiRulePath && existsSync(aiRulePath))) continue;
     items.push({
       path: dir,
       packageName: packageJson?.name ?? null,
       version: packageJson?.version ?? null,
       scripts: Object.keys(packageJson?.scripts ?? {}).sort(),
       dependencies: dependencyNames(packageJson).sort(),
-      aiRules: existsSync(aiRulePath) ? rel(aiRulePath) : null
+      aiRules: aiRulePath && existsSync(aiRulePath) ? rel(aiRulePath) : null
     });
   }
   return items.sort((left, right) => left.path.localeCompare(right.path));
@@ -59,12 +61,11 @@ async function collectPackages() {
 
 async function discoverPackageDirs() {
   const rootPackage = await readJson(path.join(root, "package.json"));
-  const patterns = [
+  const configuredPatterns = [
     ...normalizeWorkspaces(rootPackage?.workspaces),
-    ...(projectProfile.workspace_globs ?? []),
-    "apps/*",
-    "packages/*"
+    ...(projectProfile.workspace_globs ?? [])
   ];
+  const patterns = configuredPatterns.length ? configuredPatterns : ["src", "app", "lib", "libs/*", "services/*", "modules/*", "projects/*"];
   const dirs = [];
   for (const pattern of [...new Set(patterns)]) {
     dirs.push(...await expandWorkspacePattern(pattern));
@@ -229,7 +230,7 @@ function renderDevMap(index) {
   const lines = [
     "# Harness 项目导航地图",
     "",
-    "> 本文件由 `npm run harness:knowledge` 自动生成。不要手工维护这里的包列表；模块局部知识请写到代码旁边的 `.ai/rules.md`，项目级规则请写到 `.harness/project/ai/`。",
+    "> 本文件由 `npm run harness:knowledge` 自动生成。不要手工维护这里的包列表；项目适配规则统一维护在 `.harness/project/`。",
     "",
     "## 项目",
     "",
@@ -336,8 +337,8 @@ async function ensureLessonsFile() {
     "## 晋级规则",
     "",
     "- 如果经验可以机械检查，晋级为 script 或 gate。",
-    "- 如果经验是行为约束，晋级为 `.harness/rules/`、`.harness/project/ai/rules/` 或本地 `.ai/rules.md`。",
-    "- 如果经验是项目结构知识，晋级为 dev-map 输入：package metadata 或本地 `.ai/rules.md`。",
+    "- 如果经验是行为约束，晋级为 `.harness/rules/` 或 `.harness/project/rules/`。",
+    "- 如果经验是项目结构知识，晋级为 dev-map 输入、package metadata 或 `.harness/project/overlay.yaml`。",
     "- 团队级规则不要只留在聊天记忆里。",
     "",
     "## 待晋级经验",
@@ -529,3 +530,5 @@ function normalizeRelPath(inputPath) {
 function rel(target) {
   return path.relative(root, target).replaceAll("\\", "/");
 }
+
+

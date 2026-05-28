@@ -1,7 +1,8 @@
-import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+﻿import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { parse as parseYaml } from "yaml";
+import { loadProjectProfile } from "./lib/project-profile.mjs";
 import { decideContextMode } from "./lib/context-mode.mjs";
 import { loadProjectOverlay, renderOverlayContext } from "./lib/project-overlay.mjs";
 import { sortByExecutionOrder } from "./lib/execution-order.mjs";
@@ -33,7 +34,7 @@ await mkdir(logsDir, { recursive: true });
 const nativeConfig = parseYaml(await readFile(path.join(root, ".harness", "config", "native-subagents.yaml"), "utf8")).native_subagents;
 const modelPolicy = parseYaml(await readFile(path.join(root, ".harness", "config", "model-policy.yaml"), "utf8"));
 const contextPolicy = parseYaml(await readFile(path.join(root, ".harness", "config", "context-policy.yaml"), "utf8")).context;
-const projectProfile = parseYaml(await readFile(path.join(root, ".harness", "config", "project-profile.yaml"), "utf8")).project_profile;
+const { project_profile: projectProfile } = await loadProjectProfile(root);
 const projectOverlay = await loadProjectOverlay(root, projectProfile.ai_overlay?.profile, { projectProfile });
 const runInput = await readOptional(path.join(runDir, "input.md"));
 const artifactIndex = await readOptional(path.join(runDir, "logs", "context", "artifact-index.md"));
@@ -364,3 +365,5 @@ async function readOptional(target) {
   if (!existsSync(target)) return "";
   return readFile(target, "utf8");
 }
+
+

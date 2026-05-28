@@ -1,23 +1,15 @@
-# Harness 知识层
+# 知识库
 
-这个目录是 harness 写入仓库的项目知识层，用来沉淀项目地图、任务态势和可晋级的经验。
+这个目录保存自动生成的索引和长期可复用的 harness 经验。
 
-## 文件
+- `dev-map.md`：当前项目结构和 scope 地图
+- `decision-index.md`：决策记录索引
+- `run-index.json`：run 索引
+- `task-board.md`：backlog 和 run 看板快照
+- `module-index.json`：机器可读的 scope 索引
 
-- `dev-map.md`：自动生成的项目导航地图，给 agent 作为入口索引。
-- `module-index.json`：自动生成的模块和 scope 结构化索引。
-- `task-board.md`：自动生成的 backlog/run 轻量看板。
-- `lessons-learned.md`：人工或 agent 共同维护的错题沉淀和晋级入口。
-
-## 刷新
+刷新这些文件：
 
 ```bash
 npm run harness:knowledge
 ```
-
-## 规则
-
-- 不要手工维护 `dev-map.md` 或 `task-board.md` 里的自动生成列表。
-- 模块局部知识优先写到代码旁边的 `.ai/rules.md`。
-- 项目级经验先写入 `lessons-learned.md`，再晋级为 rule 或 script。
-- 能机械检查的经验，优先晋级为脚本或门禁，不要长期停留在自然语言规则里。

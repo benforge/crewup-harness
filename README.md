@@ -1,89 +1,288 @@
-# 项目 AI Harness 起步模板
+# Eff Harness
 
-这个仓库当前重点是搭建一套可复用的 `.harness/` 协作层，用来承接后续项目开发中的需求整理、多 agent 分工、任务流转、交付物归档和质量门禁。
+- [中文](#中文)
+- [English](#english)
 
-推荐用法：
+## 中文
 
-1. 把自然语言需求写入 `.harness/backlog/new/`。
-2. 需求澄清后移动到 `.harness/backlog/ready/`。
-3. 执行 `npm run harness:new-run -- <ready任务文件名>` 创建一次开发 run。
-4. 执行 `npm run harness:prepare-run -- <run-id>` 生成角色子任务。
-5. 主 agent 按 `.harness/config/workflow.yaml` 和 `tasks/*.task.md` 推进。
-6. 每次 run 的过程产物沉淀在 `.harness/runs/<日期-任务名>/artifacts/`。
+Eff Harness 是一套可复用的 AI 协作工作流层，用于把需求拆解、上下文管理、子 agent 协作、质量门禁、交付汇总和归档提交标准化。它不绑定具体技术栈，也不要求项目必须采用 `apps/`、`packages/` 或 monorepo 结构。
+
+它适合希望在真实工程仓库中稳定使用 AI agent 的开发者和团队：让每一次 AI 迭代都有明确输入、角色分工、执行记录、质量检查和归档路径。
+
+### 安装
+
+```bash
+npm install -D eff-harness
+```
+
+安装后推荐使用短命令 `eh`：
+
+```bash
+npx eh install
+```
+
+`eff-harness` 是 npm 包名和完整 CLI 名称；`eh` 是日常短命令；`harness` 是兼容别名，方便已有脚本迁移。
+
+### 快速开始
+
+在目标项目根目录执行：
+
+```bash
+npx eh install
+npx eh inspect --no-ai
+npx eh init --force
+npx eh check
+```
+
+这些命令会安装 `.harness/` 和 `AGENTS.md`，读取真实项目目录，生成 `.harness/project/` 适配层，并检查核心配置是否可用。
+
+### 工作流
+
+```text
+intake -> backlog -> run -> context-pack -> native-plan
+       -> subagents -> verify -> review -> release -> done -> archive
+```
 
 常用命令：
 
 ```bash
+npx eh run "现在直接实现：..."
+npx eh status
+npx eh next <run-id>
+npx eh report <run-id>
+npx eh gate-check <run-id>
+npx eh finalize <run-id>
+```
+
+`run` 会根据需求复杂度创建或准备 run，并生成子 agent 计划。`finalize` 会尝试推进到 `done`，通过门禁后按归档策略触发 git 提交。
+
+### 运行模式与认证
+
+| 模式 | 入口 | 是否需要 `OPENAI_API_KEY` | 说明 |
+| --- | --- | --- | --- |
+| Codex 原生子 agent | `native-plan` 后由主 agent 调用 `spawn_agent` | 不需要额外配置 | 使用 Codex 当前登录会话和宿主工具。 |
+| Node SDK/API | `inspect --ai`、`orchestrate` 非 `--dry-run` | 需要 | 终端 Node 进程直接调用 OpenAI SDK，无法读取 Codex Desktop 登录态。 |
+| 静态/启发式 | `inspect --no-ai`、`check`、`report` | 不需要 | 只读本地文件和配置，不调用模型。 |
+
+AI 辅助项目识别：
+
+```bash
+npx eh inspect --ai
+```
+
+PowerShell：
+
+```powershell
+$env:OPENAI_API_KEY="your_api_key"
+npx eh inspect --ai
+```
+
+macOS/Linux：
+
+```bash
+OPENAI_API_KEY="your_api_key" npx eh inspect --ai
+```
+
+### 自动 Git 提交
+
+自动提交由 `.harness/config/archive-policy.yaml` 控制。默认只有 run 进入 `done` 后才会提交，并且只暂存当前 run、来源 backlog 文件和 `changed-files` manifest 中登记的文件。
+
+```bash
+npx eh archive-commit <run-id> --dry-run
+npx eh finalize <run-id>
+```
+
+如果提交被阻塞，先登记本次变更：
+
+```bash
+npx eh changed-files <run-id> add <file...>
+npx eh archive-commit <run-id>
+```
+
+### 报告输出
+
+`report <run-id>` 会生成结构化 Markdown 报告，用表格展示 agent 名称、类型、执行状态、结果文件、摘要、变更、测试、阻塞点和 handoff。
+
+### 目录结构
+
+```text
+.harness/
+  agents/          # 角色说明
+  backlog/         # 需求队列
+  config/          # 工作流、模型、委派、风险、归档策略
+  knowledge/       # 可再生成的知识层索引
+  orchestrator/    # 主 agent 调度规则
+  project/         # 当前项目适配层
+  reports/         # 运行期报告
+  runs/            # 每次迭代的 run 数据
+  scripts/         # CLI 和工作流脚本
+  templates/       # artifacts 模板
+AGENTS.md          # 仓库级 agent 入口
+```
+
+在目标项目中，建议提交 `.harness/` 的工作流核心、`.harness/project/profile.yaml`、`.harness/project/overlay.yaml`、`AGENTS.md`、`README.md` 和 `package.json`。Eff Harness 模板包本身不内置具体项目的 `.harness/project/*.yaml`，这些文件由 `eh init` 在目标项目内生成。
+
+通常不建议提交 `.harness/runs/*`、`.harness/reports/*`、`.harness/dashboard/*`、`.harness/project/inspect.json`、`.harness/project/adapter-plan.json` 或临时 smoke test backlog。
+
+### 发布前检查
+
+```bash
 npm run harness:check
-npm run harness:status
-npm run harness:new-run -- 001-blog-mvp.md
-npm run harness:prepare-run -- 2026-05-14-001-blog-mvp
-npm run harness:context-pack -- 2026-05-14-001-blog-mvp
-npm run harness:desktop-plan -- 2026-05-14-001-blog-mvp
-npm run harness:orchestrate -- 2026-05-14-001-blog-mvp --dry-run
-npm run harness:verify -- 2026-05-14-001-blog-mvp
-npm run harness:report -- 2026-05-14-001-blog-mvp
-npm run harness:product-sync -- 2026-05-14-001-blog-mvp
-npm run harness:dashboard
-npm run harness:gate-check -- 2026-05-14-001-blog-mvp
+node bin/harness.mjs --help
+npm pack --dry-run
 ```
 
-这套 harness 的原则是：业务代码放在正常工程目录里，AI 协作规范放在 `.harness/` 里。也就是项目正常开发，AI 只作为可追踪、可复盘、可审查的协作层。
+重点确认：
 
-当前默认采用方案 A：Codex 当前会话就是主 agent，负责调度、执行和汇总；仓库脚本负责创建 run、生成子任务和检查基础门禁。
+- `package.json` 的 `name` 是 `eff-harness`
+- `author` 是 `Ben`
+- `version` 符合当前发布阶段
+- `bin.eh`、`bin.eff-harness` 和 `bin.harness` 都指向 `./bin/harness.mjs`
+- npm tarball 不包含历史业务项目、历史 runs 或临时测试产物
 
-如果需要真实多 agent v1，可以运行 `npm run harness:orchestrate -- <run-id>`。它会按 `tasks/*.task.md` 和 `.harness/config/model-policy.yaml` 启动多个独立模型调用，并把每个 agent 的输出写入 run 日志。真实执行需要 `OPENAI_API_KEY`；不带 key 时可用 `--dry-run` 预览执行计划。
+### 边界
 
-如果要让开发类子 agent 写代码，需要显式加 `--apply-code`。写入会受到 `.harness/config/write-policy.yaml` 和每个 task 的 `允许修改` 限制；非开发 agent 不能写业务代码。
+Eff Harness 不替代构建系统、测试框架或业务架构。它提供的是 AI 协作和交付闭环协议。真实项目仍应保留自己的 README、测试命令、CI/CD、发布流程和代码规范；Harness 会通过 `.harness/project/` 读取并引用这些信息。
 
-高风险写入还需要显式加 `--approve-risk`。风险规则由 `.harness/config/risk-policy.yaml` 控制，命中数据库迁移、CI/CD、infra、SQL、密钥相关内容时会被拦截。写入前会备份已有文件，并在 `logs/agents/*.code-writes.json` 中记录 hash、备份路径和审批结果。
+---
 
-验证流程由 `.harness/config/checks.yaml` 控制。运行 `npm run harness:verify -- <run-id>` 会执行可用检查，并把结果写入该 run 的 `artifacts/test-report.md`。
+## English
 
-上下文包由 `.harness/config/context-policy.yaml` 控制。运行 `npm run harness:context-pack -- <run-id>` 会按每个 agent 的允许修改范围收集相关文件，写入 `logs/context/<agent>.md`，减少子 agent 读取无关上下文。
+Eff Harness is a reusable AI collaboration workflow layer for standardizing requirement decomposition, context management, sub-agent coordination, quality gates, delivery summaries, and archive commits. It is framework-agnostic and does not require an `apps/`, `packages/`, or monorepo layout.
 
-可视化面板由 `npm run harness:dashboard` 生成，输出到 `.harness/dashboard/index.html`。它会展示 backlog、run、agent 模型、写权限、artifact 状态、验证摘要和日志统计。
+It is designed for developers and teams who want stable AI agent workflows inside real engineering repositories: every iteration gets clear input, role separation, execution records, quality checks, and an archive path.
 
-产品文档同步由 `npm run harness:product-sync -- <run-id>` 生成。它会读取该 run 的需求、实施计划、发布摘要、阻塞项和测试报告，把产品级摘要写入 `docs/product/runs/<run-id>.md`，并同步更新当周、当月和当年的产品文档。该命令是幂等的，同一个 run 多次同步会替换原有同步块，不会重复追加。
-
-日常开发推荐使用 Codex Desktop 多 agent runner。运行 `npm run harness:desktop-plan -- <run-id>` 会生成每个子 agent 的轻量 prompt，主 agent 可用这些 prompt 在 Codex 桌面客户端右侧 tabs 中委派任务。只有深度执行时才加 `--full`。
-
-模型策略放在 `.harness/config/model-policy.yaml`：调度和状态整理可以使用低成本模型，需求分析使用中等模型，编码和测试修复使用编码模型，评审、数据库和安全风险判断使用更强模型。生成 run 任务时，每个 `tasks/*.task.md` 都会写入推荐模型。
-
-## 省 Token 工作流
-
-日常不要一次启动所有 agent。先按需求判断真正需要谁，例如只改前端和接口时，只生成这两个 agent 的 prompt：
+### Install
 
 ```bash
-npm run harness:context-pack -- <run-id> --agents=frontend,backend
-npm run harness:desktop-plan -- <run-id> --agents=frontend,backend
+npm install -D eff-harness
 ```
 
-`harness:desktop-plan` 默认是 `light` 模式，只包含任务、角色摘要、规则摘要和压缩后的上下文。如果只是试跑流程、读代码、拆需求，继续加 `--fast`，会把生成 prompt 里的推荐模型降到低成本模型：
+After installation, the short command `eh` is recommended:
 
 ```bash
-npm run harness:desktop-plan -- <run-id> --agents=frontend,backend --fast
+npx eh install
 ```
 
-只有当子 agent 明确说上下文不够，或者要做架构级重构时，才使用：
+`eff-harness` is the npm package name and full CLI name; `eh` is the daily short command; `harness` remains as a compatibility alias for older scripts.
+
+### Quick Start
+
+Run this at the root of your target project:
 
 ```bash
-npm run harness:desktop-plan -- <run-id> --agents=frontend,backend --full
+npx eh install
+npx eh inspect --no-ai
+npx eh init --force
+npx eh check
 ```
 
-建议节奏是：先让 `requirements` 或主 agent 把需求拆小，再只启动 1-3 个开发 agent；每个 agent 完成后再跑 `harness:verify`、`harness:dashboard` 和必要的 `harness:gate-check`。这样能避免 10 个 agent 同时读取全项目上下文，把 token 和时间都打爆。
+These commands install `.harness/` and `AGENTS.md`, inspect the real project tree, generate the `.harness/project/` adapter layer, and validate the core configuration.
 
-## 默认委派，不靠关键词
+### Workflow
 
-用户正常描述需求即可，不需要每次手动说“请使用子 agent”。根目录 `AGENTS.md` 和 `.harness/config/delegation-policy.yaml` 已约定：
+```text
+intake -> backlog -> run -> context-pack -> native-plan
+       -> subagents -> verify -> review -> release -> done -> archive
+```
 
-- 正式项目需求默认进入 harness 工作流。
-- 主 agent 负责判断、调度、验收和汇总。
-- 需求分析、用户故事、验收标准默认委派 `requirements`。
-- 技术选型、架构规划、影响范围默认委派 `architect`。
-- 开发实现默认委派 `frontend`、`backend`、`database`、`devops` 或 `tester`。
-- 评审和风险检查默认委派 `reviewer`。
-- 发布摘要和产品沉淀默认委派 `release`。
-- 只有简单问答、状态查看、只读检查和很小的文档修补，主 agent 才直接处理。
+Common commands:
 
-如果当前 Codex 环境无法启动子 agent，主 agent 可以降级执行，但必须告诉用户哪些任务原本应该委派、为什么没有委派、风险是什么。
+```bash
+npx eh run "Implement now: ..."
+npx eh status
+npx eh next <run-id>
+npx eh report <run-id>
+npx eh gate-check <run-id>
+npx eh finalize <run-id>
+```
+
+`run` creates or prepares a run based on task complexity and generates a sub-agent plan. `finalize` attempts to move the run to `done` and triggers a git commit according to the archive policy after passing the gate.
+
+### Runtime Modes and Authentication
+
+| Mode | Entry | Requires `OPENAI_API_KEY` | Notes |
+| --- | --- | --- | --- |
+| Native Codex sub-agents | `native-plan` followed by `spawn_agent` from the main agent | No extra setup | Uses the current Codex session and host tools. |
+| Node SDK/API | `inspect --ai`, `orchestrate` without `--dry-run` | Yes | A terminal Node process calls the OpenAI SDK directly and cannot read the Codex Desktop login state. |
+| Static / heuristic | `inspect --no-ai`, `check`, `report` | No | Reads local files and config only, without model calls. |
+
+AI-assisted project inspection:
+
+```bash
+npx eh inspect --ai
+```
+
+PowerShell:
+
+```powershell
+$env:OPENAI_API_KEY="your_api_key"
+npx eh inspect --ai
+```
+
+macOS/Linux:
+
+```bash
+OPENAI_API_KEY="your_api_key" npx eh inspect --ai
+```
+
+### Automatic Git Commit
+
+Automatic commits are controlled by `.harness/config/archive-policy.yaml`. By default, a commit only happens after a run reaches `done`, and only the current run, the source backlog file, and files recorded in the `changed-files` manifest are staged.
+
+```bash
+npx eh archive-commit <run-id> --dry-run
+npx eh finalize <run-id>
+```
+
+If a commit is blocked, register the change first:
+
+```bash
+npx eh changed-files <run-id> add <file...>
+npx eh archive-commit <run-id>
+```
+
+### Report Output
+
+`report <run-id>` generates a structured Markdown report with tables for agent name, type, execution status, result files, summary, changes, tests, blockers, and handoff notes.
+
+### Directory Structure
+
+```text
+.harness/
+  agents/          # Role definitions
+  backlog/         # Requirement queue
+  config/          # Workflow, model, delegation, risk, and archive policies
+  knowledge/       # Regenerable knowledge-layer index
+  orchestrator/    # Main-agent routing rules
+  project/         # Current-project adapter layer
+  reports/         # Runtime reports
+  runs/            # Per-iteration run data
+  scripts/         # CLI and workflow scripts
+  templates/       # Artifact templates
+AGENTS.md          # Repository-level agent entry
+```
+
+In a target project, it is recommended to commit the workflow core under `.harness/`, plus `.harness/project/profile.yaml`, `.harness/project/overlay.yaml`, `AGENTS.md`, `README.md`, and `package.json`. The Eff Harness template package itself does not ship project-specific `.harness/project/*.yaml` files; they are generated inside the target project by `eh init`.
+
+It is usually not recommended to commit `.harness/runs/*`, `.harness/reports/*`, `.harness/dashboard/*`, `.harness/project/inspect.json`, `.harness/project/adapter-plan.json`, or temporary smoke-test backlog files.
+
+### Pre-release Checks
+
+```bash
+npm run harness:check
+node bin/harness.mjs --help
+npm pack --dry-run
+```
+
+Key checks:
+
+- `package.json` `name` is `eff-harness`
+- `author` is `Ben`
+- `version` matches the current release stage
+- `bin.eh`, `bin.eff-harness`, and `bin.harness` all point to `./bin/harness.mjs`
+- the npm tarball does not include old business projects, historical runs, or temporary test artifacts
+
+### Scope
+
+Eff Harness does not replace your build system, test framework, or business architecture. It provides an AI collaboration and delivery loop protocol. Real projects should keep their own README, test commands, CI/CD, release flow, and coding standards; Harness reads and references that information through `.harness/project/`.

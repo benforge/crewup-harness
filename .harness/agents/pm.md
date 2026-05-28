@@ -23,4 +23,4 @@
 
 - ready 任务写入 `.harness/backlog/ready/`。
 - run 内规划结果写入 `.harness/runs/<run>/artifacts/`。
-- 不直接写 `docs/product/`。
+- 不直接写长期文档目录。

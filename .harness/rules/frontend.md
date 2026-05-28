@@ -1,49 +1,33 @@
-# 前端规则
+# Frontend Rules
 
-## 基本原则
+## Principles
 
-- 先读项目已有代码和规范，再写代码。
-- 优先复用项目内已有组件、类型、工具函数和样式约定。
-- 不为了单个需求引入大型依赖，除非方案中已经说明并获得确认。
-- 页面、组件、状态、请求、类型和测试的边界要清楚。
-- 前端实现要服务于真实使用场景，不写只有演示价值的空壳。
+- Read the existing app code, local rules, routes, components, state patterns, styling system, and tests before editing.
+- Reuse project components, types, helpers, design tokens, and request utilities before adding new abstractions.
+- Do not introduce a large dependency for one narrow need unless the architecture plan explicitly justifies it.
+- Keep page, component, state, API, type, and test boundaries clear.
+- Build for real workflows, not demo-only screens.
 
-## 实现前检查
+## Scope Discovery
 
-- 当前需求影响哪些前端入口。
-- 是否需要新增或调整路由。
-- 是否已有 route map；没有时先记录缺口。
-- 后台是否需要独立模块页、导航层级和受保护路由。
-- 登录是否包含未登录拦截、登录后跳转、退出和会话状态处理。
-- 是否需要后端 API 或 SDK 配合。
-- 是否需要共享类型。
-- 是否需要表单校验、错误态、加载态、空态和权限态。
-- 是否需要移动端适配、可访问性或性能优化。
-- C 端页面是否有明确主内容、次级内容、视觉重点和响应式布局。
+- Frontend agents must first identify the affected app/package scope from `.harness/project/profile.yaml`, workspace/package metadata, and AI overlay discovery.
+- Local scope rules are configured by the project adapter and default to `.ai/rules.md`.
+- Generic frontend rules must not assume a specific framework, styling tool, directory structure, or app name.
+- If multiple frontend apps are affected, report each scope separately: allowed paths, styling system, validation command, and local rules used.
+- If a task requires changing an app's styling system, architect must define the migration plan and rollback path before implementation.
 
-## 编码规则
+## Implementation
 
-- 组件职责要单一，避免把页面、数据请求和复杂状态全部塞进一个文件。
-- 管理后台不能默认做成单页工作台；除非需求明确允许，否则按模块拆分路由和页面。
-- 表单、表格、弹窗、导航、筛选、分页等通用交互优先走项目内统一模式。
-- 涉及接口数据时，优先使用共享类型或 SDK。
-- 不把 mock 数据混进生产逻辑。
-- 错误态、加载态、空态必须可见且不破坏布局。
+- Keep component responsibilities focused; avoid packing page rendering, data fetching, and complex state into one large file.
+- Prefer shared contracts or SDKs for API-facing data.
+- Do not mix mock data into production logic.
+- Loading, empty, error, permission, and disabled states must be visible and layout-stable.
+- Match the existing design system unless the requirement explicitly asks for a redesign.
 
-## 样式系统规则
+## Verification
 
-- 不在通用前端规则里假定具体样式技术栈或目录结构。Frontend Agent 必须先根据 `.harness/config/project-profile.yaml`、项目 workspace/package 信息和 AI overlay discovery 识别命中的 app/package scope，并读取该 scope 下配置的本地规则文件。
-- 本地规则文件名由项目配置决定，默认是 `.ai/rules.md`；不要在通用规则中写死 `apps/*`、`packages/*` 或某个具体应用路径。
-- 样式实现必须服从命中 scope 的本地规则：如果本地规则声明 Tailwind，就按 Tailwind 约束实现；如果声明 Ant Design、CSS Modules、全局 CSS 或其它体系，就沿用该体系。
-- 同一次需求同时影响多个前端应用时，必须在任务和结果中按 scope 分段说明采用的样式体系、允许修改路径、验证路径和不能混用的约束。
-- 如果需求要求改变某个应用的样式体系，例如从全局 CSS 迁移到 Tailwind，必须先由 architect 输出迁移方案和回滚策略，再由 frontend 分批实现。
-- Reviewer 检查前端变更时，要核对变更是否遵守对应 scope 的本地样式规则；不能只按通用前端习惯评审。
-
-## 验证规则
-
-- 至少记录本次前端变更的手工验证路径。
-- 有测试框架时，补充与风险匹配的测试。
-- 涉及页面时，说明验证过的视口或浏览器。
-- 涉及后台时，验证登录、受保护路由、模块跳转和退出。
-- 涉及 C 端视觉时，验证桌面和移动端主次层级是否清楚。
-- 无法验证时，写明原因和剩余风险。
+- Record the exact commands or manual paths used for the frontend change.
+- Add or update tests when a test framework exists and the risk warrants it.
+- For UI changes, record the viewport/browser coverage used.
+- For protected admin flows, verify login, protected routing, navigation, and sign-out when they are touched.
+- If verification cannot be completed, state why and name the residual risk.

@@ -1,7 +1,8 @@
-import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
+﻿import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { parse as parseYaml } from "yaml";
+import { loadProjectProfile } from "./lib/project-profile.mjs";
 import { inferOverlayScopeMatches, loadProjectOverlay, overlayRuleFilesForAgent, overlaySummary, resolveImpactScopes } from "./lib/project-overlay.mjs";
 import { analyzeWorkload, renderWorkloadAnalysisMarkdown } from "./lib/workload-analysis.mjs";
 
@@ -29,7 +30,7 @@ await mkdir(tasksDir, { recursive: true });
 
 const agentsConfig = parseYaml(await readFile(path.join(root, ".harness", "config", "agents.yaml"), "utf8")).agents;
 const modelPolicy = parseYaml(await readFile(path.join(root, ".harness", "config", "model-policy.yaml"), "utf8"));
-const projectProfile = parseYaml(await readFile(path.join(root, ".harness", "config", "project-profile.yaml"), "utf8")).project_profile;
+const { project_profile: projectProfile } = await loadProjectProfile(root);
 const projectOverlay = await loadProjectOverlay(root, projectProfile.ai_overlay?.profile, { projectProfile });
 const impactScopesConfig = resolveImpactScopes(projectProfile, projectOverlay.profile);
 
@@ -158,7 +159,7 @@ function buildAgentTask(agentId, agent, inputText, profile, impactScopes) {
     ".harness/AGENTS.md",
     agent.owner,
     ".harness/config/agents.yaml",
-    ".harness/config/project-profile.yaml",
+    ".harness/project/profile.yaml",
     projectOverlay.exists ? projectOverlay.path : null,
     ".harness/config/model-policy.yaml",
     ".harness/config/document-policy.yaml",
@@ -202,7 +203,7 @@ ${allowed.length ? allowed.map((item) => `- ${item}`).join("\n") : "- 无"}
 
 - 无关业务代码
 - 其他活跃 agent 负责的文件
-- 未经 release 确认前的 docs/product/**
+- 未经 release 确认前的产品长期文档目录
 - 密钥、token、生产环境文件
 
 ## 必须产出
@@ -356,3 +357,5 @@ async function updateRunState({ workflowProfile, workloadAnalysis }) {
   state.updatedAt = new Date().toISOString();
   await writeFile(statePath, `${JSON.stringify(state, null, 2)}\n`, "utf8");
 }
+
+

@@ -40,7 +40,6 @@ context:
     targeted_path_patterns:
       - "apps/**"
       - "packages/**"
-      - "docs/product/**"
     full_keywords:
       - "database"
       - "migration"

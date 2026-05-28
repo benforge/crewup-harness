@@ -2,9 +2,10 @@ import { access, readFile, readdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { parse as parseYaml } from "yaml";
+import { loadProjectProfile } from "./lib/project-profile.mjs";
 
 const root = process.cwd();
-const defaultLocalRuleFile = ".ai/rules.md";
+const defaultLocalRuleFile = null;
 const discoveryExcludes = new Set([
   ".git",
   ".harness",
@@ -20,12 +21,12 @@ const discoveryExcludes = new Set([
 
 const requiredPaths = [
   "AGENTS.md",
-  ".harness/project/ai/profile.yaml",
+  ".harness/project/profile.yaml",
+  ".harness/project/overlay.yaml",
   ".harness/AGENTS.md",
   ".harness/HARNESS-ARCHITECTURE-AND-USAGE.md",
   ".harness/config/agents.yaml",
   ".harness/config/archive-policy.yaml",
-  ".harness/config/project-profile.yaml",
   ".harness/config/delegation-policy.yaml",
   ".harness/config/model-policy.yaml",
   ".harness/config/native-subagents.yaml",
@@ -95,6 +96,7 @@ const requiredPaths = [
   ".harness/scripts/skills-install.mjs",
   ".harness/scripts/skills-audit.mjs",
   ".harness/scripts/lib/context-mode.mjs",
+  ".harness/scripts/lib/project-profile.mjs",
   ".harness/scripts/lib/project-overlay.mjs",
   ".harness/scripts/lib/workload-analysis.mjs",
   ".harness/skills/build.md",
@@ -107,6 +109,7 @@ const requiredPaths = [
   ".harness/backlog/review",
   ".harness/backlog/done",
   ".harness/knowledge",
+  ".harness/project",
   ".harness/runs"
 ];
 
@@ -122,7 +125,6 @@ const configFiles = [
   ".harness/config/document-policy.yaml",
   ".harness/config/intake-policy.yaml",
   ".harness/config/model-policy.yaml",
-  ".harness/config/project-profile.yaml",
   ".harness/config/native-subagents.yaml",
   ".harness/config/quality-gates.yaml",
   ".harness/config/risk-policy.yaml",
@@ -133,7 +135,7 @@ const configFiles = [
 ];
 
 const textRootsToScan = [
-  ".harness/project/ai",
+  ".ai",
   ".harness/AGENTS.md",
   ".harness/HARNESS-WORKFLOW.md",
   ".harness/HARNESS-ARCHITECTURE-AND-USAGE.md",
@@ -149,6 +151,7 @@ const textRootsToScan = [
 
 const errors = [];
 const warnings = [];
+const isTemplatePackage = await detectTemplatePackage();
 
 await checkRequiredPaths();
 await checkYaml();
@@ -182,6 +185,7 @@ if (warnings.length > 0) {
 
 async function checkRequiredPaths() {
   for (const rel of requiredPaths) {
+    if (isTemplatePackage && isProjectGeneratedPath(rel)) continue;
     try {
       await access(path.join(root, rel));
     } catch {
@@ -246,6 +250,7 @@ async function collectTextFiles(target) {
 
 async function collectLocalAiRuleFiles(target, localRuleFile = defaultLocalRuleFile, depth = 0) {
   if (depth > 5) return [];
+  if (!localRuleFile) return [];
   const entries = await readdir(target, { withFileTypes: true }).catch(() => []);
   const files = [];
   const ruleFile = path.join(target, normalizeRelPath(localRuleFile));
@@ -283,10 +288,13 @@ async function checkSkills() {
 }
 
 async function checkProjectOverlay() {
-  const projectPath = path.join(root, ".harness/config/project-profile.yaml");
-  if (!existsSync(projectPath)) return;
-  const project = parseYaml(await readFile(projectPath, "utf8"))?.project_profile;
-  const overlayRel = project?.ai_overlay?.profile ?? ".harness/project/ai/profile.yaml";
+  if (isTemplatePackage && !existsSync(path.join(root, ".harness/project/overlay.yaml"))) {
+    warnings.push("Template package has no project overlay yet. Run `eh init` inside a target project to generate .harness/project/.");
+    return;
+  }
+
+  const { project_profile: project } = await loadProjectProfile(root);
+  const overlayRel = project?.ai_overlay?.profile ?? ".harness/project/overlay.yaml";
   const overlayPath = path.join(root, overlayRel);
   if (!existsSync(overlayPath)) {
     errors.push(`Missing project AI overlay: ${overlayRel}`);
@@ -317,24 +325,47 @@ async function checkProjectOverlay() {
       errors.push(`${overlayRel} rules.scopes.${scope} must be an object with files/paths/keywords`);
       continue;
     }
-    if (!scopeRuleFiles(config).length) {
-      warnings.push(`${overlayRel} rules.scopes.${scope} has no files`);
+    const hasRuleFiles = scopeRuleFiles(config).length > 0;
+    const hasPaths = Array.isArray(config.paths) ? config.paths.length > 0 : Boolean(config.paths);
+    if (!hasRuleFiles && !hasPaths) {
+      warnings.push(`${overlayRel} rules.scopes.${scope} has neither files nor paths`);
     }
   }
+}
+
+async function detectTemplatePackage() {
+  const packagePath = path.join(root, "package.json");
+  if (!existsSync(packagePath)) return false;
+  try {
+    const packageJson = JSON.parse(await readFile(packagePath, "utf8"));
+    return packageJson?.name === "eff-harness";
+  } catch {
+    return false;
+  }
+}
+
+function isProjectGeneratedPath(rel) {
+  return rel === ".harness/project/profile.yaml" || rel === ".harness/project/overlay.yaml";
 }
 
 async function checkKnowledge() {
   const knowledgeRoot = path.join(root, ".harness", "knowledge");
   if (!existsSync(knowledgeRoot)) {
-    errors.push("Missing .harness/knowledge. Run npm run harness:knowledge after restoring the directory.");
+    errors.push("Missing .harness/knowledge.");
     return;
   }
-  for (const file of ["README.md", "dev-map.md", "module-index.json", "run-index.json", "decision-index.md", "task-board.md", "lessons-learned.md"]) {
+  for (const file of ["README.md", "lessons-learned.md"]) {
     const target = path.join(knowledgeRoot, file);
     if (!existsSync(target)) {
-      warnings.push(`Knowledge file missing: .harness/knowledge/${file}. Run npm run harness:knowledge.`);
+      errors.push(`Knowledge entry file missing: .harness/knowledge/${file}`);
     }
   }
+  for (const file of ["dev-map.md", "module-index.json", "run-index.json", "decision-index.md", "task-board.md"]) {
+    const target = path.join(knowledgeRoot, file);
+    if (!existsSync(target)) {
+    warnings.push(`Generated knowledge file missing: .harness/knowledge/${file}. Run npm run harness:knowledge inside the target project when needed.`);
+  }
+}
 }
 
 function scopeRuleFiles(config) {
@@ -449,11 +480,10 @@ async function checkNativeSubagents() {
 
 async function checkWorkflow() {
   const workflowPath = path.join(root, ".harness/config/workflow.yaml");
-  const projectPath = path.join(root, ".harness/config/project-profile.yaml");
-  if (!existsSync(workflowPath) || !existsSync(projectPath)) return;
+  if (!existsSync(workflowPath)) return;
 
   const workflow = parseYaml(await readFile(workflowPath, "utf8"))?.workflow;
-  const project = parseYaml(await readFile(projectPath, "utf8"))?.project_profile;
+  const { project_profile: project } = await loadProjectProfile(root);
   if (!workflow?.stages?.length) errors.push(".harness/config/workflow.yaml must define workflow.stages");
   if (!workflow?.transitions) errors.push(".harness/config/workflow.yaml must define workflow.transitions");
   for (const stage of ["intake", "requirements_plan", "requirements_confirm", "plan", "implement", "verify", "review", "release", "done"]) {
@@ -465,7 +495,7 @@ async function checkWorkflow() {
     const localRuleFile = await resolveConfiguredLocalRuleFile();
     const localRules = await collectLocalAiRuleFiles(root, localRuleFile);
     if (localRules.length === 0) {
-      warnings.push(`.harness/config/project-profile.yaml has no impact_scopes and no local ${localRuleFile} files were discovered`);
+      warnings.push(`Project profile has no impact_scopes and no local ${localRuleFile} files were discovered`);
     }
   }
 
@@ -558,11 +588,9 @@ async function checkBacklogFileNames() {
 }
 
 async function resolveConfiguredLocalRuleFile() {
-  const projectPath = path.join(root, ".harness/config/project-profile.yaml");
-  if (!existsSync(projectPath)) return defaultLocalRuleFile;
   try {
-    const project = parseYaml(await readFile(projectPath, "utf8"))?.project_profile;
-    const overlayRel = project?.ai_overlay?.profile ?? ".harness/project/ai/profile.yaml";
+    const { project_profile: project } = await loadProjectProfile(root);
+    const overlayRel = project?.ai_overlay?.profile ?? ".harness/project/overlay.yaml";
     const overlayPath = path.join(root, overlayRel);
     const overlay = existsSync(overlayPath)
       ? parseYaml(await readFile(overlayPath, "utf8"))?.ai_project

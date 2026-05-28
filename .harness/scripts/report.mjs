@@ -28,13 +28,13 @@ const nativeState = await readJson(path.join(nativeDir, "native-state.json"), nu
 const changedFiles = await readJson(path.join(logsDir, "changed-files.json"), { files: [] });
 const archiveAudit = await readArchiveAudit(path.join(logsDir, "archive", "git-commit.md"));
 
-const agentRows = await buildAgentRows(nativeState);
+const agentRows = await buildAgentRows(nativeState, taskNames);
 const artifactRows = await buildArtifactRows(artifactNames);
 
 const lines = [
   `# Run 报告：${runId}`,
   "",
-  `- generatedAt: ${new Date().toISOString()}`,
+  `- 生成时间：${new Date().toISOString()}`,
   "",
   "## 概览",
   "",
@@ -46,23 +46,23 @@ const lines = [
   `| tasks | ${taskNames.length} |`,
   `| artifacts | ${artifactRows.length} |`,
   `| changed-files | ${(changedFiles.files ?? []).length} |`,
-  `| archive git | ${cell(archiveAudit.status ? `${archiveAudit.status}${archiveAudit.reason ? `: ${archiveAudit.reason}` : ""}` : "暂无记录")} |`,
+  `| archive git | ${cell(archiveAudit.status ? `${archiveAudit.status}${archiveAudit.reason ? `：${archiveAudit.reason}` : ""}` : "暂无记录")} |`,
   "",
   "## 子 Agent 结果",
   "",
-  "| Agent | 状态 | 结果文件 | 摘要 | 文件/产物 | 测试 | 阻塞 | Handoff |",
-  "| --- | --- | --- | --- | --- | --- | --- | --- |",
-  ...(agentRows.length ? agentRows.map(renderAgentRow) : ["| 暂无 | - | - | - | - | - | - | - |"]),
+  "| Agent | 类型 | 状态 | 结果文件 | 摘要 | 文件/产物 | 测试 | 阻塞 | Handoff |",
+  "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+  ...(agentRows.length ? agentRows.map(renderAgentRow) : ["| 暂无 | - | - | - | - | - | - | - | - |"]),
   "",
-  "## Artifacts",
+  "## 产物",
   "",
-  "| Artifact | 状态 | 大小 | 摘要 |",
+  "| 产物 | 状态 | 大小 | 摘要 |",
   "| --- | --- | ---: | --- |",
   ...(artifactRows.length ? artifactRows.map((item) => `| \`${item.name}\` | ${item.status} | ${item.bytes} | ${cell(item.summary)} |`) : ["| 暂无 | - | 0 | - |"]),
   "",
   "## 变更清单",
   "",
-  "| 来源 | 数量 | 明细 |",
+  "| 来源 | 数量 | 详情 |",
   "| --- | ---: | --- |",
   `| changed-files manifest | ${(changedFiles.files ?? []).length} | ${cell((changedFiles.files ?? []).join("<br>") || "无")} |`,
   `| archive selected paths | ${archiveAudit.selectedPaths.length} | ${cell(archiveAudit.selectedPaths.join("<br>") || "无")} |`,
@@ -77,9 +77,9 @@ const lines = [
   `| commit | ${cell(archiveAudit.commit || "未生成")} |`,
   `| audit | ${existsSync(path.join(logsDir, "archive", "git-commit.md")) ? "`logs/archive/git-commit.md`" : "暂无"} |`,
   "",
-  "## 主 Agent 回复建议",
+  "## 结论",
   "",
-  "最终回复优先引用上面的子 Agent 表格、变更清单和归档状态；如果 archive status 不是 `committed` 或 `skipped`，必须明确告诉用户自动提交未闭环及修复命令。",
+  "如果 archive status 不是 `committed` 或 `skipped`，说明这条 run 还没有真正闭环到最终提交。",
   ""
 ];
 
@@ -87,16 +87,28 @@ const target = path.join(logsDir, "run-report.md");
 await writeFile(target, `${lines.join("\n")}\n`, "utf8");
 console.log(`Run 报告已写入：${path.relative(root, target).replaceAll("\\", "/")}`);
 
-async function buildAgentRows(native) {
-  if (!native?.agents?.length) return [];
+async function buildAgentRows(native, taskNames) {
   const rows = [];
-  for (const agent of native.agents) {
+  const taskSet = new Set(taskNames.map((name) => name.replace(/\.task\.md$/, "")));
+  const agents = native?.agents?.length
+    ? native.agents
+    : [...taskSet].map((agent) => ({
+        agent,
+        status: "planned",
+        result_status: "",
+        handle: "",
+        result_path: "",
+        result_captured_at: ""
+      }));
+
+  for (const agent of agents) {
     const resultPath = agent.result_path ? resolveWorkspacePath(agent.result_path) : "";
     const resultExists = Boolean(resultPath && existsSync(resultPath));
     const parsed = resultExists ? parseAgentResult(await readFile(resultPath, "utf8")) : {};
     rows.push({
       agent: agent.agent,
-      status: [agent.status, agent.result_status ? `result=${agent.result_status}` : ""].filter(Boolean).join("<br>"),
+      type: agent.kind || agent.role || inferAgentType(agent.agent),
+      status: [agent.status, agent.result_status ? `result=${agent.result_status}` : ""].filter(Boolean).join("<br>") || "planned",
       resultFile: resultExists ? `\`${path.relative(runDir, resultPath).replaceAll("\\", "/")}\`` : agent.result_captured_at ? "缺失" : "未捕获",
       summary: parsed.Summary ?? (agent.result_captured_at ? "结果已标记但缺少 result.md" : "尚无结果"),
       files: compactList([parsed["Files changed"], parsed["Artifacts updated"]]),
@@ -133,7 +145,7 @@ async function readArchiveAudit(target) {
     reason: readListValue(content, "reason"),
     commit: readListValue(content, "commit"),
     selectedPaths: readSectionBullets(content, "选中暂存路径"),
-    unselectedChanges: readSectionBullets(content, "未纳入的新变更")
+    unselectedChanges: readSectionBullets(content, "未纳入的新增变更")
   };
 }
 
@@ -167,7 +179,7 @@ function readSectionBullets(content, heading) {
     .map((line) => line.trim())
     .filter((line) => line.startsWith("- "))
     .map((line) => line.slice(2).trim())
-    .filter((line) => line && !["无", "未记录"].includes(line));
+    .filter(Boolean);
 }
 
 function sectionText(content, heading) {
@@ -189,14 +201,14 @@ async function readJson(target, fallback) {
 }
 
 function renderAgentRow(item) {
-  return `| \`${item.agent}\` | ${cell(item.status)} | ${cell(item.resultFile)} | ${cell(item.summary)} | ${cell(item.files)} | ${cell(item.tests)} | ${cell(item.blockers)} | ${cell(item.handoff)} |`;
+  return `| \`${item.agent}\` | ${cell(item.type)} | ${cell(item.status)} | ${cell(item.resultFile)} | ${cell(item.summary)} | ${cell(item.files)} | ${cell(item.tests)} | ${cell(item.blockers)} | ${cell(item.handoff)} |`;
 }
 
 function firstContentLine(content) {
   return String(content ?? "")
     .split(/\r?\n/)
     .map((line) => line.trim())
-    .find((line) => line && !line.startsWith("#")) ?? "（空）";
+    .find((line) => line && !line.startsWith("#")) ?? "空";
 }
 
 function compactList(items) {
@@ -205,6 +217,12 @@ function compactList(items) {
 
 function resolveWorkspacePath(target) {
   return path.isAbsolute(target) ? target : path.join(root, target);
+}
+
+function inferAgentType(agent) {
+  if (["pm", "requirements", "architect", "reviewer", "release", "tester"].includes(agent)) return "core";
+  if (["frontend", "backend", "database", "devops"].includes(agent)) return "implementation";
+  return "other";
 }
 
 function cell(value) {

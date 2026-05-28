@@ -1,8 +1,9 @@
-import { spawn } from "node:child_process";
+﻿import { spawn } from "node:child_process";
 import { readFile, readdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { parse as parseYaml } from "yaml";
+import { loadProjectProfile } from "./lib/project-profile.mjs";
 import { inferOverlayScopes, loadProjectOverlay, resolveImpactScopes } from "./lib/project-overlay.mjs";
 
 const root = process.cwd();
@@ -24,7 +25,7 @@ if (!existsSync(runDir)) {
 }
 
 const checksConfig = parseYaml(await readFile(path.join(root, ".harness", "config", "checks.yaml"), "utf8"));
-const projectProfile = parseYaml(await readFile(path.join(root, ".harness", "config", "project-profile.yaml"), "utf8")).project_profile;
+const { project_profile: projectProfile } = await loadProjectProfile(root);
 const projectOverlay = await loadProjectOverlay(root, projectProfile.ai_overlay?.profile, { projectProfile });
 const impactScopesConfig = resolveImpactScopes(projectProfile, projectOverlay.profile);
 const packageJson = JSON.parse(await readFile(path.join(root, "package.json"), "utf8"));
@@ -271,3 +272,5 @@ function checkedScope(content, scope) {
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
+
+

@@ -2,7 +2,9 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
+import { loadProjectProfile } from "./lib/project-profile.mjs";
 import {
+  configureDelegationGuard,
   evaluateDelegationGuard,
   isBusinessCodePath,
   readNativeState
@@ -27,6 +29,9 @@ if (!existsSync(runDir)) {
   console.error(`run 不存在：${runId}`);
   process.exit(1);
 }
+
+const { project_profile: projectProfile } = await loadProjectProfile(root);
+configureDelegationGuard(projectProfile);
 
 const manifestPath = path.join(runDir, "logs", "changed-files.json");
 const manifest = await readManifest();

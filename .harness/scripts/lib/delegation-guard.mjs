@@ -2,6 +2,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
+import { businessPathPatterns, productDocsPath } from "./project-profile.mjs";
 
 const implementationAgents = new Set(["frontend", "backend", "database", "devops"]);
 const stageOrder = [
@@ -26,13 +27,24 @@ const stageOwners = {
   release: ["release"],
   done: []
 };
-const businessPathPrefixes = [
-  "apps/",
-  "packages/",
-  "infra/",
-  ".github/workflows/",
-  "docs/product/"
+let activeBusinessPathPatterns = [
+  "src/**",
+  "app/**",
+  "lib/**",
+  "libs/**",
+  "services/**",
+  "modules/**",
+  "projects/**",
+  "infra/**",
+  ".github/workflows/**"
 ];
+let activeProductDocsPath = "";
+
+export function configureDelegationGuard(projectProfile = {}) {
+  const configuredBusinessPaths = businessPathPatterns(projectProfile);
+  if (configuredBusinessPaths.length > 0) activeBusinessPathPatterns = configuredBusinessPaths;
+  activeProductDocsPath = productDocsPath(projectProfile, activeProductDocsPath);
+}
 
 export function collectWorkspaceChanges(root, runId, state = {}) {
   const result = spawnSync("git", ["status", "--short"], {
@@ -167,7 +179,7 @@ export function nativeExecutionProblems({ nativeState, requiredAgents, label = "
 export function isBusinessCodePath(file) {
   const normalized = normalizeRelPath(file);
   if (!normalized) return false;
-  return businessPathPrefixes.some((prefix) => normalized === prefix.slice(0, -1) || normalized.startsWith(prefix));
+  return activeBusinessPathPatterns.some((pattern) => matchPattern(normalized, pattern));
 }
 
 export function requiredNativeAgentsForStageEntry(targetStage, { root = process.cwd(), runId = "", state = {}, taskAgents = null } = {}) {
@@ -310,7 +322,7 @@ function previousStage(stage) {
 
 function isProductDocPath(file) {
   const normalized = normalizeRelPath(file);
-  return normalized === "docs/product" || normalized.startsWith("docs/product/");
+  return Boolean(activeProductDocsPath) && (normalized === activeProductDocsPath || normalized.startsWith(`${activeProductDocsPath}/`));
 }
 
 function statusPath(line) {

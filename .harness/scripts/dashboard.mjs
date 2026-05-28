@@ -1,12 +1,16 @@
 import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
+import { loadProjectProfile, productDocsPath } from "./lib/project-profile.mjs";
 
 const root = process.cwd();
 const dashboardDir = path.join(root, ".harness", "dashboard");
 const dashboardPath = path.join(dashboardDir, "index.html");
 
 await mkdir(dashboardDir, { recursive: true });
+
+const { project_profile: projectProfile } = await loadProjectProfile(root);
+const productDocsRel = productDocsPath(projectProfile);
 
 const data = {
   generatedAt: new Date().toISOString(),
@@ -69,7 +73,8 @@ async function readRuns() {
 }
 
 async function readProductDocs() {
-  const productDir = path.join(root, "docs", "product");
+  if (!productDocsRel) return [];
+  const productDir = path.join(root, productDocsRel);
   if (!existsSync(productDir)) return [];
   const files = await walkMarkdown(productDir);
   const docs = [];

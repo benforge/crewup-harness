@@ -1,7 +1,8 @@
-import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+﻿import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { existsSync, statSync } from "node:fs";
 import path from "node:path";
 import { parse as parseYaml } from "yaml";
+import { loadProjectProfile } from "./lib/project-profile.mjs";
 import { decideContextMode, extractContextHints, isFullMode, isTargetedMode, matchPattern, normalizeRelPath } from "./lib/context-mode.mjs";
 import { loadProjectOverlay, renderOverlayContext } from "./lib/project-overlay.mjs";
 import {
@@ -39,7 +40,7 @@ if (!existsSync(tasksDir)) {
 }
 
 const policy = parseYaml(await readFile(path.join(root, ".harness", "config", "context-policy.yaml"), "utf8")).context;
-const projectProfile = parseYaml(await readFile(path.join(root, ".harness", "config", "project-profile.yaml"), "utf8")).project_profile;
+const { project_profile: projectProfile } = await loadProjectProfile(root);
 const projectOverlay = await loadProjectOverlay(root, projectProfile.ai_overlay?.profile, { projectProfile });
 const runInput = await readFile(path.join(runDir, "input.md"), "utf8").catch(() => "");
 const taskFiles = (await readdir(tasksDir)).filter((name) => name.endsWith(".task.md")).sort();
@@ -345,3 +346,5 @@ async function readOptional(target) {
   if (!existsSync(target)) return "";
   return readFile(target, "utf8");
 }
+
+

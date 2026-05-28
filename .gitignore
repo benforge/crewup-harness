@@ -12,6 +12,16 @@ coverage/
 Thumbs.db
 
 # Harness generated runtime artifacts
+.harness/project/*.json
+.harness/project/*.yaml
+.harness/project/rules/
+.harness/dashboard/*
+!.harness/dashboard/.gitkeep
+.harness/knowledge/*.json
+.harness/knowledge/*.md
+!.harness/knowledge/README.md
+!.harness/knowledge/lessons-learned.md
+!.harness/knowledge/.gitkeep
 .harness/reports/*.json
 .harness/reports/*.md
 !.harness/reports/.gitkeep

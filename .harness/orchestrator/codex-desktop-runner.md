@@ -97,7 +97,7 @@ release
 
 开发类 agent 也只能改对应 task 的 `允许修改` 范围。命中高风险路径或内容时，必须人工确认。
 
-需求规划、设计方案和实施路线图必须先写入 `.harness/runs/<run-id>/artifacts/`。`docs/product/` 只在 release 完成并得到用户确认后，由主 agent 同步产品沉淀。
+需求规划、设计方案和实施路线图必须先写入 `.harness/runs/<run-id>/artifacts/`。长期文档目录只在目标项目显式启用且用户确认后才同步。
 
 ## 子 Agent Prompt 约定
 

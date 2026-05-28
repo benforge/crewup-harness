@@ -6,17 +6,17 @@ const root = process.cwd();
 const args = process.argv.slice(2);
 const queue = valueOf("--queue=") ?? "new";
 const text = valueOf("--text=");
-const title = valueOf("--title=") ?? titleFromText(text) ?? "untitled-task";
+const title = valueOf("--title=") ?? titleFromText(text) ?? "未命名任务";
 const backlogRoot = path.join(root, ".harness", "backlog");
 const queues = ["new", "ready", "in-progress", "review", "done"];
 
-if (!["new", "ready", "in-progress", "review", "done"].includes(queue)) {
-  console.error("Invalid queue. Expected one of: new, ready, in-progress, review, done");
+if (!queues.includes(queue)) {
+  console.error("无效队列。可选值：new, ready, in-progress, review, done");
   process.exit(1);
 }
 
 if (!text?.trim()) {
-  console.error("Please provide --text=<request>");
+  console.error("请提供 --text=<request>");
   process.exit(1);
 }
 

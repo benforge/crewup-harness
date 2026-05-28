@@ -25,13 +25,13 @@ code_write:
     - ".harness/templates/**"
     - ".harness/agents/**"
     - ".harness/rules/**"
-    - "docs/product/**"
+    - "product docs path configured in .harness/project/profile.yaml"
     - ".env"
     - ".env.*"
 
   rules:
     - "只有 write_enabled_agents 可以写业务代码。"
     - "写入路径必须匹配对应 task.md 的允许修改列表。"
-    - "禁止写入 harness 配置、脚本、角色、规则、模板、契约、.git、node_modules、docs/product、密钥文件和环境变量文件；run artifacts/logs 只能通过对应 agent owner 白名单写入。"
+    - "禁止写入 harness 配置、脚本、角色、规则、模板、契约、.git、node_modules、产品长期文档目录、密钥文件和环境变量文件；run artifacts/logs 只能通过对应 agent owner 白名单写入。"
     - "子 agent 必须返回完整文件内容，不允许返回模糊描述。"
     - "orchestrator 负责最终落盘；子 agent 不能绕过 orchestrator 写文件。"

@@ -1,7 +1,8 @@
-import { mkdir, readFile, readdir, unlink, writeFile } from "node:fs/promises";
+﻿import { mkdir, readFile, readdir, unlink, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { parse as parseYaml } from "yaml";
+import { loadProjectProfile } from "./lib/project-profile.mjs";
 import { decideContextMode, normalizeRelPath } from "./lib/context-mode.mjs";
 import { loadProjectOverlay, renderOverlayContext } from "./lib/project-overlay.mjs";
 
@@ -36,7 +37,7 @@ await removeOldPrompts(outDir);
 const desktopConfig = parseYaml(await readFile(path.join(root, ".harness", "config", "desktop-runner.yaml"), "utf8"));
 const modelPolicy = parseYaml(await readFile(path.join(root, ".harness", "config", "model-policy.yaml"), "utf8"));
 const skillsConfig = parseYaml(await readFile(path.join(root, ".harness", "config", "skills.yaml"), "utf8"));
-const projectProfile = parseYaml(await readFile(path.join(root, ".harness", "config", "project-profile.yaml"), "utf8")).project_profile;
+const { project_profile: projectProfile } = await loadProjectProfile(root);
 const projectOverlay = await loadProjectOverlay(root, projectProfile.ai_overlay?.profile, { projectProfile });
 const contextPolicy = parseYaml(await readFile(path.join(root, ".harness", "config", "context-policy.yaml"), "utf8")).context;
 const budgets = contextPolicy.prompt_budgets ?? {};
@@ -391,3 +392,5 @@ async function readOptional(target) {
   if (!existsSync(target)) return "";
   return readFile(target, "utf8");
 }
+
+

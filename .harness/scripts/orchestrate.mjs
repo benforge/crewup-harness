@@ -6,6 +6,7 @@ import path from "node:path";
 import { parse as parseYaml } from "yaml";
 import { z } from "zod";
 import { decideContextMode } from "./lib/context-mode.mjs";
+import { loadProjectProfile } from "./lib/project-profile.mjs";
 import { loadProjectOverlay, renderOverlayContext } from "./lib/project-overlay.mjs";
 import {
   renderArtifactOverview,
@@ -75,8 +76,7 @@ const writePolicy = await readYaml(".harness/config/write-policy.yaml");
 const riskPolicy = await readYaml(".harness/config/risk-policy.yaml");
 const budgetPolicy = await readYaml(".harness/config/budget-policy.yaml");
 const contextPolicy = await readYaml(".harness/config/context-policy.yaml");
-const projectProfile = await readYaml(".harness/config/project-profile.yaml");
-const projectProfileConfig = projectProfile.project_profile ?? {};
+const { source: projectProfileSource, project_profile: projectProfileConfig } = await loadProjectProfile(root);
 const projectOverlay = await loadProjectOverlay(root, projectProfileConfig.ai_overlay?.profile, { projectProfile: projectProfileConfig });
 const globalRules = await readOptional(".harness/AGENTS.md");
 const skillsConfig = await readYaml(".harness/config/skills.yaml");
@@ -686,4 +686,9 @@ function hash(buffer) {
 function fail(message) {
   console.error(message);
   process.exit(1);
+}
+
+function limitText(text, maxChars) {
+  const value = String(text ?? "");
+  return value.length > maxChars ? `${value.slice(0, maxChars)}\n\n...(已截断)` : value;
 }

@@ -1,21 +1,30 @@
 {
-  "name": "project-ai-harness",
+  "name": "eff-harness",
   "version": "0.1.0",
-  "private": true,
+  "description": "Eff Harness: a reusable AI workflow harness for project-agnostic agent collaboration.",
+  "author": "Ben",
+  "license": "MIT",
   "type": "module",
-  "workspaces": [
-    "apps/*",
-    "packages/*"
+  "bin": {
+    "eh": "./bin/harness.mjs",
+    "eff-harness": "./bin/harness.mjs",
+    "harness": "./bin/harness.mjs"
+  },
+  "files": [
+    "AGENTS.md",
+    ".harness",
+    "bin",
+    "README.md"
   ],
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "dev:web": "npm --workspace apps/web run dev",
-    "dev:admin": "npm --workspace apps/admin run dev",
-    "dev:api": "npm --workspace @blog/api run start:dev",
-    "build": "npm run build --workspaces --if-present",
-    "test": "npm run test --workspaces --if-present",
-    "typecheck": "npm run typecheck --workspaces --if-present",
     "harness:check": "node .harness/scripts/check.mjs",
+    "harness:inspect": "node .harness/scripts/inspect.mjs",
+    "harness:init": "node .harness/scripts/init.mjs",
     "harness:run": "node .harness/scripts/run.mjs",
+    "harness:finalize": "node .harness/scripts/finalize.mjs",
     "harness:overlay-report": "node .harness/scripts/overlay-report.mjs",
     "harness:status": "node .harness/scripts/status.mjs",
     "harness:intake": "node .harness/scripts/intake.mjs",
@@ -38,9 +47,9 @@
     "harness:knowledge": "node .harness/scripts/knowledge.mjs",
     "harness:knowledge-select": "node .harness/scripts/knowledge-select.mjs",
     "harness:cleanup": "node .harness/scripts/cleanup.mjs",
+    "harness:next": "node .harness/scripts/next.mjs",
     "harness:archive-commit": "node .harness/scripts/archive-commit.mjs",
     "harness:changed-files": "node .harness/scripts/changed-files.mjs",
-    "harness:next": "node .harness/scripts/next.mjs",
     "harness:token-ledger": "node .harness/scripts/token-ledger.mjs",
     "harness:skills": "node .harness/scripts/skills-report.mjs",
     "harness:skills:resolve": "node .harness/scripts/skills-resolve.mjs",

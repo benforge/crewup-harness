@@ -47,7 +47,7 @@
 | backend | Backend Agent | 任何后端架构、服务边界、集成、可靠性和性能相关任务 |
 | db | Database Agent | 表结构、迁移、索引、数据一致性 |
 | infra | DevOps Agent | Docker、CI/CD、部署、环境变量 |
-| docs | PM / Release Agent | 文档、发布摘要、使用说明；需求规划草稿仍先写入 run artifacts，确认后才沉淀到 docs/product |
+| docs | PM / Release Agent | 文档、发布摘要、使用说明；需求规划草稿仍先写入 run artifacts，确认后才沉淀到长期文档目录 |
 
 ## 默认参与角色
 

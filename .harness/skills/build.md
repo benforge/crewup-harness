@@ -1,16 +1,17 @@
-# 构建技能 SOP
+# Build Skill SOP
 
-当 agent 需要验证构建健康度时使用本 SOP。
+Use this SOP when an agent needs to verify build health.
 
-## 步骤
+## Steps
 
-1. 从 run task 或 `dev-map.md` 识别影响范围。
-2. 如果命中的 scope 有本地构建脚本，优先运行本地脚本。
-3. 如果没有 scope 本地命令，使用 `.harness/config/project-profile.yaml` 中的项目级命令。
-4. 在 `artifacts/test-report.md` 记录命令、退出码和关键错误。
-5. 没有命令结果时，不要声称构建成功。
+1. Identify the affected scope from the run task, `.harness/knowledge/dev-map.md`, `.harness/project/profile.yaml`, package metadata, or local `.ai/rules.md`.
+2. If the affected scope defines a local build command, run that command first.
+3. If no scope-local command exists, use the project-level command configured in `.harness/project/profile.yaml`.
+4. If no configured command exists, fall back to the package manager's conventional build command.
+5. Record the command, exit code, and important output in `artifacts/test-report.md`.
+6. If no command can be run, do not claim build success.
 
-## 默认命令
+## Default Command
 
 ```bash
 npm run build

@@ -1,8 +1,10 @@
-import { readFile, readdir } from "node:fs/promises";
+﻿import { readFile, readdir } from "node:fs/promises";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { parse as parseYaml } from "yaml";
+import { loadProjectProfile } from "./lib/project-profile.mjs";
 import {
+  configureDelegationGuard,
   collectWorkspaceChanges,
   evaluateDelegationGuard,
   readChangedFilesManifest,
@@ -25,6 +27,8 @@ const tasksDir = path.join(runDir, "tasks");
 const logsDir = path.join(runDir, "logs");
 const statePath = path.join(runDir, "state.json");
 const schema = parseYaml(await readFile(path.join(root, ".harness", "config", "artifact-schema.yaml"), "utf8"));
+const { project_profile: projectProfile } = await loadProjectProfile(root);
+configureDelegationGuard(projectProfile);
 
 const problems = [];
 const warnings = [];
@@ -337,3 +341,5 @@ function sectionText(content, heading) {
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
+
+

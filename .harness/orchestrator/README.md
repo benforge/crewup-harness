@@ -20,7 +20,7 @@
 - 不保证所有环境都支持对每个子 agent 指定不同模型。
 - v1 不允许子 agent 直接随意改业务代码，只允许写 run 日志和 artifact 更新建议。
 - 不绕过人工确认做破坏性数据库操作。
-- 不在规划阶段把设计方案或实施路线图直接写入 `docs/product/`。
+- 不在规划阶段把设计方案或实施路线图直接写入长期文档目录；默认只写入当前 run artifacts。
 - 不自动读取或使用你的密钥。
 - 不自动部署生产环境。
 
@@ -44,7 +44,7 @@
 8. 规划完成后汇总给用户审核；用户确认后执行 `npm run harness:transition -- <run-id> --to=implement --approve-implementation`。
 9. 开发完成后进入 verify、review、release，每阶段用 `harness:transition` 推进。
 10. 执行 `npm run harness:verify -- <run-id>`、`npm run harness:gate-check -- <run-id>`、`npm run harness:report -- <run-id>`。
-11. 用户确认完成/归档后，执行 `npm run harness:transition -- <run-id> --to=done`；该步骤会自动记录 product sync 确认并同步 `docs/product/runs/`、weekly、monthly、yearly。
+11. 用户确认完成/归档后，执行 `npm run harness:transition -- <run-id> --to=done`；如果目标项目启用了长期文档同步，才会同步对应目录。
 12. 如需单独重跑产品文档同步，可执行 `npm run harness:product-sync -- <run-id> --approved-product-sync`。
 13. 汇总结果给用户。
 
