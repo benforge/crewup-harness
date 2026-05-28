@@ -50,6 +50,7 @@
     "harness:cleanup": "node .harness/scripts/cleanup.mjs",
     "harness:next": "node .harness/scripts/next.mjs",
     "harness:archive-commit": "node .harness/scripts/archive-commit.mjs",
+    "harness:archive-status": "node .harness/scripts/archive-status.mjs",
     "harness:changed-files": "node .harness/scripts/changed-files.mjs",
     "harness:token-ledger": "node .harness/scripts/token-ledger.mjs",
     "harness:skills": "node .harness/scripts/skills-report.mjs",

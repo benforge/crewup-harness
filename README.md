@@ -165,6 +165,12 @@ npx eh changed-files <run-id> add <file...>
 npx eh archive-commit <run-id>
 ```
 
+如果想先看清楚为什么不能归档提交：
+
+```bash
+npx eh archive-status <run-id>
+```
+
 ## 目录结构
 
 ```text

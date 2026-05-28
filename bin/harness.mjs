@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { cp, mkdir, readdir, rm, stat, writeFile } from "node:fs/promises";
+import { cp, mkdir, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
@@ -27,6 +27,7 @@ const scriptByCommand = {
   knowledge: "knowledge.mjs",
   dashboard: "dashboard.mjs",
   "archive-commit": "archive-commit.mjs",
+  "archive-status": "archive-status.mjs",
   "changed-files": "changed-files.mjs",
   cleanup: "cleanup.mjs"
 };
@@ -79,10 +80,12 @@ async function installHarness({ force }) {
     if (force && hadAgents) await assertInsideCwd(targetAgents);
     await cp(sourceAgents, targetAgents, { force: true });
   }
+  const gitignoreUpdated = await ensureGitignore();
 
   console.log("Eff Harness 已安装到当前项目：");
   console.log("- .harness/");
   console.log(!hadAgents || force ? "- AGENTS.md" : "- AGENTS.md（已存在，未覆盖）");
+  console.log(gitignoreUpdated ? "- .gitignore（已追加 Harness 运行期忽略规则）" : "- .gitignore（Harness 忽略规则已存在）");
   console.log("");
   console.log("下一步：");
   console.log("  eh inspect --no-ai");
@@ -126,6 +129,33 @@ function shouldSkipInstallPath(rel) {
   if (normalized.startsWith("dashboard/") && normalized !== "dashboard/.gitkeep") return true;
   if (normalized.startsWith("knowledge/") && !["knowledge/.gitkeep", "knowledge/README.md", "knowledge/lessons-learned.md"].includes(normalized)) return true;
   return false;
+}
+
+async function ensureGitignore() {
+  const target = path.join(cwd, ".gitignore");
+  const marker = "# Eff Harness runtime artifacts";
+const block = `${marker}
+node_modules/
+.env
+.env.*
+.DS_Store
+.harness/runs/*
+!.harness/runs/.gitkeep
+.harness/reports/*
+!.harness/reports/.gitkeep
+.harness/dashboard/*
+!.harness/dashboard/.gitkeep
+.harness/project/inspect.json
+.harness/project/adapter-plan.json
+.harness/reports/skills*.md
+.harness/reports/skills*.json
+`;
+
+  const current = existsSync(target) ? await readFile(target, "utf8") : "";
+  if (current.includes(marker)) return false;
+  const next = current.trimEnd() ? `${current.trimEnd()}\n\n${block}` : block;
+  await writeFile(target, `${next.trimEnd()}\n`, "utf8");
+  return true;
 }
 
 async function ensureGitkeepForRuntimeDir(rel, targetPath) {
@@ -177,6 +207,7 @@ function printHelp() {
   next             查看某个 run 的下一步建议
   report           生成某个 run 的汇总报告
   gate-check       运行质量门禁
+  archive-status   解释某个 run 当前是否可以归档提交
   knowledge        刷新知识层索引
 
 兼容别名：

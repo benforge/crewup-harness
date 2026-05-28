@@ -116,6 +116,12 @@ npx eh changed-files <run-id> add <file...>
 npx eh archive-commit <run-id>
 ```
 
+To inspect why a run cannot be archived yet:
+
+```bash
+npx eh archive-status <run-id>
+```
+
 ## Report Output
 
 `report <run-id>` generates a structured Markdown report with tables for agent name, type, execution status, result files, summary, changes, tests, blockers, and handoff notes.

@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { parse as parseYaml } from "yaml";
+import { readJsonFile } from "./lib/json.mjs";
 
 const root = process.cwd();
 const runId = process.argv.find((arg, index) => index > 1 && !arg.startsWith("--"));
@@ -28,7 +29,7 @@ if (!gitPolicy.enabled || !gitPolicy.auto_commit_after_done) {
   process.exit(0);
 }
 
-const state = JSON.parse(await readFile(statePath, "utf8"));
+const state = await readJsonFile(statePath);
 if (state.stage !== "done" && !dryRun) {
   console.error(`run 尚未进入 done，拒绝自动提交：${state.stage}`);
   process.exit(1);
@@ -39,7 +40,7 @@ if (!isInsideGitWorkTree()) {
   process.exit(1);
 }
 
-const beforeStatus = git(["status", "--short"]);
+const beforeStatus = git(["status", "--short", "--untracked-files=all"]);
 const beforeLines = beforeStatus.stdout.trim().split(/\r?\n/).filter(Boolean);
 if (beforeLines.length === 0 && gitPolicy.skip_when_no_changes !== false) {
   await writeAudit({ status: "skipped", reason: "no workspace changes", beforeLines, commit: null });
@@ -162,7 +163,7 @@ async function readChangedFilesManifest() {
   const manifestPath = path.join(root, manifestRel);
   if (!existsSync(manifestPath)) return [];
   try {
-    const parsed = JSON.parse(await readFile(manifestPath, "utf8"));
+    const parsed = await readJsonFile(manifestPath);
     return Array.isArray(parsed.files) ? parsed.files : [];
   } catch {
     return [];
