@@ -2,9 +2,17 @@
 
 默认语言：中文 | [English](./README.en.md)
 
-Eff Harness 是一套可复用的 AI 协作工作流层，用于把需求拆解、上下文管理、子 agent 协作、质量门禁、交付汇总和归档提交标准化。它不绑定具体技术栈，也不要求项目必须采用 `apps/`、`packages/` 或 monorepo 结构。
+Eff Harness 是一套面向真实工程仓库的 AI 协作工作流框架。它把需求入口、上下文整理、角色分工、子 agent 协作、质量门禁、交付报告和归档提交串成一条可追踪的闭环，让 AI 迭代不再停留在一次性的对话里。
 
-它适合希望在真实工程仓库中稳定使用 AI agent 的开发者和团队：让每一次 AI 迭代都有明确输入、角色分工、执行记录、质量检查和归档路径。
+它不绑定具体技术栈，也不要求项目必须采用 `apps/`、`packages/` 或 monorepo 结构。无论你的项目是 Web、后端、脚本工具、桌面应用，还是混合工程，Eff Harness 都只负责提供通用协作协议；真实项目结构由 `eh init` 在目标仓库内识别并生成适配层。
+
+## 核心价值
+
+- **项目无关**：Harness 本身只维护通用工作流，不夹带某个业务项目的目录假设。
+- **角色清晰**：主 agent 负责调度，PM、需求、架构、开发、测试、评审、发布等角色各司其职。
+- **上下文可控**：每次 run 都有输入、状态、任务、产物、日志和报告，避免长对话失控。
+- **门禁明确**：完成前必须经过检查、测试、评审和归档策略，不用靠口头承诺判断是否闭环。
+- **发布友好**：可作为 npm 包安装到任意项目，也可随项目提交 `.harness/` 工作流配置。
 
 ## 安装
 
@@ -31,16 +39,33 @@ npx eh init --force
 npx eh check
 ```
 
-这些命令会安装 `.harness/` 和 `AGENTS.md`，读取真实项目目录，生成 `.harness/project/` 适配层，并检查核心配置是否可用。
+这些命令会完成四件事：
 
-## 工作流
+| 步骤 | 命令 | 作用 |
+| --- | --- | --- |
+| 安装工作流 | `npx eh install` | 写入 `.harness/` 和仓库级 `AGENTS.md` |
+| 识别项目 | `npx eh inspect --no-ai` | 扫描真实目录、语言、包管理器和可用脚本 |
+| 生成适配层 | `npx eh init --force` | 生成 `.harness/project/` 下的项目画像和规则入口 |
+| 校验配置 | `npx eh check` | 检查核心配置、脚本和模板是否完整 |
 
-```text
-intake -> backlog -> run -> context-pack -> native-plan
-       -> subagents -> verify -> review -> release -> done -> archive
+## 工作流闭环
+
+```mermaid
+flowchart LR
+  A["需求输入"] --> B["Intake 分流"]
+  B --> C["Backlog 条目"]
+  C --> D["Run 创建"]
+  D --> E["上下文打包"]
+  E --> F["子 agent 计划"]
+  F --> G["子 agent 执行"]
+  G --> H["验证与测试"]
+  H --> I["评审与报告"]
+  I --> J["发布总结"]
+  J --> K["完成门禁"]
+  K --> L["归档提交"]
 ```
 
-常用命令：
+日常迭代通常从 `run` 开始：
 
 ```bash
 npx eh run "现在直接实现：..."
@@ -52,6 +77,30 @@ npx eh finalize <run-id>
 ```
 
 `run` 会根据需求复杂度创建或准备 run，并生成子 agent 计划。`finalize` 会尝试推进到 `done`，通过门禁后按归档策略触发 git 提交。
+
+## 角色协作模型
+
+```mermaid
+flowchart TB
+  User["用户需求"] --> Main["主 agent / Orchestrator"]
+  Main --> PM["PM: 范围与优先级"]
+  Main --> Req["Requirements: 需求澄清"]
+  Main --> Arch["Architect: 技术方案"]
+  Main --> Dev["开发类 agents: frontend / backend / database / devops"]
+  Main --> Test["Tester: 验证与测试"]
+  Main --> Review["Reviewer: 风险与质量评审"]
+  Main --> Release["Release: 交付总结"]
+  PM --> Main
+  Req --> Main
+  Arch --> Main
+  Dev --> Main
+  Test --> Main
+  Review --> Main
+  Release --> Main
+  Main --> Report["结构化报告与下一步"]
+```
+
+主 agent 负责调度、收集结果、处理阻塞和汇总给用户；开发类工作交给对应开发 agent；评审、测试和发布总结作为独立环节进入最终报告。
 
 ## 运行模式与认证
 
@@ -96,10 +145,6 @@ npx eh changed-files <run-id> add <file...>
 npx eh archive-commit <run-id>
 ```
 
-## 报告输出
-
-`report <run-id>` 会生成结构化 Markdown 报告，用表格展示 agent 名称、类型、执行状态、结果文件、摘要、变更、测试、阻塞点和 handoff。
-
 ## 目录结构
 
 ```text
@@ -109,7 +154,7 @@ npx eh archive-commit <run-id>
   config/          # 工作流、模型、委派、风险、归档策略
   knowledge/       # 可再生成的知识层索引
   orchestrator/    # 主 agent 调度规则
-  project/         # 当前项目适配层
+  project/         # 当前项目适配层，由 eh init 生成
   reports/         # 运行期报告
   runs/            # 每次迭代的 run 数据
   scripts/         # CLI 和工作流脚本
@@ -120,6 +165,10 @@ AGENTS.md          # 仓库级 agent 入口
 在目标项目中，建议提交 `.harness/` 的工作流核心、`.harness/project/profile.yaml`、`.harness/project/overlay.yaml`、`AGENTS.md`、`README.md` 和 `package.json`。Eff Harness 模板包本身不内置具体项目的 `.harness/project/*.yaml`，这些文件由 `eh init` 在目标项目内生成。
 
 通常不建议提交 `.harness/runs/*`、`.harness/reports/*`、`.harness/dashboard/*`、`.harness/project/inspect.json`、`.harness/project/adapter-plan.json` 或临时 smoke test backlog。
+
+## 报告输出
+
+`report <run-id>` 会生成结构化 Markdown 报告，用表格展示 agent 名称、类型、执行状态、结果文件、摘要、变更、测试、阻塞点和 handoff。它适合直接作为一次 AI 迭代的交付记录，也可以被后续 run 作为上下文索引。
 
 ## 发布前检查
 
