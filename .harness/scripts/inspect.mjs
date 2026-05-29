@@ -456,7 +456,7 @@ function hasRootProjectMarkers() {
 }
 
 function isHarnessTemplatePackage(packageJson) {
-  return packageJson?.name === "crewup";
+    return packageJson?.name === "crewup-harness";
 }
 
 function pathPattern(relPath) {

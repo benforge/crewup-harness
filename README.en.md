@@ -41,7 +41,7 @@ npx crewup finish <run-id>
 ## Install
 
 ```bash
-npm install -D crewup
+npm install -D crewup-harness
 ```
 
 Start with a quick environment check:

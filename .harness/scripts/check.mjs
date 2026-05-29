@@ -339,7 +339,7 @@ async function detectTemplatePackage() {
   if (!existsSync(packagePath)) return false;
   try {
     const packageJson = JSON.parse(stripBom(await readFile(packagePath, "utf8")));
-    return packageJson?.name === "crewup";
+    return packageJson?.name === "crewup-harness";
   } catch {
     return false;
   }

@@ -5,7 +5,7 @@ import path from "node:path";
 
 const root = process.cwd();
 const packageJson = await readJson(path.join(root, "package.json"));
-const isTemplatePackage = packageJson?.name === "crewup";
+const isTemplatePackage = packageJson?.name === "crewup-harness";
 const scripts = packageJson?.scripts ?? {};
 const bin = packageJson?.bin ?? {};
 const lockfile = detectLockfile();
