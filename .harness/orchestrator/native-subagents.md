@@ -55,6 +55,7 @@ npm run harness:native-state -- <run-id> mark-spawned <agent> <handle>
 
 ```text
 .harness/runs/<run-id>/logs/native-subagents/<agent>.result.md
+.harness/runs/<run-id>/logs/native-subagents/<agent>.result.json
 ```
 
 13. Mark the result:
@@ -62,6 +63,8 @@ npm run harness:native-state -- <run-id> mark-spawned <agent> <handle>
 ```bash
 npm run harness:native-state -- <run-id> mark-result <agent> <completed|blocked|needs_input>
 ```
+
+The JSON result is the preferred machine-readable contract for reports and gates. The Markdown result remains the human-readable fallback and should still be saved for auditability.
 
 The result file must exist before `mark-result`. A native handle without a saved `<agent>.result.md` is not enough for the main agent to produce a reliable final report.
 

@@ -68,6 +68,26 @@ agents:
       - "表单和交互"
       - "可访问性和性能"
 
+  docs:
+    title: "Docs Agent"
+    owner: ".harness/agents/docs.md"
+    category: "implementation"
+    default_stage: "implement"
+    model_profile: "coding_strong"
+    impact_flags:
+      - "docs"
+      - "documentation"
+      - "readme"
+    rule_files:
+      - ".harness/rules/docs.md"
+    scope:
+      - "README"
+      - "项目文档"
+      - "使用说明"
+      - "接入说明"
+      - "配置说明"
+      - "开发指南"
+
   backend:
     title: "Backend Agent"
     owner: ".harness/agents/backend.md"

@@ -5,6 +5,7 @@ import path from "node:path";
 import { parse as parseYaml } from "yaml";
 import { loadProjectProfile } from "./lib/project-profile.mjs";
 import { loadProjectOverlay, resolveImpactScopes } from "./lib/project-overlay.mjs";
+import { resolveScriptPath } from "./lib/script-root.mjs";
 import {
   configureDelegationGuard,
   collectWorkspaceChanges,
@@ -97,11 +98,11 @@ async function enforceGate(targetStage, currentState) {
   }
 
   if (targetStage === "implement") {
-    if (!approveImplementation && !currentState.confirmations?.implementation_approved_at) {
+    if (!isDocsOnlyRun(currentState) && !approveImplementation && !currentState.confirmations?.implementation_approved_at) {
       fail("Transition to implement requires --approve-implementation or an existing implementation approval in state.json.");
     }
     requireNativeExecutionForStage("implement");
-    if (!isLiteImplementationOnlyRun(currentState)) {
+    if (!isDocsOnlyRun(currentState) && !isLiteImplementationOnlyRun(currentState)) {
       await requireArtifactContent("requirement.md", { noPlaceholders: true, requireImpactScope: true, requireAcceptanceCriteria: true });
       await requireArtifactContent("architecture.md", { noPlaceholders: true });
       await requireArtifactContent("implementation-plan.md", { noPlaceholders: true });
@@ -239,8 +240,14 @@ function isLiteDirectImplementationTransition(fromStage, targetStage, currentSta
     && isLiteImplementationOnlyRun(currentState);
 }
 
+function isDocsOnlyRun(currentState) {
+  const taskAgents = availableTaskAgents();
+  if (!taskAgents.has("docs")) return false;
+  return !["frontend", "backend", "database", "devops", "pm", "requirements-plan", "requirements", "architect"].some((agent) => taskAgents.has(agent));
+}
+
 function isLiteImplementationOnlyRun(currentState) {
-  if (currentState.workflowProfile !== "lite") return false;
+  if (currentState.workflowProfile !== "lite" || isDocsOnlyRun(currentState)) return false;
   const taskAgents = availableTaskAgents();
   const implementationAgents = ["frontend", "backend", "database", "devops"].filter((agent) => taskAgents.has(agent));
   return implementationAgents.length > 0
@@ -315,7 +322,7 @@ function reviewHasBlockingIssues(content) {
 function sectionHasSubstantiveBullet(content, heading) {
   const section = sectionText(content, heading);
   return section.split(/\r?\n/).some((line) => {
-    const text = line.trim().replace(/^[-*]\s*/, "").trim();
+    const text = line.trim().replace(/^[-*]\s*/, "").trim().replace(/[。.!！]+$/g, "");
     return text && !["无", "暂无", "无阻塞问题", "none", "n/a", "-"].includes(text.toLowerCase());
   });
 }
@@ -347,7 +354,7 @@ function valueOf(prefix) {
 
 function runProductSync() {
   const result = spawnSync(process.execPath, [
-    path.join(root, ".harness", "scripts", "product-sync.mjs"),
+    resolveScriptPath(root, "product-sync.mjs"),
     runId,
     "--approved-product-sync"
   ], {
@@ -412,7 +419,7 @@ async function writeArchiveReminder() {
 function runArchiveCommit() {
   if (!archivePolicy.git?.enabled || !archivePolicy.git?.auto_commit_after_done) return;
   const result = spawnSync(process.execPath, [
-    path.join(root, ".harness", "scripts", "archive-commit.mjs"),
+    resolveScriptPath(root, "archive-commit.mjs"),
     runId
   ], {
     cwd: root,

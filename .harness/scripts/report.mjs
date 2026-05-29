@@ -121,7 +121,9 @@ async function buildAgentRows(native, taskNames) {
   for (const agent of agents) {
     const resultPath = agent.result_path ? resolveWorkspacePath(agent.result_path) : "";
     const resultExists = Boolean(resultPath && existsSync(resultPath));
-    const parsed = resultExists ? parseAgentResult(await readFile(resultPath, "utf8")) : {};
+    const resultJsonPath = agent.result_json_path ? resolveWorkspacePath(agent.result_json_path) : resultPath.replace(/\.result\.md$/, ".result.json");
+    const parsedJson = resultJsonPath && existsSync(resultJsonPath) ? await readJson(resultJsonPath, {}) : {};
+    const parsed = Object.keys(parsedJson).length ? parseAgentResultJson(parsedJson) : (resultExists ? parseAgentResult(await readFile(resultPath, "utf8")) : {});
     rows.push({
       agent: agent.agent,
       type: agent.kind || agent.role || inferAgentType(agent.agent),
@@ -182,6 +184,28 @@ function parseAgentResult(content) {
     }
   }
   return result;
+}
+
+function parseAgentResultJson(value) {
+  return {
+    Agent: value.agent,
+    Status: value.status,
+    Summary: value.summary,
+    "Files changed": listText(value.filesChanged ?? value.fileChanges),
+    "Artifacts updated": listText(value.artifactsUpdated ?? value.artifactUpdates),
+    Tests: listText(value.tests),
+    Blockers: listText(value.blockers),
+    Handoff: value.handoff
+  };
+}
+
+function listText(value) {
+  if (!value) return "";
+  if (!Array.isArray(value)) return String(value);
+  return value.map((item) => {
+    if (typeof item === "string") return item;
+    return item.path ?? item.name ?? JSON.stringify(item);
+  }).join("<br>");
 }
 
 function deliveryStatusFor({ state, archiveAudit, agentRows, artifactRows }) {
@@ -278,7 +302,7 @@ function resolveWorkspacePath(target) {
 
 function inferAgentType(agent) {
   if (["pm", "requirements", "architect", "reviewer", "release", "tester"].includes(agent)) return "core";
-  if (["frontend", "backend", "database", "devops"].includes(agent)) return "implementation";
+  if (["frontend", "docs", "backend", "database", "devops"].includes(agent)) return "implementation";
   return "other";
 }
 

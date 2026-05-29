@@ -4,6 +4,7 @@ export const executionOrder = [
   "requirements",
   "architect",
   "frontend",
+  "docs",
   "backend",
   "database",
   "devops",

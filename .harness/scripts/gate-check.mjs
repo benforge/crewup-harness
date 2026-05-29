@@ -174,6 +174,9 @@ async function availableTaskAgents() {
 }
 
 function requiredArtifactsForStage(stage) {
+  if (isDocsOnlyRun()) {
+    return stage === "verify" ? ["test-report.md"] : stage === "review" ? ["test-report.md", "review-report.md"] : stage === "release" || stage === "done" ? ["test-report.md", "review-report.md", "release-summary.md"] : [];
+  }
   if (stage === "requirements_plan" && isLiteImplementationOnlyRun()) return [];
   const byStage = {
     requirements_plan: ["requirement-plan.md"],
@@ -252,7 +255,7 @@ async function checkStageGate(currentState) {
   const stage = currentState.stage;
   if (!stage) return;
   const usesTransitionState = Boolean(currentState.confirmations) || (currentState.transitions ?? []).length > 0;
-  if (["implement", "verify", "review", "release", "done"].includes(stage) && !currentState.confirmations?.implementation_approved_at) {
+  if (!isDocsOnlyRun() && ["implement", "verify", "review", "release", "done"].includes(stage) && !currentState.confirmations?.implementation_approved_at) {
     const message = "Implementation stage or later should have implementation approval in state.json.";
     if (usesTransitionState) problems.push(message);
     else warnings.push(`${message} Treating as legacy run because no transition state exists.`);
@@ -302,6 +305,12 @@ function hasTemplatePlaceholder(content) {
   return hasPlaceholder(content);
 }
 
+function isDocsOnlyRun() {
+  const taskAgents = availableTaskAgentsSync();
+  if (!taskAgents.has("docs")) return false;
+  return !["frontend", "backend", "database", "devops", "pm", "requirements-plan", "requirements", "architect"].some((agent) => taskAgents.has(agent));
+}
+
 function hasAcceptanceCriteria() {
   const target = path.join(artifactsDir, "requirement.md");
   if (!existsSync(target)) return false;
@@ -323,7 +332,7 @@ function reviewHasBlockingIssues(content) {
 function sectionHasSubstantiveBullet(content, heading) {
   const section = sectionText(content, heading);
   return section.split(/\r?\n/).some((line) => {
-    const text = line.trim().replace(/^[-*]\s*/, "").trim();
+    const text = line.trim().replace(/^[-*]\s*/, "").trim().replace(/[。.!！]+$/g, "");
     return text && !["无", "暂无", "无阻塞问题", "none", "n/a", "-"].includes(text.toLowerCase());
   });
 }

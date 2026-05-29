@@ -85,13 +85,24 @@ if (stagePlan.unselectedNewChanges.length > 0 && !allowAllWorkspaceChanges && gi
   process.exit(1);
 }
 
-await writeAudit({ status: "pending", reason: "", beforeLines, selectedPaths: stagePlan.selectedPaths, commit: null, message, body });
-
 if (allowAllWorkspaceChanges || stagePlan.mode === "all_workspace_changes") {
   runGitOrFail(["add", "-A", "-f"]);
 } else {
   runGitOrFail(["add", "-f", "--", ...stagePlan.selectedPaths]);
 }
+const stagedBeforeAudit = git(["diff", "--cached", "--name-only"]).stdout.trim().split(/\r?\n/).filter(Boolean);
+await writeAudit({
+  status: "committed",
+  reason: "",
+  beforeLines,
+  selectedPaths: stagePlan.selectedPaths,
+  staged: stagedBeforeAudit,
+  commit: "created by this archive commit",
+  message,
+  body
+});
+runGitOrFail(["add", "-f", "--", auditRelPath()]);
+
 const staged = git(["diff", "--cached", "--name-only"]).stdout.trim().split(/\r?\n/).filter(Boolean);
 if (staged.length === 0 && gitPolicy.skip_when_no_changes !== false) {
   await writeAudit({ status: "skipped", reason: "no staged changes after git add", beforeLines, selectedPaths: stagePlan.selectedPaths, commit: null, message, body });
@@ -101,9 +112,8 @@ if (staged.length === 0 && gitPolicy.skip_when_no_changes !== false) {
 
 const commitArgs = ["commit", "-m", message];
 if (body.trim()) commitArgs.push("-m", body);
-const commit = runGitOrFail(commitArgs);
+runGitOrFail(commitArgs);
 const hash = git(["rev-parse", "--short", "HEAD"]).stdout.trim();
-await writeAudit({ status: "committed", reason: "", beforeLines, staged, commit: hash, message, body, commitOutput: commit.stdout.trim() });
 console.log(`归档提交完成：${hash}`);
 
 function isInsideGitWorkTree() {
@@ -171,7 +181,7 @@ async function readChangedFilesManifest() {
 }
 
 async function writeAudit(data) {
-  const target = path.join(root, renderTemplate(gitPolicy.audit_file ?? ".harness/runs/<run>/logs/archive/git-commit.md"));
+  const target = path.join(root, auditRelPath());
   await assertInsideWorkspace(target);
   await mkdir(path.dirname(target), { recursive: true });
   const lines = [
@@ -209,6 +219,10 @@ async function writeAudit(data) {
     ""
   ];
   await writeFile(target, `${lines.join("\n")}\n`, "utf8");
+}
+
+function auditRelPath() {
+  return renderTemplate(gitPolicy.audit_file ?? ".harness/runs/<run>/logs/archive/git-commit.md");
 }
 
 async function assertInsideWorkspace(target) {
@@ -267,3 +281,4 @@ function pathMatchesAny(file, selectedPaths) {
 function unique(items) {
   return [...new Set(items)];
 }
+

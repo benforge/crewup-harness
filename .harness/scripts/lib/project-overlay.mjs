@@ -258,9 +258,9 @@ async function discoverLocalScopes(root, projectProfile, profile, localRuleFile)
 
   for (const relDir of candidates) {
     const absoluteDir = path.join(root, relDir);
-    const rulePath = path.join(absoluteDir, localRuleFile);
+    const rulePath = localRuleFile ? path.join(absoluteDir, localRuleFile) : null;
     const packagePath = path.join(absoluteDir, "package.json");
-    const hasRule = existsSync(rulePath);
+    const hasRule = Boolean(rulePath && existsSync(rulePath));
     const packageJson = existsSync(packagePath) ? await readJson(packagePath) : null;
     if (!hasRule && !packageJson) continue;
 

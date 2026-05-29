@@ -1,31 +1,33 @@
-# Harness Core Boundary
+# Harness 核心边界
 
-CrewUp separates reusable workflow core from project-specific adaptation.
+中文 | [English](./harness-core-boundary.en.md)
 
-## Layering
+CrewUp 把可复用工作流核心和项目专属适配层分开。
 
-| Layer | Purpose | Should contain |
+## 分层
+
+| 层级 | 作用 | 应包含 |
 | --- | --- | --- |
-| `.harness/` | Reusable workflow core | agents, policies, scripts, contracts, templates, rules |
-| `.harness/project/` | Project adaptation layer | generated profile, overlay, language rules, testing rules, domain rules |
-| `.harness/runs/` | Runtime execution data | active and historical run records |
-| `.harness/reports/` | Runtime reports | run summaries, delivery reports, diagnostics |
-| `.harness/knowledge/` | Rebuildable knowledge index | lessons, indexes, extracted project knowledge |
-| `.harness/dashboard/` | Runtime dashboard | generated dashboard artifacts |
+| `.harness/` | 可复用工作流核心 | agents、policies、scripts、contracts、templates、rules |
+| `.harness/project/` | 项目适配层 | 生成的 profile、overlay、语言规则、测试规则、领域规则 |
+| `.harness/runs/` | 运行态执行数据 | 当前和历史 run 记录 |
+| `.harness/reports/` | 运行态报告 | run 摘要、交付报告、诊断 |
+| `.harness/knowledge/` | 可重建知识索引 | lessons、索引、抽取出的项目知识 |
+| `.harness/dashboard/` | 运行态看板 | 生成的 dashboard 产物 |
 
-## Do not mix
+## 不要混在一起
 
-Keep project business assets out of the reusable core:
+项目业务资产不要放进可复用核心：
 
-- app source code
-- product-specific README logic
-- application runtime data
-- generated run outputs
-- one-off test fixtures
+- 应用源码
+- 产品专属 README 逻辑
+- 应用运行态数据
+- 生成的 run 输出
+- 一次性测试夹具
 
-## Recommended target-project files
+## 目标项目推荐保留文件
 
-After `crewup init`, target projects typically keep:
+执行 `crewup init` 后，目标项目通常保留：
 
 - `.harness/`
 - `.harness/project/profile.yaml`
@@ -34,6 +36,6 @@ After `crewup init`, target projects typically keep:
 - `README.md`
 - `package.json`
 
-## Reset rule
+## 重置规则
 
-Anything under `runs/`, `reports/`, `dashboard/`, and most of `knowledge/` should be treated as regenerable runtime state.
+`runs/`、`reports/`、`dashboard/` 以及大部分 `knowledge/` 都应视为可重新生成的运行态状态。

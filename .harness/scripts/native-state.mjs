@@ -17,7 +17,7 @@ if (!existsSync(statePath)) {
   process.exit(1);
 }
 
-const state = JSON.parse(await readFile(statePath, "utf8"));
+const state = JSON.parse(stripBom(await readFile(statePath, "utf8")));
 
 switch (command) {
   case "status":
@@ -61,6 +61,12 @@ switch (command) {
         console.error(`Write or summarize the subagent final message first, then rerun mark-result.`);
         process.exit(1);
       }
+      const resultJsonPath = agent.result_json_path ?? resultPath.replace(/\.result\.md$/, ".result.json");
+      const parsedJson = await readResultJson(resultJsonPath);
+      if (existsSync(resolveWorkspacePath(resultJsonPath)) && parsedJson.status && parsedJson.status !== value) {
+        console.error(`Cannot capture result for ${agentId}: JSON status (${parsedJson.status}) does not match mark-result status (${value}).`);
+        process.exit(1);
+      }
       const retainedCompleted = value === "completed" && agent.retention?.retain_after_result;
       const nextStatus = retainedCompleted
         ? agent.retention.retained_status_after_completed_result ?? "waiting_review"
@@ -69,6 +75,7 @@ switch (command) {
         status: nextStatus,
         result_status: value,
         result_path: resultPath,
+        result_json_path: resultJsonPath,
         result_captured_at: new Date().toISOString(),
         last_error: null
       });
@@ -130,7 +137,7 @@ function printStatus(current, { includeRecommendations = true } = {}) {
   if (current.fallback) console.log(`Fallback: ${current.fallback.reason}`);
   const retained = (current.agents ?? []).filter((agent) => agent.status === "waiting_review" && agent.retention?.retain_after_result);
   if (retained.length > 0) {
-    const retainedImpl = retained.filter((agent) => ["frontend", "backend", "database", "devops", "tester"].includes(agent.agent)).length;
+    const retainedImpl = retained.filter((agent) => ["frontend", "docs", "backend", "database", "devops", "tester"].includes(agent.agent)).length;
     console.log(`Retained: ${retained.length} total, ${retainedImpl} implementation, ${retained.length - retainedImpl} non-implementation`);
   }
   for (const agent of current.agents ?? []) {
@@ -167,7 +174,7 @@ function recommendClose(current) {
     return agent.retention?.retain_after_result;
   });
 
-  const implementationAgents = new Set(["frontend", "backend", "database", "devops", "tester"]);
+  const implementationAgents = new Set(["frontend", "docs", "backend", "database", "devops", "tester"]);
   const isImplementation = (agent) => implementationAgents.has(agent.agent);
   const priority = capacity.close_recommendation_priority ?? [
     "release",
@@ -180,6 +187,7 @@ function recommendClose(current) {
     "devops",
     "database",
     "backend",
+    "docs",
     "frontend"
   ];
   const priorityIndex = new Map(priority.map((agent, index) => [agent, index]));
@@ -249,8 +257,30 @@ function validateResultStatus(status) {
   }
 }
 
+async function readResultJson(target) {
+  const absolute = resolveWorkspacePath(target);
+  if (!existsSync(absolute)) return {};
+  try {
+    const parsed = JSON.parse(stripBom(await readFile(absolute, "utf8")));
+    if (parsed.agent && parsed.agent !== agentId) {
+      console.error(`Cannot capture result for ${agentId}: JSON agent is ${parsed.agent}.`);
+      process.exit(1);
+    }
+    if (parsed.status) validateResultStatus(parsed.status);
+    return parsed;
+  } catch (error) {
+    console.error(`Cannot parse result JSON for ${agentId}: ${target}`);
+    console.error(error.message);
+    process.exit(1);
+  }
+}
+
 function resolveWorkspacePath(target) {
   return path.isAbsolute(target) ? target : path.join(root, target);
+}
+
+function stripBom(text) {
+  return String(text ?? "").replace(/^\uFEFF/, "");
 }
 
 async function save(current) {

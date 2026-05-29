@@ -1,17 +1,17 @@
 {
   "name": "crewup-harness",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "CrewUp: a reusable AI workflow harness for project-agnostic agent collaboration.",
   "author": "Ben",
   "license": "MIT",
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/xiaoxing92/crewup-harness.git"
+    "url": "git+https://github.com/benforge/crewup-harness.git"
   },
-  "homepage": "https://github.com/xiaoxing92/crewup-harness#readme",
+  "homepage": "https://github.com/benforge/crewup-harness#readme",
   "bugs": {
-    "url": "https://github.com/xiaoxing92/crewup-harness/issues"
+    "url": "https://github.com/benforge/crewup-harness/issues"
   },
   "keywords": [
     "ai",
@@ -62,12 +62,14 @@
     "harness:gate-check": "node .harness/scripts/gate-check.mjs",
     "harness:verify": "node .harness/scripts/verify.mjs",
     "harness:context-pack": "node .harness/scripts/context-pack.mjs",
+    "harness:agent-plan": "node .harness/scripts/native-plan.mjs",
     "harness:desktop-plan": "node .harness/scripts/desktop-plan.mjs",
     "harness:desktop-light": "node .harness/scripts/desktop-light.mjs",
     "harness:requirements-interview": "node .harness/scripts/requirements-interview.mjs",
     "harness:requirements-plan": "node .harness/scripts/requirements-plan.mjs",
     "harness:native-plan": "node .harness/scripts/native-plan.mjs",
     "harness:native-state": "node .harness/scripts/native-state.mjs",
+    "harness:repair-artifacts": "node .harness/scripts/repair-artifacts.mjs",
     "harness:repair-state": "node .harness/scripts/repair-state.mjs",
     "harness:report": "node .harness/scripts/report.mjs",
     "harness:dashboard": "node .harness/scripts/dashboard.mjs",

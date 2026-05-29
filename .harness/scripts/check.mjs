@@ -25,6 +25,7 @@ const requiredPaths = [
   ".harness/project/overlay.yaml",
   ".harness/project/agent.yaml",
   ".harness/project/agent-adapter.md",
+  ".harness/project/agent-runtime.md",
   ".harness/AGENTS.md",
   ".harness/HARNESS-ARCHITECTURE-AND-USAGE.md",
   ".harness/HARNESS-WORKFLOW.md",
@@ -54,6 +55,8 @@ const requiredPaths = [
   ".harness/orchestrator/codex-desktop-runner.md",
   ".harness/agents/frontend.md",
   ".harness/rules/frontend.md",
+  ".harness/agents/docs.md",
+  ".harness/rules/docs.md",
   ".harness/agents/backend.md",
   ".harness/rules/backend.md",
   ".harness/rules/database.md",
@@ -84,6 +87,7 @@ const requiredPaths = [
   ".harness/scripts/requirements-plan.mjs",
   ".harness/scripts/native-plan.mjs",
   ".harness/scripts/native-state.mjs",
+  ".harness/scripts/repair-artifacts.mjs",
   ".harness/scripts/repair-state.mjs",
   ".harness/scripts/report.mjs",
   ".harness/scripts/dashboard.mjs",
@@ -93,6 +97,8 @@ const requiredPaths = [
   ".harness/scripts/archive-status.mjs",
   ".harness/scripts/changed-files.mjs",
   ".harness/scripts/lib/delegation-guard.mjs",
+  ".harness/scripts/lib/agent-runtime.mjs",
+  ".harness/scripts/lib/script-root.mjs",
   ".harness/scripts/lib/json.mjs",
   ".harness/scripts/next.mjs",
   ".harness/scripts/token-ledger.mjs",
@@ -111,6 +117,7 @@ const requiredPaths = [
   "docs/harness-hardening-roadmap.md",
   "docs/harness-agent-selection.md",
   "docs/harness-agent-capabilities.md",
+  "docs/universal-agent-bridge.md",
   "docs/harness-workflow.md",
   ".harness/skills/build.md",
   ".harness/skills/test.md",
@@ -175,6 +182,7 @@ await checkTextEncoding();
 await checkSkills();
 await checkProjectOverlay();
 await checkAgentAdapter();
+await checkAgentRuntime();
 await checkKnowledge();
 await checkNativeSubagents();
 await checkWorkflow();
@@ -405,6 +413,28 @@ async function checkAgentAdapter() {
   }
 }
 
+async function checkAgentRuntime() {
+  if (isTemplatePackage) return;
+  const rel = ".harness/project/agent.yaml";
+  const target = path.join(root, rel);
+  if (!existsSync(target)) return;
+  try {
+    const config = parseYaml(await readFile(target, "utf8"))?.agent_environment;
+    if (config?.mode === "bridge" || config?.mode === "manual") {
+      const allowed = new Set(["codex", "claude", "cursor", "trae", "manual"]);
+      if (!allowed.has(config?.id)) {
+        errors.push(`${rel} bridge/manual mode requires a known agent_environment.id`);
+      }
+      const resultHint = path.join(root, ".harness", "runs");
+      if (!existsSync(resultHint)) {
+        warnings.push(`${rel} bridge/manual mode is configured, but no runs directory exists yet.`);
+      }
+    }
+  } catch (error) {
+    errors.push(`Invalid YAML: ${rel}: ${error.message}`);
+  }
+}
+
 async function checkKnowledge() {
   const knowledgeRoot = path.join(root, ".harness", "knowledge");
   if (!existsSync(knowledgeRoot)) {
@@ -448,7 +478,7 @@ async function checkNativeSubagents() {
     warnings.push(`${rel} mode is ${config.mode}; expected codex_spawn_agent for native lifecycle`);
   }
 
-  for (const role of ["frontend", "backend", "database", "devops", "tester"]) {
+  for (const role of ["frontend", "docs", "backend", "database", "devops", "tester"]) {
     if (config.agent_type_by_role?.[role] !== "worker") {
       errors.push(`${rel} must map ${role} to worker`);
     }

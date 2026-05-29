@@ -71,6 +71,7 @@ native_subagents:
         - "devops"
         - "database"
         - "backend"
+        - "docs"
         - "frontend"
     implementation_agents:
       retain_after_result: true
@@ -96,6 +97,7 @@ native_subagents:
     requirements: "explorer"
     architect: "explorer"
     frontend: "worker"
+    docs: "worker"
     backend: "worker"
     database: "worker"
     devops: "worker"
@@ -115,6 +117,7 @@ native_subagents:
       parallel: true
       agents:
         - "frontend"
+        - "docs"
         - "backend"
         - "database"
         - "devops"

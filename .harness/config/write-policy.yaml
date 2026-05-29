@@ -3,6 +3,7 @@ code_write:
   require_flag: "--apply-code"
   write_enabled_agents:
     - "frontend"
+    - "docs"
     - "backend"
     - "database"
     - "devops"

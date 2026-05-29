@@ -1,50 +1,63 @@
-# Agent Selection and Adapter Plan
+# Agent 选择与适配层方案
 
-CrewUp should not hard-code a single agent product as the only execution path.
+中文 | [English](./harness-agent-selection.en.md)
 
-## Goal
+CrewUp 不应该把某一个 agent 产品硬编码成唯一执行路径。
 
-Let users choose the execution environment during `crewup init`, then generate only the matching adapter layer.
+更成熟的默认方案是：
 
-## Preferred UX
+```text
+Codex native path + Universal Agent Bridge for everything else.
+```
 
-1. Run `crewup init`
-2. Show an interactive list of supported agents
-3. Let the user select one with arrow keys
-4. Generate the shared harness core plus the selected adapter layer
+Codex 仍然是稳定主路径。Claude、Cursor、Trae 和人工流程通过 bridge 接入，除非未来某个适配器已经完成端到端 native 验证。
 
-## Non-interactive fallback
+## 目标
 
-`crewup init --agent <name>` should bypass the prompt and use the selected agent directly.
+让用户在 `crewup init` 时选择执行环境，然后只生成匹配的适配层。
 
-## Recommended agent names
+## 推荐交互
 
-| Name | Meaning |
+1. 运行 `crewup init`
+2. 显示支持的 agent 列表
+3. 用户用上下键选择
+4. 生成共享 harness 核心和对应适配层
+
+## 非交互模式
+
+`crewup init --agent <name>` 会跳过交互选择，直接使用指定 agent。
+
+## 推荐 agent 名称
+
+| 名称 | 含义 |
 | --- | --- |
-| `codex` | OpenAI Codex-style execution environment |
-| `claude` | Claude Code-style execution environment |
-| `cursor` | Cursor-style workflow bridge |
-| `trae` | Trae-style workflow bridge |
-| `manual` | Manual prompt handoff and shell-only fallback |
+| `codex` | OpenAI Codex 风格执行环境 |
+| `claude` | Claude bridge 工作流 |
+| `cursor` | Cursor bridge 工作流 |
+| `trae` | Trae bridge 工作流 |
+| `manual` | 人工 prompt handoff 和 shell-only 兜底 |
 
-## Layering rule
+## 分层规则
 
-- Shared workflow files stay reusable.
-- Agent-specific launch, prompt, and lifecycle files live in an adapter layer.
-- Unsupported features must degrade gracefully instead of breaking the workflow.
+- 共享工作流文件保持可复用。
+- agent 专属启动、prompt、生命周期文件放在适配层。
+- 不支持的能力必须优雅降级，不能中断核心工作流。
+- `model-policy.yaml` 保持 native/Codex 导向；外部工具自行管理模型选择。
+- Bridge 适配器必须写回 CrewUp 兼容的 `result.json`，门禁结果才可信。
 
-## Output rule
+## 输出规则
 
-After init, CrewUp should always report:
+初始化后，CrewUp 应始终报告：
 
-- detected project shape
-- selected agent
-- generated shared files
-- generated adapter files
-- manual review notes when detection is uncertain
+- 检测到的项目结构
+- 选择的 agent
+- 生成的共享文件
+- 生成的适配器文件
+- 检测不确定时的人工复核建议
 
-## Stability rule
+## 稳定性规则
 
-Agent selection is a UI choice. The workflow core must stay stable even if an adapter changes or is unavailable.
+Agent 选择是用户界面和适配层选择。即使某个适配器变化或不可用，工作流核心也必须保持稳定。
 
-See [harness-agent-capabilities.md](./harness-agent-capabilities.md) for the current support matrix.
+当前支持矩阵见 [harness-agent-capabilities.md](./harness-agent-capabilities.md)。
+Bridge 协议见 [universal-agent-bridge.md](./universal-agent-bridge.md)。

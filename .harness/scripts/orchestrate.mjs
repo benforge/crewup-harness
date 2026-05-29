@@ -13,6 +13,8 @@ import {
   stripSkillCandidateBlocks,
   summarizeArtifactRecord
 } from "./lib/artifact-summary.mjs";
+import { isNativeAgentEnvironment, readAgentEnvironment, renderAgentEnvironmentTable } from "./lib/agent-runtime.mjs";
+import { resolveScriptPath } from "./lib/script-root.mjs";
 
 const root = process.cwd();
 const args = process.argv.slice(2);
@@ -41,7 +43,6 @@ const statusPath = path.join(logsDir, "orchestrate-status.json");
 
 if (!existsSync(runDir)) fail(`run 不存在：${path.relative(root, runDir)}`);
 if (!existsSync(tasksDir)) fail(`缺少 tasks/，请先执行：npm run harness:prepare-run -- ${runId}`);
-if (!dryRun && !process.env.OPENAI_API_KEY) fail("缺少 OPENAI_API_KEY。真实多 agent 执行需要 OpenAI API Key；只预览可加 --dry-run。");
 
 const AgentOutput = z.object({
   agent: z.string(),
@@ -76,6 +77,9 @@ const writePolicy = await readYaml(".harness/config/write-policy.yaml");
 const riskPolicy = await readYaml(".harness/config/risk-policy.yaml");
 const budgetPolicy = await readYaml(".harness/config/budget-policy.yaml");
 const contextPolicy = await readYaml(".harness/config/context-policy.yaml");
+const agentEnvironment = await readAgentEnvironment(root);
+const nativeRuntime = isNativeAgentEnvironment(agentEnvironment);
+if (!dryRun && nativeRuntime && !process.env.OPENAI_API_KEY) fail("Missing OPENAI_API_KEY. Codex SDK/API orchestration requires an OpenAI API key; use --dry-run to preview only.");
 const { source: projectProfileSource, project_profile: projectProfileConfig } = await loadProjectProfile(root);
 const projectOverlay = await loadProjectOverlay(root, projectProfileConfig.ai_overlay?.profile, { projectProfile: projectProfileConfig });
 const globalRules = await readOptional(".harness/AGENTS.md");
@@ -171,9 +175,12 @@ for (const fileName of selectedTaskFiles) {
   await writeRuntimeStatus();
 
   try {
-    const output = await runAgent({ agentId, profile, task, context, canWriteCode, allowedPatterns });
+    const output = nativeRuntime
+      ? await runAgent({ agentId, profile, task, context, canWriteCode, allowedPatterns })
+      : await collectBridgeAgentResult(agentId);
     results.push(output);
     const codeWriteLog = await persistAgentOutput(agentId, output, { canWriteCode, allowedPatterns });
+    await persistBridgeState(agentId, output);
     const endedAt = Date.now();
     updateAgent(agentId, {
       status: output.status,
@@ -220,6 +227,7 @@ await writeRuntimeStatus();
 
 console.log(`真实多 agent 执行完成：${runId}`);
 console.log(`agent 日志：${path.relative(root, agentLogsDir)}`);
+console.log(renderAgentEnvironmentTable(agentEnvironment));
 
 async function runAgent({ agentId, profile, task, context, canWriteCode, allowedPatterns }) {
   const { Agent, run } = await import("@openai/agents");
@@ -264,16 +272,59 @@ async function runAgent({ agentId, profile, task, context, canWriteCode, allowed
 }
 
 async function runMainSummary(agentResults) {
-  const { Agent, run } = await import("@openai/agents");
-  const profile = resolveProfile(modelPolicy, "main");
-  const mainAgent = new Agent({
-    name: "main orchestrator agent",
-    model: profile.model,
-    modelSettings: { reasoning: { effort: profile.reasoning_effort } },
-    instructions: "你是主 agent，请用中文 Markdown 汇总各子 agent 状态、阻塞点、已落盘或建议代码变更、artifact 更新和下一步。"
-  });
-  const result = await run(mainAgent, JSON.stringify(agentResults, null, 2));
-  return result.finalOutput;
+  const rows = agentResults.length
+    ? agentResults.map((item) => '| ' + cell(item.agent) + ' | ' + cell(item.status) + ' | ' + cell((item.blockers ?? []).join('<br>') || 'none') + ' | ' + cell(item.summary || 'no summary') + ' | ' + cell((item.handoff || 'none').slice(0, 120)) + ' |')
+    : ['| none | - | - | - | - |'];
+  const completed = agentResults.filter((item) => item.status === 'completed').length;
+  const blocked = agentResults.filter((item) => item.status === 'blocked').length;
+  const needsInput = agentResults.filter((item) => item.status === 'needs_input').length;
+  const participating = [...new Set(agentResults.map((item) => item.agent))].join(', ') || 'none';
+
+  return [
+    '# Main Agent Summary',
+    '',
+    renderAgentEnvironmentTable(agentEnvironment),
+    '',
+    '## Agent Result Table',
+    '',
+    '| Agent | Status | Blockers | Summary | Handoff |',
+    '| --- | --- | --- | --- | --- |',
+    ...rows,
+    '',
+    '## Status Counts',
+    '',
+    '| Item | Count |',
+    '| --- | ---: |',
+    '| completed | ' + completed + ' |',
+    '| blocked | ' + blocked + ' |',
+    '| needs_input | ' + needsInput + ' |',
+    '| total | ' + agentResults.length + ' |',
+    '',
+    '## Next Focus',
+    '',
+    blocked > 0
+      ? '- Resolve blocked agents before advancing the run.'
+      : needsInput > 0
+        ? '- Provide the missing inputs and rerun the affected agents.'
+        : '- Review the generated artifacts, then continue to gate-check.',
+    '',
+    '## Participating Agents',
+    '',
+    participating
+  ].join('\n');
+}
+
+function cell(value) {
+  return String(value ?? '').replaceAll('|', '\\|');
+}
+async function collectBridgeAgentResult(agentId) {
+  const bridgeDir = path.join(logsDir, "agent-bridge");
+  const resultPath = path.join(bridgeDir, `${agentId}.result.json`);
+  if (!existsSync(resultPath)) {
+    fail(`Missing bridge result for ${agentId}: ${path.relative(root, resultPath)}`);
+  }
+  const parsed = JSON.parse(await readFile(resultPath, "utf8"));
+  return AgentOutput.parse(parsed);
 }
 
 async function persistAgentOutput(agentId, output, { canWriteCode, allowedPatterns }) {
@@ -305,6 +356,27 @@ async function persistAgentOutput(agentId, output, { canWriteCode, allowedPatter
   return codeWriteLog;
 }
 
+async function persistBridgeState(agentId, output) {
+  const bridgeDir = path.join(logsDir, "agent-bridge");
+  const statePath = path.join(bridgeDir, "bridge-state.json");
+  if (!existsSync(bridgeDir) || !existsSync(statePath)) return;
+
+  const state = JSON.parse(await readFile(statePath, "utf8"));
+  state.updatedAt = new Date().toISOString();
+  state.tasks = (state.tasks ?? []).map((task) => {
+    if (task.agent !== agentId) return task;
+    return {
+      ...task,
+      status: output.status,
+      summary: output.summary,
+      blockers: output.blockers ?? [],
+      handoff: output.handoff ?? "",
+      result_file: path.relative(root, path.join(agentLogsDir, `${agentId}.json`)).replaceAll("\\", "/")
+    };
+  });
+  await writeFile(statePath, `${JSON.stringify(state, null, 2)}\n`, "utf8");
+}
+
 function updateAgent(agentId, patch) {
   runtimeStatus.agents[agentId] = {
     ...(runtimeStatus.agents[agentId] ?? { agent: agentId }),
@@ -328,7 +400,7 @@ async function writeRuntimeStatus() {
 
 function refreshDashboard() {
   return new Promise((resolve) => {
-    const script = path.join(root, ".harness", "scripts", "dashboard.mjs");
+    const script = resolveScriptPath(root, "dashboard.mjs");
     const child = spawn(process.execPath, [script], {
       cwd: root,
       stdio: "ignore",

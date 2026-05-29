@@ -6,6 +6,12 @@ import { loadProjectProfile } from "./lib/project-profile.mjs";
 import { decideContextMode } from "./lib/context-mode.mjs";
 import { loadProjectOverlay, renderOverlayContext } from "./lib/project-overlay.mjs";
 import { sortByExecutionOrder } from "./lib/execution-order.mjs";
+import {
+  buildBridgeTaskManifest,
+  isNativeAgentEnvironment,
+  readAgentEnvironment,
+  renderBridgeManifestMarkdown
+} from "./lib/agent-runtime.mjs";
 
 const root = process.cwd();
 const args = process.argv.slice(2);
@@ -23,6 +29,7 @@ if (!runId) {
 const runDir = path.join(root, ".harness", "runs", runId);
 const tasksDir = path.join(runDir, "tasks");
 const logsDir = path.join(runDir, "logs", "native-subagents");
+const bridgeDir = path.join(runDir, "logs", "agent-bridge");
 
 if (!existsSync(tasksDir)) {
   console.error(`缺少 tasks/。请先运行：npm run harness:prepare-run -- ${runId}`);
@@ -30,10 +37,12 @@ if (!existsSync(tasksDir)) {
 }
 
 await mkdir(logsDir, { recursive: true });
+await mkdir(bridgeDir, { recursive: true });
 
 const nativeConfig = parseYaml(await readFile(path.join(root, ".harness", "config", "native-subagents.yaml"), "utf8")).native_subagents;
 const modelPolicy = parseYaml(await readFile(path.join(root, ".harness", "config", "model-policy.yaml"), "utf8"));
 const contextPolicy = parseYaml(await readFile(path.join(root, ".harness", "config", "context-policy.yaml"), "utf8")).context;
+const agentEnvironment = await readAgentEnvironment(root);
 const { project_profile: projectProfile } = await loadProjectProfile(root);
 const projectOverlay = await loadProjectOverlay(root, projectProfile.ai_overlay?.profile, { projectProfile });
 const runInput = await readOptional(path.join(runDir, "input.md"));
@@ -67,6 +76,7 @@ for (const taskFile of taskFiles) {
   const agentType = nativeConfig.agent_type_by_role?.[agentId] ?? "default";
   const spawnName = `${runId}:${agentId}`;
   const resultPath = `.harness/runs/${runId}/logs/native-subagents/${agentId}.result.md`;
+  const resultJsonPath = `.harness/runs/${runId}/logs/native-subagents/${agentId}.result.json`;
   const prompt = renderSpawnPrompt({
     agentId,
     agentType,
@@ -86,8 +96,11 @@ for (const taskFile of taskFiles) {
     agent: agentId,
     spawn_name: spawnName,
     agent_type: agentType,
+    task_path: path.relative(root, path.join(tasksDir, taskFile)).replaceAll("\\", "/"),
     prompt_path: path.relative(root, promptPath).replaceAll("\\", "/"),
     result_path: resultPath,
+    result_json_path: resultJsonPath,
+    handoff_path: `.harness/runs/${runId}/logs/agent-bridge/${agentId}.handoff.md`,
     state: "planned",
     wait_group: findGroupForAgent(agentId, nativeConfig),
     close_required: Boolean(nativeConfig.safety?.require_close_agent),
@@ -97,13 +110,70 @@ for (const taskFile of taskFiles) {
     model_hint: profile.codex_model_hint ?? profile.model,
     reasoning_effort: profile.reasoning_effort,
     allowed_patterns: allowedPatterns,
-    write_owner: ["frontend", "backend", "database", "devops", "tester"].includes(agentId)
+    write_owner: ["frontend", "docs", "backend", "database", "devops", "tester"].includes(agentId)
   });
 }
 
 const orderedTasks = sortByExecutionOrder(tasks.map((task) => task.agent))
   .map((agent) => tasks.find((task) => task.agent === agent))
   .filter(Boolean);
+
+if (!isNativeAgentEnvironment(agentEnvironment)) {
+  const bridgeTasks = [];
+  for (const task of orderedTasks) {
+    const bridgeResultPath = `.harness/runs/${runId}/logs/agent-bridge/${task.agent}.result.json`;
+    const bridgeTask = {
+      agent: task.agent,
+      title: `${task.agent} bridge task`,
+      task_path: task.task_path,
+      handoff_path: task.handoff_path,
+      result_path: bridgeResultPath,
+      required_output_contract: {
+        status_values: ["completed", "blocked", "needs_input"],
+        summary_required: true,
+        file_changes_required: true,
+        artifact_updates_required: true,
+        tests_required: true,
+        blockers_required: true,
+        handoff_required: true
+      }
+    };
+    bridgeTasks.push(bridgeTask);
+    await writeFile(
+      path.join(root, bridgeTask.handoff_path),
+      renderBridgeHandoff({ task, bridgeTask, agentEnvironment }),
+      "utf8"
+    );
+  }
+
+  const manifest = buildBridgeTaskManifest({
+    runId,
+    agentEnvironment,
+    tasks: bridgeTasks
+  });
+
+  await writeFile(path.join(bridgeDir, "bridge-manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+  await writeFile(path.join(bridgeDir, "bridge-manifest.md"), renderBridgeManifestMarkdown(manifest), "utf8");
+  await writeFile(path.join(bridgeDir, "bridge-state.json"), `${JSON.stringify({
+    runId,
+    mode: agentEnvironment.mode,
+    agent_environment: agentEnvironment,
+    generatedAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    tasks: manifest.tasks.map((task) => ({
+      agent: task.agent,
+      task_path: task.task_path,
+      handoff_path: task.handoff_path,
+      result_path: task.result_path,
+      status: "planned"
+    }))
+  }, null, 2)}\n`, "utf8");
+
+  console.log(`桥接任务清单已写入：${path.relative(root, bridgeDir)}`);
+  console.log(`- selected agent: ${agentEnvironment.id}`);
+  for (const task of manifest.tasks) console.log(`- ${task.agent}: ${task.handoff_path}`);
+  process.exit(0);
+}
 
 const plan = {
   runId,
@@ -119,7 +189,8 @@ const plan = {
     spawn: "spawn_agent(agent_type, message)",
     wait: "wait_agent(targets)",
     close: "close_agent(target)",
-    result_path: `.harness/runs/${runId}/logs/native-subagents/<agent>.result.md`
+    result_path: `.harness/runs/${runId}/logs/native-subagents/<agent>.result.md`,
+    result_json_path: `.harness/runs/${runId}/logs/native-subagents/<agent>.result.json`
   }
 };
 
@@ -147,7 +218,7 @@ function findGroupForAgent(agentId, config) {
 }
 
 function retentionForAgent(agentId, config) {
-  const implementationAgents = new Set(["frontend", "backend", "database", "devops", "tester"]);
+  const implementationAgents = new Set(["frontend", "docs", "backend", "database", "devops", "tester"]);
   const policy = implementationAgents.has(agentId)
     ? config.retention?.implementation_agents
     : config.retention?.non_implementation_agents;
@@ -182,6 +253,7 @@ async function mergeNativeState(plan) {
         agent_type: task.agent_type,
         prompt_path: task.prompt_path,
         result_path: task.result_path,
+        result_json_path: task.result_json_path,
         wait_group: task.wait_group,
         status: existing.status ?? "planned",
         handle: existing.handle ?? null,
@@ -249,6 +321,9 @@ function renderSpawnPrompt({ agentId, agentType, profile, task, allowedPatterns,
     "",
     "## 输出契约",
     "",
+    `请同时写入 Markdown 结果文件：${resultPathFor(agentId, "md")}`,
+    `请同时写入 JSON 结果文件：${resultPathFor(agentId, "json")}`,
+    "",
     "```text",
     `Agent: ${agentId}`,
     "Status: completed / blocked / needs_input",
@@ -259,10 +334,75 @@ function renderSpawnPrompt({ agentId, agentType, profile, task, allowedPatterns,
     "Blockers:",
     "Handoff:",
     "```",
+    "",
+    "```json",
+    JSON.stringify({
+      agent: agentId,
+      status: "completed",
+      summary: "一句话总结结果",
+      filesChanged: [],
+      artifactsUpdated: [],
+      tests: [],
+      blockers: [],
+      handoff: "下一步交接"
+    }, null, 2),
+    "```",
     ""
   ];
 
   return lines.join("\n");
+}
+
+function renderBridgeHandoff({ task, bridgeTask, agentEnvironment }) {
+  return [
+    `# Bridge Agent Handoff: ${task.agent}`,
+    "",
+    `- runId: ${runId}`,
+    `- selected_agent: ${agentEnvironment.id}`,
+    `- mode: ${agentEnvironment.mode}`,
+    `- task_path: ${bridgeTask.task_path}`,
+    `- result_path: ${bridgeTask.result_path}`,
+    "",
+    "## Instructions",
+    "",
+    "- Execute the task below as an independent agent.",
+    "- Stay inside the allowed write scope.",
+    "- Do not revert or overwrite unrelated user or agent changes.",
+    "- Write the final result as JSON to the exact result_path above.",
+    "- Use Chinese for human-facing summaries unless the user requested another language.",
+    "",
+    "## Required JSON Shape",
+    "",
+    "```json",
+    JSON.stringify({
+      agent: task.agent,
+      status: "completed | blocked | needs_input",
+      summary: "short result summary",
+      artifactUpdates: [{ path: "artifacts/test-report.md", content: "full markdown content" }],
+      fileChanges: [{ path: "src/example.ts", mode: "update", reason: "why", content: "full file content" }],
+      recommendedCodeChanges: [{ path: "src/example.ts", reason: "why", change: "patch or explanation" }],
+      tests: ["command or manual verification"],
+      blockers: [],
+      handoff: "next step for main agent"
+    }, null, 2),
+    "```",
+    "",
+    "## Native Prompt Context",
+    "",
+    `Read the generated prompt for full context: ${task.prompt_path}`,
+    "",
+    "## Task Metadata",
+    "",
+    `- agent_type: ${task.agent_type}`,
+    `- context_mode: ${task.context_mode}`,
+    `- model_hint: ${task.model_hint}`,
+    `- reasoning_effort: ${task.reasoning_effort}`,
+    "",
+    "## Allowed Write Scope",
+    "",
+    ...(task.allowed_patterns.length ? task.allowed_patterns.map((item) => `- ${item}`) : ["- none"]),
+    ""
+  ].join("\n");
 }
 
 function limitText(text, maxChars) {
@@ -300,6 +440,7 @@ function renderPlanMarkdown(plan) {
     lines.push(`- reasons: ${task.context_reasons.join("; ")}`);
     lines.push(`- prompt: ${task.prompt_path}`);
     lines.push(`- result: ${task.result_path}`);
+    lines.push(`- result_json: ${task.result_json_path}`);
     lines.push(`- close_required: ${task.close_required}`);
     lines.push(`- retain_after_result: ${task.retention.retain_after_result}`);
     lines.push(`- write_owner: ${task.write_owner}`);
@@ -316,6 +457,10 @@ function renderPlanMarkdown(plan) {
   lines.push("- 只有在结果已捕获且状态为 `ready_to_close` 后，才关闭 agent。");
   lines.push("");
   return `${lines.join("\n")}\n`;
+}
+
+function resultPathFor(agentId, ext) {
+  return `.harness/runs/${runId}/logs/native-subagents/${agentId}.result.${ext}`;
 }
 
 function resolveProfile(policy, agentId) {

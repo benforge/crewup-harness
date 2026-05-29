@@ -4,7 +4,7 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { businessPathPatterns, productDocsPath } from "./project-profile.mjs";
 
-const implementationAgents = new Set(["frontend", "backend", "database", "devops"]);
+const implementationAgents = new Set(["frontend", "docs", "backend", "database", "devops"]);
 const stageOrder = [
   "intake",
   "requirements_plan",
@@ -21,7 +21,7 @@ const stageOwners = {
   requirements_plan: ["requirements-plan"],
   requirements_confirm: ["requirements"],
   plan: ["architect"],
-  implement: ["frontend", "backend", "database", "devops"],
+  implement: ["frontend", "docs", "backend", "database", "devops"],
   verify: ["tester"],
   review: ["reviewer"],
   release: ["release"],
@@ -133,7 +133,7 @@ export function evaluateDelegationGuard({ root, runId, state = {}, workspaceFile
     .filter((agent) => implementationAgents.has(agent.agent) && hasCompletedNativeResult(agent));
   if (businessFiles.some((file) => !isProductDocPath(file)) && executedImplementationAgents.length === 0) {
     problems.push(`Business code changes detected before ${stage || "the current stage"}, but no completed implementation subagent record was found.`);
-    problems.push("Expected at least one completed frontend, backend, database, or devops native result.");
+    problems.push("Expected at least one completed frontend, docs, backend, database, or devops native result.");
   }
 
   problems.push(...businessFileOwnershipProblems({ root, runId, state, nativeState, businessFiles, taskAgents, stage }));

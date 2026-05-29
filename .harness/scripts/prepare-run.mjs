@@ -81,7 +81,9 @@ function selectAgents(inputText, agents, impactScopeConfig, profile, runProfile,
     if (flags.some((flag) => hasImpact(inputText, flag))) selected.add(agentId);
   }
 
-  const implementationAgents = ["frontend", "backend", "database", "devops"].filter((agent) => selected.has(agent));
+  if (needsDocsAgent(inputText)) selected.add("docs");
+
+  const implementationAgents = ["frontend", "docs", "backend", "database", "devops"].filter((agent) => selected.has(agent));
   if (runProfile === "lite" && implementationAgents.length === 0) {
     selected.add("reviewer");
   }
@@ -116,6 +118,10 @@ function needsReleaseAgent(inputText) {
   return /(发布|上线|部署|release|changelog|版本|生产|回滚|交付)/i.test(inputText);
 }
 
+function needsDocsAgent(inputText) {
+  return /(文档|说明|README|readme|docs?|markdown|\.md|使用说明|接入说明|健康检查说明|开发指南|安装说明|配置说明|教程|手册|指南)/i.test(inputText);
+}
+
 function hasImpact(inputText, flag) {
   const checked = new RegExp(`- \\[[xX]\\]\\s+${escapeRegExp(flag)}\\b`);
   const mentioned = new RegExp(`\\b${escapeRegExp(flag)}\\b`, "i");
@@ -131,6 +137,7 @@ function hasImpact(inputText, flag) {
       /c\s*端/i,
       /前端|页面|网页|网站|站点|首页|相册|照片墙|瀑布流|布局|样式|文案|中文化|导航|空态|错误态|移动端|响应式/
     ],
+    docs: [/文档|说明|README|readme|docs?|markdown|\.md|使用说明|接入说明|开发指南|安装说明|配置说明|教程|手册|指南/i],
     admin: [/后台|管理端|管理后台|运营后台|admin/i],
     api: [/接口|后端|服务端|API/i],
     backend: [/接口|后端|服务端|API/i],
@@ -240,6 +247,7 @@ function allowedPathsFor(agentId, impactScopeConfig, impactScopes) {
     "requirements-plan": [".harness/runs/<run>/artifacts/requirement-plan.md"],
     requirements: [".harness/runs/<run>/artifacts/requirement.md"],
     architect: [".harness/runs/<run>/artifacts/architecture.md", ".harness/runs/<run>/artifacts/implementation-plan.md"],
+    docs: ["README.md", "docs/**", "*.md"],
     tester: [".harness/runs/<run>/artifacts/test-report.md"],
     reviewer: [".harness/runs/<run>/artifacts/review-report.md"],
     release: [".harness/runs/<run>/artifacts/release-summary.md"]
@@ -254,6 +262,7 @@ function requiredOutputsFor(agentId) {
     requirements: ["artifacts/requirement.md"],
     architect: ["artifacts/architecture.md", "artifacts/implementation-plan.md"],
     frontend: ["frontend code changes or implementation notes", "verification notes"],
+    docs: ["documentation changes", "docs/README update notes", "verification notes"],
     backend: ["backend code changes or API notes", "artifacts/api-change.md"],
     database: ["migration/schema notes", "artifacts/db-migration.md"],
     devops: ["deployment/CI notes", "rollback notes"],
@@ -356,6 +365,11 @@ async function updateRunState({ workflowProfile, workloadAnalysis }) {
     updatedAt: now
   };
 
+  if (isDocsOnlyRun(selectedAgents)) {
+    state.confirmations = state.confirmations ?? {};
+    state.confirmations.implementation_approved_at = state.confirmations.implementation_approved_at ?? now;
+  }
+
   if (
     state.stage === "requirements_plan"
     && workloadAnalysis.needsRequirementsPlan === false
@@ -376,6 +390,12 @@ async function updateRunState({ workflowProfile, workloadAnalysis }) {
 
   state.updatedAt = now;
   await writeFile(statePath, `${JSON.stringify(state, null, 2)}\n`, "utf8");
+}
+
+function isDocsOnlyRun(agentList) {
+  const agents = new Set(agentList ?? []);
+  if (!agents.has("docs")) return false;
+  return !["frontend", "backend", "database", "devops", "pm", "requirements-plan", "requirements", "architect"].some((agent) => agents.has(agent));
 }
 
 

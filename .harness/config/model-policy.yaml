@@ -95,6 +95,9 @@ agent_model_policy:
   frontend:
     profile: "coding_strong"
 
+  docs:
+    profile: "coding_strong"
+
   backend:
     profile: "coding_strong"
 

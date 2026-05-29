@@ -1,8 +1,10 @@
-import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+﻿import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { analyzeWorkload, renderWorkloadAnalysisMarkdown } from "./lib/workload-analysis.mjs";
+import { resolveScriptPath } from "./lib/script-root.mjs";
+import { isNativeAgentEnvironment, readAgentEnvironment } from "./lib/agent-runtime.mjs";
 
 const root = process.cwd();
 const args = process.argv.slice(2);
@@ -95,7 +97,12 @@ console.log(`Harness run 已准备好：${runId}`);
 console.log(`- profile: ${analysis.workflowProfile}`);
 console.log(`- complexity: ${analysis.complexityScore}/5 (${analysis.complexityLevel})`);
 console.log(`- agents: ${agents || "(none)"}`);
-console.log("下一步：主 agent 读取 native-subagent-plan.json，并按计划启动子 agent。");
+const agentEnvironment = await readAgentEnvironment(root);
+if (isNativeAgentEnvironment(agentEnvironment)) {
+  console.log("下一步：主 agent 读取 native-subagent-plan.json，并按计划启动原生子 agent。");
+} else {
+  console.log("下一步：外部 agent 读取 agent-bridge/*.handoff.md，完成后写回对应 *.result.json。");
+}
 
 function runJson(script, scriptArgs) {
   const output = runText(script, scriptArgs);
@@ -108,7 +115,7 @@ function runJson(script, scriptArgs) {
 }
 
 function runText(script, scriptArgs) {
-  const result = spawnSync(process.execPath, [path.join(root, ".harness", "scripts", script), ...scriptArgs], {
+  const result = spawnSync(process.execPath, [resolveScriptPath(root, script), ...scriptArgs], {
     cwd: root,
     encoding: "utf8"
   });
@@ -192,3 +199,4 @@ function valueOf(prefix) {
 function positionalText() {
   return args.filter((arg) => !arg.startsWith("--")).join(" ").trim();
 }
+

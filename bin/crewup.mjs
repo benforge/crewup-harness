@@ -23,8 +23,10 @@ const scriptByCommand = {
   "gate-check": "gate-check.mjs",
   verify: "verify.mjs",
   "context-pack": "context-pack.mjs",
+  "agent-plan": "native-plan.mjs",
   "native-plan": "native-plan.mjs",
   "native-state": "native-state.mjs",
+  "repair-artifacts": "repair-artifacts.mjs",
   transition: "transition.mjs",
   knowledge: "knowledge.mjs",
   dashboard: "dashboard.mjs",
@@ -188,7 +190,10 @@ function runScript(script, scriptArgs) {
   const result = spawnSync(process.execPath, [scriptPath, ...scriptArgs], {
     cwd,
     stdio: "inherit",
-    env: process.env
+    env: {
+      ...process.env,
+      CREWUP_SCRIPT_ROOT: path.join(packageRoot, ".harness", "scripts")
+    }
   });
   process.exit(result.status ?? 1);
 }
@@ -213,12 +218,14 @@ Common commands:
   init             Generate .harness/project/ adaptation layer
   check            Validate harness config and core scripts
   run              Create or prepare a work run
+  agent-plan       Generate a Codex native plan or universal bridge handoff
   finish           Move a run to done and auto-commit by archive policy
   finalize         Compatibility alias for finish
   status           Show current run status
   next             Suggest the next step for a run
   report           Generate a run summary report
   gate-check       Run quality gates
+  repair-artifacts Normalize required artifact headings and empty states
   archive-status   Check whether a run is ready for archive commit
   knowledge        Refresh the knowledge layer`);
 }

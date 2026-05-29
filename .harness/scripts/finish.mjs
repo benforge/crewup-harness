@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
 import path from "node:path";
+import { resolveScriptPath } from "./lib/script-root.mjs";
 
 const root = process.cwd();
 const args = process.argv.slice(2);
@@ -12,7 +13,7 @@ if (!runId) {
 }
 
 const transitionArgs = [
-  path.join(root, ".harness", "scripts", "transition.mjs"),
+  resolveScriptPath(root, "transition.mjs"),
   runId,
   "--to=done",
   ...passthrough
