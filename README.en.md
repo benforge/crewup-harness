@@ -248,6 +248,7 @@ It is usually not recommended to commit `.harness/runs/*`, `.harness/reports/*`,
 | [SECURITY.md](./SECURITY.md) | Security issue reporting |
 | [CHANGELOG.md](./CHANGELOG.md) | Version change log |
 | [examples/minimal-node/](./examples/minimal-node) | Minimal runnable example |
+| [docs/](./docs) | Developer docs, boundary rules, extension guide, hardening roadmap |
 
 ## Scope
 

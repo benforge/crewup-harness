@@ -25,6 +25,7 @@ const requiredPaths = [
   ".harness/project/overlay.yaml",
   ".harness/AGENTS.md",
   ".harness/HARNESS-ARCHITECTURE-AND-USAGE.md",
+  ".harness/HARNESS-WORKFLOW.md",
   ".harness/config/agents.yaml",
   ".harness/config/archive-policy.yaml",
   ".harness/config/delegation-policy.yaml",
@@ -103,6 +104,10 @@ const requiredPaths = [
   ".harness/scripts/lib/project-profile.mjs",
   ".harness/scripts/lib/project-overlay.mjs",
   ".harness/scripts/lib/workload-analysis.mjs",
+  "docs/harness-core-boundary.md",
+  "docs/harness-extension-guide.md",
+  "docs/harness-hardening-roadmap.md",
+  "docs/harness-workflow.md",
   ".harness/skills/build.md",
   ".harness/skills/test.md",
   ".harness/skills/ui-verify.md",
@@ -114,7 +119,8 @@ const requiredPaths = [
   ".harness/backlog/done",
   ".harness/knowledge",
   ".harness/project",
-  ".harness/runs"
+  ".harness/runs",
+  "docs"
 ];
 
 const configFiles = [
@@ -190,6 +196,7 @@ if (warnings.length > 0) {
 async function checkRequiredPaths() {
   for (const rel of requiredPaths) {
     if (isTemplatePackage && isProjectGeneratedPath(rel)) continue;
+    if (!isTemplatePackage && isTemplateOnlyPath(rel)) continue;
     try {
       await access(path.join(root, rel));
     } catch {
@@ -351,6 +358,10 @@ function stripBom(text) {
 
 function isProjectGeneratedPath(rel) {
   return rel === ".harness/project/profile.yaml" || rel === ".harness/project/overlay.yaml";
+}
+
+function isTemplateOnlyPath(rel) {
+  return rel === "docs" || rel.startsWith("docs/");
 }
 
 async function checkKnowledge() {

@@ -249,6 +249,7 @@ AGENTS.md          # 仓库级 agent 入口
 | [SECURITY.md](./SECURITY.md) | 安全问题上报方式 |
 | [CHANGELOG.md](./CHANGELOG.md) | 版本变更记录 |
 | [examples/minimal-node/](./examples/minimal-node) | 最小可运行示例 |
+| [docs/](./docs) | 开发者文档、边界说明、扩展指南、加固路线图 |
 
 ## 边界
 

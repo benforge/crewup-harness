@@ -37,6 +37,7 @@
     "CONTRIBUTING.md",
     "SECURITY.md",
     "CHANGELOG.md",
+    "docs",
     "examples"
   ],
   "engines": {
