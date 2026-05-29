@@ -110,6 +110,7 @@ const requiredPaths = [
   "docs/harness-extension-guide.md",
   "docs/harness-hardening-roadmap.md",
   "docs/harness-agent-selection.md",
+  "docs/harness-agent-capabilities.md",
   "docs/harness-workflow.md",
   ".harness/skills/build.md",
   ".harness/skills/test.md",
@@ -379,11 +380,26 @@ async function checkAgentAdapter() {
   try {
     const config = parseYaml(await readFile(target, "utf8"))?.agent_environment;
     const id = config?.id;
-    const allowed = new Set(["codex", "claude", "cursor", "trae", "generic"]);
+    const allowed = new Set(["codex", "claude", "cursor", "trae", "manual"]);
     if (!allowed.has(id)) {
       errors.push(`${rel} agent_environment.id must be one of: ${[...allowed].join(", ")}`);
     }
     if (!config?.label) warnings.push(`${rel} should define agent_environment.label`);
+    if (!["native", "experimental", "fallback"].includes(config?.support_level)) {
+      errors.push(`${rel} agent_environment.support_level must be native, experimental, or fallback`);
+    }
+    if (!["native", "bridge", "manual"].includes(config?.mode)) {
+      errors.push(`${rel} agent_environment.mode must be native, bridge, or manual`);
+    }
+    const capabilities = config?.capabilities ?? {};
+    for (const key of ["subagents", "parallel_subagents", "command_execution", "file_editing", "structured_results", "state_writeback"]) {
+      if (!(key in capabilities)) {
+        errors.push(`${rel} agent_environment.capabilities.${key} is required`);
+      }
+    }
+    if (config?.mode !== "native" && capabilities.subagents === true) {
+      warnings.push(`${rel} declares subagents=true outside native mode; verify the adapter can really launch and collect subagents`);
+    }
   } catch (error) {
     errors.push(`Invalid YAML: ${rel}: ${error.message}`);
   }

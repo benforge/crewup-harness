@@ -251,6 +251,7 @@ AGENTS.md          # 仓库级 agent 入口
 | [examples/minimal-node/](./examples/minimal-node) | 最小可运行示例 |
 | [docs/](./docs) | 开发者文档、边界说明、扩展指南、加固路线图 |
 | [docs/harness-agent-selection.md](./docs/harness-agent-selection.md) | agent 选择与适配层方案 |
+| [docs/harness-agent-capabilities.md](./docs/harness-agent-capabilities.md) | agent 能力矩阵与支持等级 |
 
 ## 边界
 

@@ -250,6 +250,7 @@ It is usually not recommended to commit `.harness/runs/*`, `.harness/reports/*`,
 | [examples/minimal-node/](./examples/minimal-node) | Minimal runnable example |
 | [docs/](./docs) | Developer docs, boundary rules, extension guide, hardening roadmap |
 | [docs/harness-agent-selection.md](./docs/harness-agent-selection.md) | agent selection and adapter plan |
+| [docs/harness-agent-capabilities.md](./docs/harness-agent-capabilities.md) | agent capability matrix and support levels |
 
 ## Scope
 

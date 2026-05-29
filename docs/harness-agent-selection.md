@@ -25,7 +25,7 @@ Let users choose the execution environment during `crewup init`, then generate o
 | `claude` | Claude Code-style execution environment |
 | `cursor` | Cursor-style workflow bridge |
 | `trae` | Trae-style workflow bridge |
-| `generic` | Shell-only fallback adapter |
+| `manual` | Manual prompt handoff and shell-only fallback |
 
 ## Layering rule
 
@@ -46,3 +46,5 @@ After init, CrewUp should always report:
 ## Stability rule
 
 Agent selection is a UI choice. The workflow core must stay stable even if an adapter changes or is unavailable.
+
+See [harness-agent-capabilities.md](./harness-agent-capabilities.md) for the current support matrix.
