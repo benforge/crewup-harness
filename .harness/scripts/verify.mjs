@@ -1,4 +1,4 @@
-﻿import { spawn } from "node:child_process";
+import { spawn } from "node:child_process";
 import { readFile, readdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
@@ -35,9 +35,7 @@ const runInput = await readFile(path.join(runDir, "input.md"), "utf8").catch(() 
 const impactScopes = await resolveRunImpactScopes(runInput);
 const workspaceTargets = forceFull ? [] : await resolveWorkspaceTargets(impactScopes);
 const results = [];
-const hasEhInstall = existsSync(path.join(root, "node_modules", ".bin", process.platform === "win32" ? "eh.cmd" : "eh"))
-  || existsSync(path.join(root, "node_modules", ".bin", process.platform === "win32" ? "eff-harness.cmd" : "eff-harness"))
-  || existsSync(path.join(root, "node_modules", ".bin", process.platform === "win32" ? "harness.cmd" : "harness"));
+const hasCrewupInstall = existsSync(path.join(root, "node_modules", ".bin", process.platform === "win32" ? "crewup.cmd" : "crewup"));
 
 for (const check of checksConfig.checks ?? []) {
   const scriptName = scriptNameForCheck(check);
@@ -48,8 +46,8 @@ for (const check of checksConfig.checks ?? []) {
   }
 
   if (check.when_script_exists && !rootScripts[check.when_script_exists]) {
-    if (check.id === "harness-check" && hasEhInstall) {
-      const command = "npx eh check";
+    if (check.id === "harness-check" && hasCrewupInstall) {
+      const command = "npx crewup check";
       const result = await runCommand(command);
       results.push({
         ...check,
@@ -289,5 +287,6 @@ function checkedScope(content, scope) {
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
+
 
 

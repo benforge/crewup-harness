@@ -1,7 +1,7 @@
 checks:
   - id: "harness-check"
     name: "Harness structure and config check"
-    command: "npx eh check"
+    command: "npx crewup check"
     required: true
     when_script_exists: null
 
@@ -40,3 +40,4 @@ checks:
     command: "npm run build"
     required: false
     when_script_exists: "build"
+

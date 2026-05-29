@@ -210,7 +210,7 @@ async function checkJson(rel, { optional = false } = {}) {
   const target = path.join(root, rel);
   if (optional && !existsSync(target)) return;
   try {
-    JSON.parse(await readFile(target, "utf8"));
+    JSON.parse(stripBom(await readFile(target, "utf8")));
   } catch (error) {
     errors.push(`Invalid JSON: ${rel}: ${error.message}`);
   }
@@ -290,10 +290,7 @@ async function checkSkills() {
 }
 
 async function checkProjectOverlay() {
-  if (isTemplatePackage && !existsSync(path.join(root, ".harness/project/overlay.yaml"))) {
-    warnings.push("Template package has no project overlay yet. Run `eh init` inside a target project to generate .harness/project/.");
-    return;
-  }
+  if (isTemplatePackage) return;
 
   const { project_profile: project } = await loadProjectProfile(root);
   const overlayRel = project?.ai_overlay?.profile ?? ".harness/project/overlay.yaml";
@@ -339,11 +336,15 @@ async function detectTemplatePackage() {
   const packagePath = path.join(root, "package.json");
   if (!existsSync(packagePath)) return false;
   try {
-    const packageJson = JSON.parse(await readFile(packagePath, "utf8"));
-    return packageJson?.name === "eff-harness";
+    const packageJson = JSON.parse(stripBom(await readFile(packagePath, "utf8")));
+    return packageJson?.name === "crewup";
   } catch {
     return false;
   }
+}
+
+function stripBom(text) {
+  return String(text ?? "").replace(/^\uFEFF/, "");
 }
 
 function isProjectGeneratedPath(rel) {
@@ -606,3 +607,4 @@ async function resolveConfiguredLocalRuleFile() {
 function normalizeRelPath(inputPath) {
   return String(inputPath ?? "").replaceAll("\\", "/").replace(/^\.\//, "").replace(/^\/+/, "").trim();
 }
+

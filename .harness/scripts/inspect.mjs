@@ -456,7 +456,7 @@ function hasRootProjectMarkers() {
 }
 
 function isHarnessTemplatePackage(packageJson) {
-  return packageJson?.name === "eff-harness";
+  return packageJson?.name === "crewup";
 }
 
 function pathPattern(relPath) {
@@ -564,3 +564,4 @@ function valueOf(prefix) {
 function rel(target) {
   return path.relative(root, target).replaceAll("\\", "/");
 }
+

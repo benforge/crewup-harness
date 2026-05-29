@@ -50,7 +50,7 @@ if (!script) {
 }
 
 if (!existsSync(path.join(cwd, ".harness"))) {
-  console.error("当前目录没有 .harness/。请先运行：eh install");
+  console.error("当前目录没有 .harness/。请先运行：crewup install");
   process.exit(1);
 }
 
@@ -64,7 +64,7 @@ async function installHarness({ force }) {
   const hadAgents = existsSync(targetAgents);
 
   if (existsSync(targetHarness) && !force) {
-    console.error("当前目录已存在 .harness/。如需覆盖，请运行：eh install --force");
+    console.error("当前目录已存在 .harness/。如需覆盖，请运行：crewup install --force");
     process.exit(1);
   }
 
@@ -82,15 +82,15 @@ async function installHarness({ force }) {
   }
   const gitignoreUpdated = await ensureGitignore();
 
-  console.log("Eff Harness 已安装到当前项目：");
+  console.log("CrewUp 已安装到当前项目：");
   console.log("- .harness/");
   console.log(!hadAgents || force ? "- AGENTS.md" : "- AGENTS.md（已存在，未覆盖）");
   console.log(gitignoreUpdated ? "- .gitignore（已追加 Harness 运行期忽略规则）" : "- .gitignore（Harness 忽略规则已存在）");
   console.log("");
   console.log("下一步：");
-  console.log("  eh inspect --no-ai");
-  console.log("  eh init --force");
-  console.log("  eh check");
+  console.log("  crewup inspect --no-ai");
+  console.log("  crewup init --force");
+  console.log("  crewup check");
 }
 
 async function copyHarness(source, target) {
@@ -133,7 +133,7 @@ function shouldSkipInstallPath(rel) {
 
 async function ensureGitignore() {
   const target = path.join(cwd, ".gitignore");
-  const marker = "# Eff Harness runtime artifacts";
+  const marker = "# CrewUp runtime artifacts";
 const block = `${marker}
 node_modules/
 .env
@@ -190,15 +190,15 @@ function runScript(script, scriptArgs) {
 }
 
 function printHelp() {
-  console.log(`Eff Harness CLI
+  console.log(`CrewUp CLI
 
 用法：
-  eh install [--force]
-  eh inspect --no-ai
-  eh init --force
-  eh check
-  eh run "现在直接实现：..."
-  eh finalize <run-id>
+  crewup install [--force]
+  crewup inspect --no-ai
+  crewup init --force
+  crewup check
+  crewup run "现在直接实现：..."
+  crewup finalize <run-id>
 
 常用命令：
   install          把 .harness/ 和 AGENTS.md 安装到当前项目
@@ -212,9 +212,6 @@ function printHelp() {
   report           生成某个 run 的汇总报告
   gate-check       运行质量门禁
   archive-status   解释某个 run 当前是否可以归档提交
-  knowledge        刷新知识层索引
-
-兼容别名：
-  eff-harness     完整 CLI 名称
-  harness         兼容旧脚本`);
+  knowledge        刷新知识层索引`);
 }
+
