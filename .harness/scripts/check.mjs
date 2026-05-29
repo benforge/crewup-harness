@@ -96,6 +96,8 @@ const requiredPaths = [
   ".harness/scripts/skills-report.mjs",
   ".harness/scripts/skills-resolve.mjs",
   ".harness/scripts/skills-install.mjs",
+  ".harness/scripts/doctor.mjs",
+  ".harness/scripts/finish.mjs",
   ".harness/scripts/skills-audit.mjs",
   ".harness/scripts/lib/context-mode.mjs",
   ".harness/scripts/lib/project-profile.mjs",

@@ -5,6 +5,23 @@
   "author": "Ben",
   "license": "MIT",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xiaoxing92/crewup-harness.git"
+  },
+  "homepage": "https://github.com/xiaoxing92/crewup-harness#readme",
+  "bugs": {
+    "url": "https://github.com/xiaoxing92/crewup-harness/issues"
+  },
+  "keywords": [
+    "ai",
+    "agent",
+    "workflow",
+    "harness",
+    "codex",
+    "claude",
+    "automation"
+  ],
   "bin": {
     "crewup": "./bin/crewup.mjs"
   },
@@ -14,7 +31,11 @@
     "bin",
     "assets",
     "README.md",
-    "README.en.md"
+    "README.en.md",
+    "CONTRIBUTING.md",
+    "SECURITY.md",
+    "CHANGELOG.md",
+    "examples"
   ],
   "engines": {
     "node": ">=20"
@@ -23,8 +44,10 @@
     "harness:check": "node .harness/scripts/check.mjs",
     "harness:inspect": "node .harness/scripts/inspect.mjs",
     "harness:init": "node .harness/scripts/init.mjs",
+    "harness:doctor": "node .harness/scripts/doctor.mjs",
     "harness:run": "node .harness/scripts/run.mjs",
     "harness:finalize": "node .harness/scripts/finalize.mjs",
+    "harness:finish": "node .harness/scripts/finish.mjs",
     "harness:overlay-report": "node .harness/scripts/overlay-report.mjs",
     "harness:status": "node .harness/scripts/status.mjs",
     "harness:intake": "node .harness/scripts/intake.mjs",

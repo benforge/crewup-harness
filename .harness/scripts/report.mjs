@@ -6,7 +6,7 @@ const root = process.cwd();
 const runId = process.argv[2];
 
 if (!runId) {
-  console.error("请提供 runId，例如：npm run harness:report -- 2026-05-14-001-blog-mvp");
+  console.error("Please provide runId, for example: npx crewup report <run-id>");
   process.exit(1);
 }
 
@@ -17,11 +17,12 @@ const logsDir = path.join(runDir, "logs");
 const nativeDir = path.join(logsDir, "native-subagents");
 
 if (!existsSync(runDir)) {
-  console.error(`run 不存在：${runId}`);
+  console.error(`run does not exist: ${runId}`);
   process.exit(1);
 }
 
 const state = await readJson(path.join(runDir, "state.json"), {});
+const input = await readFile(path.join(runDir, "input.md"), "utf8").catch(() => "");
 const taskNames = existsSync(tasksDir) ? (await readdir(tasksDir)).filter((name) => name.endsWith(".task.md")).sort() : [];
 const artifactNames = existsSync(artifactsDir) ? (await readdir(artifactsDir)).sort() : [];
 const nativeState = await readJson(path.join(nativeDir, "native-state.json"), null);
@@ -30,62 +31,78 @@ const archiveAudit = await readArchiveAudit(path.join(logsDir, "archive", "git-c
 
 const agentRows = await buildAgentRows(nativeState, taskNames);
 const artifactRows = await buildArtifactRows(artifactNames);
+const deliveryStatus = deliveryStatusFor({ state, archiveAudit, agentRows, artifactRows });
+const verdictTag = verdictTagFor({ deliveryStatus, archiveAudit, agentRows, artifactRows });
 
 const lines = [
-  `# Run 报告：${runId}`,
+  `# CrewUp Delivery Report: ${runId}`,
   "",
-  `- 生成时间：${new Date().toISOString()}`,
+  "## Summary",
   "",
-  "## 概览",
-  "",
-  "| 项 | 值 |",
+  "| Item | Value |",
   "| --- | --- |",
+  `| generatedAt | ${cell(new Date().toISOString())} |`,
   `| stage | ${cell(state.stage ?? "unknown")} |`,
   `| status | ${cell(state.status ?? "unknown")} |`,
   `| workflowProfile | ${cell(state.workflowProfile ?? "unknown")} |`,
+  `| deliveryStatus | ${cell(deliveryStatus)} |`,
+  `| verdictTag | ${cell(verdictTag)} |`,
+  `| archive | ${cell(archiveAudit.status || "no record")} |`,
+  "",
+  "## Request",
+  "",
+  blockquote(firstLines(input, 8) || "No request recorded."),
+  "",
+  "## Execution Overview",
+  "",
+  "| Metric | Count |",
+  "| --- | ---: |",
   `| tasks | ${taskNames.length} |`,
+  `| agents | ${agentRows.length} |`,
   `| artifacts | ${artifactRows.length} |`,
-  `| changed-files | ${(changedFiles.files ?? []).length} |`,
-  `| archive git | ${cell(archiveAudit.status ? `${archiveAudit.status}${archiveAudit.reason ? `：${archiveAudit.reason}` : ""}` : "暂无记录")} |`,
+  `| changed files | ${(changedFiles.files ?? []).length} |`,
+  `| archive selected paths | ${archiveAudit.selectedPaths.length} |`,
   "",
-  "## 子 Agent 结果",
+  "## Agent Results",
   "",
-  "| Agent | 类型 | 状态 | 结果文件 | 摘要 | 文件/产物 | 测试 | 阻塞 | Handoff |",
+  "| Agent | Type | Status | Result File | Summary | Files / Artifacts | Tests | Blockers | Handoff |",
   "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
-  ...(agentRows.length ? agentRows.map(renderAgentRow) : ["| 暂无 | - | - | - | - | - | - | - | - |"]),
+  ...(agentRows.length ? agentRows.map(renderAgentRow) : ["| none | - | - | - | - | - | - | - | - |"]),
   "",
-  "## 产物",
+  "## Artifacts",
   "",
-  "| 产物 | 状态 | 大小 | 摘要 |",
+  "| Artifact | Status | Size | Summary |",
   "| --- | --- | ---: | --- |",
-  ...(artifactRows.length ? artifactRows.map((item) => `| \`${item.name}\` | ${item.status} | ${item.bytes} | ${cell(item.summary)} |`) : ["| 暂无 | - | 0 | - |"]),
+  ...(artifactRows.length ? artifactRows.map((item) => `| \`${item.name}\` | ${item.status} | ${item.bytes} | ${cell(item.summary)} |`) : ["| none | - | 0 | - |"]),
   "",
-  "## 变更清单",
+  "## Change List",
   "",
-  "| 来源 | 数量 | 详情 |",
+  "| Source | Count | Details |",
   "| --- | ---: | --- |",
-  `| changed-files manifest | ${(changedFiles.files ?? []).length} | ${cell((changedFiles.files ?? []).join("<br>") || "无")} |`,
-  `| archive selected paths | ${archiveAudit.selectedPaths.length} | ${cell(archiveAudit.selectedPaths.join("<br>") || "无")} |`,
-  `| archive unselected changes | ${archiveAudit.unselectedChanges.length} | ${cell(archiveAudit.unselectedChanges.join("<br>") || "无")} |`,
+  `| changed-files manifest | ${(changedFiles.files ?? []).length} | ${cell((changedFiles.files ?? []).join("<br>") || "none")} |`,
+  `| archive selected paths | ${archiveAudit.selectedPaths.length} | ${cell(archiveAudit.selectedPaths.join("<br>") || "none")} |`,
+  `| archive unselected changes | ${archiveAudit.unselectedChanges.length} | ${cell(archiveAudit.unselectedChanges.join("<br>") || "none")} |`,
   "",
-  "## 归档与提交",
+  "## Archive",
   "",
-  "| 项 | 值 |",
+  "| Item | Value |",
   "| --- | --- |",
-  `| archive status | ${cell(archiveAudit.status || "暂无记录")} |`,
-  `| reason | ${cell(archiveAudit.reason || "无")} |`,
-  `| commit | ${cell(archiveAudit.commit || "未生成")} |`,
-  `| audit | ${existsSync(path.join(logsDir, "archive", "git-commit.md")) ? "`logs/archive/git-commit.md`" : "暂无"} |`,
+  `| archive status | ${cell(archiveAudit.status || "no record")} |`,
+  `| reason | ${cell(archiveAudit.reason || "none")} |`,
+  `| commit | ${cell(archiveAudit.commit || "not generated")} |`,
+  `| audit | ${existsSync(path.join(logsDir, "archive", "git-commit.md")) ? "`logs/archive/git-commit.md`" : "none"} |`,
   "",
-  "## 结论",
+  "## Verdict",
   "",
-  "如果 archive status 不是 `committed` 或 `skipped`，说明这条 run 还没有真正闭环到最终提交。",
+  `> verdict: **${verdictTag}**`,
+  "",
+  verdictFor({ deliveryStatus, archiveAudit, agentRows, artifactRows }),
   ""
 ];
 
 const target = path.join(logsDir, "run-report.md");
 await writeFile(target, `${lines.join("\n")}\n`, "utf8");
-console.log(`Run 报告已写入：${path.relative(root, target).replaceAll("\\", "/")}`);
+console.log(`Run report written to: ${path.relative(root, target).replaceAll("\\", "/")}`);
 
 async function buildAgentRows(native, taskNames) {
   const rows = [];
@@ -109,12 +126,12 @@ async function buildAgentRows(native, taskNames) {
       agent: agent.agent,
       type: agent.kind || agent.role || inferAgentType(agent.agent),
       status: [agent.status, agent.result_status ? `result=${agent.result_status}` : ""].filter(Boolean).join("<br>") || "planned",
-      resultFile: resultExists ? `\`${path.relative(runDir, resultPath).replaceAll("\\", "/")}\`` : agent.result_captured_at ? "缺失" : "未捕获",
-      summary: parsed.Summary ?? (agent.result_captured_at ? "结果已标记但缺少 result.md" : "尚无结果"),
+      resultFile: resultExists ? `\`${path.relative(runDir, resultPath).replaceAll("\\", "/")}\`` : agent.result_captured_at ? "missing" : "not captured",
+      summary: parsed.Summary ?? (agent.result_captured_at ? "result captured but missing result.md" : "no result yet"),
       files: compactList([parsed["Files changed"], parsed["Artifacts updated"]]),
-      tests: parsed.Tests ?? "未记录",
-      blockers: parsed.Blockers ?? "未记录",
-      handoff: parsed.Handoff ?? "未记录"
+      tests: parsed.Tests ?? "not recorded",
+      blockers: parsed.Blockers ?? "not recorded",
+      handoff: parsed.Handoff ?? "not recorded"
     });
   }
   return rows;
@@ -144,8 +161,8 @@ async function readArchiveAudit(target) {
     status: readListValue(content, "status"),
     reason: readListValue(content, "reason"),
     commit: readListValue(content, "commit"),
-    selectedPaths: readSectionBullets(content, "选中暂存路径"),
-    unselectedChanges: readSectionBullets(content, "未纳入的新增变更")
+    selectedPaths: readSectionBullets(content, "Selected staged paths"),
+    unselectedChanges: readSectionBullets(content, "Unselected new changes")
   };
 }
 
@@ -165,6 +182,30 @@ function parseAgentResult(content) {
     }
   }
   return result;
+}
+
+function deliveryStatusFor({ state, archiveAudit, agentRows, artifactRows }) {
+  if (archiveAudit.status === "committed") return "closed";
+  if (state.status === "done" || state.stage === "done") return "done-not-archived";
+  if (agentRows.some((item) => /blocked/i.test(item.status) || /blocked/i.test(item.blockers))) return "blocked";
+  if (artifactRows.length > 0 || agentRows.length > 0) return "in-progress";
+  return "not-started";
+}
+
+function verdictTagFor({ deliveryStatus }) {
+  if (deliveryStatus === "closed") return "closed";
+  if (deliveryStatus === "done-not-archived") return "done-not-archived";
+  if (deliveryStatus === "blocked") return "blocked";
+  if (deliveryStatus === "in-progress") return "in-progress";
+  return "not-started";
+}
+
+function verdictFor({ deliveryStatus, archiveAudit, agentRows, artifactRows }) {
+  if (deliveryStatus === "closed") return `This run is fully closed and archived: ${archiveAudit.commit || "commit not recorded"}.`;
+  if (deliveryStatus === "done-not-archived") return "This run reached done, but archive commit is still pending.";
+  if (deliveryStatus === "blocked") return "This run contains a blocker. Resolve agent output or manual confirmation before continuing.";
+  if (agentRows.length === 0 && artifactRows.length === 0) return "This run has no deliverables yet. Execute the plan, implement, verify, or capture agent results first.";
+  return "This run has partial results, but it is not fully closed yet.";
 }
 
 function readListValue(content, key) {
@@ -194,7 +235,7 @@ function sectionText(content, heading) {
 async function readJson(target, fallback) {
   if (!existsSync(target)) return fallback;
   try {
-    return JSON.parse(await readFile(target, "utf8"));
+    return JSON.parse((await readFile(target, "utf8")).replace(/^\uFEFF/, ""));
   } catch {
     return fallback;
   }
@@ -208,11 +249,27 @@ function firstContentLine(content) {
   return String(content ?? "")
     .split(/\r?\n/)
     .map((line) => line.trim())
-    .find((line) => line && !line.startsWith("#")) ?? "空";
+    .find((line) => line && !line.startsWith("#")) ?? "empty";
+}
+
+function firstLines(content, limit) {
+  return String(content ?? "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(0, limit)
+    .join("\n");
+}
+
+function blockquote(content) {
+  return String(content ?? "")
+    .split(/\r?\n/)
+    .map((line) => `> ${line}`)
+    .join("\n");
 }
 
 function compactList(items) {
-  return items.filter(Boolean).join("<br>") || "未记录";
+  return items.filter(Boolean).join("<br>") || "not recorded";
 }
 
 function resolveWorkspacePath(target) {

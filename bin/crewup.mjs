@@ -12,9 +12,11 @@ const [command, ...args] = process.argv.slice(2);
 const scriptByCommand = {
   inspect: "inspect.mjs",
   init: "init.mjs",
+  doctor: "doctor.mjs",
   check: "check.mjs",
   run: "run.mjs",
   finalize: "finalize.mjs",
+  finish: "finish.mjs",
   status: "status.mjs",
   next: "next.mjs",
   report: "report.mjs",
@@ -49,7 +51,7 @@ if (!script) {
   process.exit(1);
 }
 
-if (!existsSync(path.join(cwd, ".harness"))) {
+if (command !== "doctor" && !existsSync(path.join(cwd, ".harness"))) {
   console.error("当前目录没有 .harness/。请先运行：crewup install");
   process.exit(1);
 }
@@ -88,6 +90,7 @@ async function installHarness({ force }) {
   console.log(gitignoreUpdated ? "- .gitignore（已追加 Harness 运行期忽略规则）" : "- .gitignore（Harness 忽略规则已存在）");
   console.log("");
   console.log("下一步：");
+  console.log("  crewup doctor");
   console.log("  crewup inspect --no-ai");
   console.log("  crewup init --force");
   console.log("  crewup check");
@@ -134,7 +137,7 @@ function shouldSkipInstallPath(rel) {
 async function ensureGitignore() {
   const target = path.join(cwd, ".gitignore");
   const marker = "# CrewUp runtime artifacts";
-const block = `${marker}
+  const block = `${marker}
 node_modules/
 .env
 .env.*
@@ -194,19 +197,23 @@ function printHelp() {
 
 用法：
   crewup install [--force]
+  crewup doctor
   crewup inspect --no-ai
   crewup init --force
   crewup check
   crewup run "现在直接实现：..."
+  crewup finish <run-id>
   crewup finalize <run-id>
 
 常用命令：
   install          把 .harness/ 和 AGENTS.md 安装到当前项目
+  doctor           检查环境、能力和闭环前置条件
   inspect          生成项目画像和适配计划
   init             生成 .harness/project/ 适配层
   check            检查 harness 配置和核心脚本
   run              创建或准备一个正式 run
-  finalize         推进到 done，并按归档策略自动执行 git 提交
+  finish           推进到 done，并按归档策略自动执行 git 提交
+  finalize         兼容旧命令，行为同 finish
   status           查看当前 runs 状态
   next             查看某个 run 的下一步建议
   report           生成某个 run 的汇总报告
@@ -214,4 +221,3 @@ function printHelp() {
   archive-status   解释某个 run 当前是否可以归档提交
   knowledge        刷新知识层索引`);
 }
-
