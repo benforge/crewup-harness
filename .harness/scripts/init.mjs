@@ -1,22 +1,29 @@
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
+import { emitKeypressEvents } from "node:readline";
 
 const root = process.cwd();
 const args = process.argv.slice(2);
 const force = args.includes("--force");
 const dryRun = args.includes("--dry-run");
 const projectNameArg = valueOf("--name=");
+const agentArg = valueOf("--agent=") ?? valueAfter("--agent");
 
 const profilePath = path.join(root, ".harness", "project", "profile.yaml");
 const overlayPath = path.join(root, ".harness", "project", "overlay.yaml");
+const agentPath = path.join(root, ".harness", "project", "agent.yaml");
+const agentAdapterPath = path.join(root, ".harness", "project", "agent-adapter.md");
 const inspectPath = path.join(root, ".harness", "project", "inspect.json");
 const rulesDir = path.join(root, ".harness", "project", "rules");
 const profile = await loadProjectProfileSpec();
+const selectedAgent = await resolveAgentSelection();
 const overlay = buildOverlay(profile);
 const files = [
   { path: profilePath, content: renderProfile(profile) },
   { path: overlayPath, content: renderOverlay(overlay) },
+  { path: agentPath, content: renderAgentConfig(selectedAgent) },
+  { path: agentAdapterPath, content: renderAgentAdapter(selectedAgent) },
   { path: path.join(rulesDir, "language.md"), content: languageRule() },
   { path: path.join(rulesDir, "testing.md"), content: testingRule(profile) },
   { path: path.join(rulesDir, "domain.md"), content: domainRule(profile) }
@@ -25,6 +32,7 @@ const files = [
 if (dryRun) {
   console.log(JSON.stringify({
     profile,
+    agent: selectedAgent,
     files: files.map((file) => rel(file.path))
   }, null, 2));
   process.exit(0);
@@ -37,8 +45,11 @@ for (const file of files) {
 console.log("Harness project adaptation layer initialized:");
 console.log(`- ${rel(profilePath)}`);
 console.log(`- ${rel(overlayPath)}`);
+console.log(`- ${rel(agentPath)}`);
+console.log(`- ${rel(agentAdapterPath)}`);
 console.log(`- ${rel(rulesDir)}`);
 printProfileSummary(profile);
+printAgentSummary(selectedAgent);
 
 async function detectProjectProfile() {
   const rootPackage = await readJson(path.join(root, "package.json"));
@@ -304,6 +315,108 @@ function buildOverlay(profile) {
   };
 }
 
+async function resolveAgentSelection() {
+  const candidates = getAgentCandidates();
+  if (agentArg) {
+    const selected = candidates.find((item) => item.id === agentArg);
+    if (selected) return selected;
+    throw new Error(`Unknown agent: ${agentArg}. Expected one of: ${candidates.map((item) => item.id).join(", ")}`);
+  }
+  if (!process.stdin.isTTY || !process.stdout.isTTY) return candidates[0];
+  return await promptForAgent(candidates);
+}
+
+function getAgentCandidates() {
+  return [
+    {
+      id: "codex",
+      label: "Codex",
+      description: "OpenAI Codex-style native or CLI-backed workflow"
+    },
+    {
+      id: "claude",
+      label: "Claude Code",
+      description: "Claude Code-style workflow bridge"
+    },
+    {
+      id: "cursor",
+      label: "Cursor",
+      description: "Cursor-style project workflow bridge"
+    },
+    {
+      id: "trae",
+      label: "Trae",
+      description: "Trae-style project workflow bridge"
+    },
+    {
+      id: "generic",
+      label: "Generic",
+      description: "Shell-only fallback adapter"
+    }
+  ];
+}
+
+async function promptForAgent(candidates) {
+  emitKeypressEvents(process.stdin);
+  let selectedIndex = 0;
+  const canRawMode = typeof process.stdin.setRawMode === "function";
+  if (canRawMode) process.stdin.setRawMode(true);
+  process.stdin.resume();
+
+  return await new Promise((resolve) => {
+    const render = () => {
+      process.stdout.write("\x1Bc");
+      console.log("Select the agent environment to generate for:");
+      console.log("");
+      candidates.forEach((item, index) => {
+        const marker = index === selectedIndex ? ">" : " ";
+        console.log(`${marker} ${item.label} (${item.id})`);
+        console.log(`  ${item.description}`);
+      });
+      console.log("");
+      console.log("Use Up/Down and Enter. Press 1-" + candidates.length + " for quick selection. Press Ctrl+C to cancel.");
+    };
+
+    const cleanup = () => {
+      process.stdin.off("keypress", onKeypress);
+      if (canRawMode) process.stdin.setRawMode(false);
+      process.stdin.pause();
+    };
+
+    const onKeypress = (_input, key = {}) => {
+      if (key.ctrl && key.name === "c") {
+        cleanup();
+        process.exit(130);
+      }
+      if (key.name === "up") {
+        selectedIndex = (selectedIndex - 1 + candidates.length) % candidates.length;
+        render();
+        return;
+      }
+      if (key.name === "down") {
+        selectedIndex = (selectedIndex + 1) % candidates.length;
+        render();
+        return;
+      }
+      if (key.name === "return" || key.name === "enter") {
+        cleanup();
+        console.log("");
+        resolve(candidates[selectedIndex]);
+        return;
+      }
+      const quickIndex = Number.parseInt(_input, 10);
+      if (Number.isInteger(quickIndex) && quickIndex >= 1 && quickIndex <= candidates.length) {
+        cleanup();
+        console.log("");
+        resolve(candidates[quickIndex - 1]);
+      }
+    };
+
+    process.stdin.on("keypress", onKeypress);
+    render();
+  });
+}
+
 function renderProfile(profile) {
   return `${yaml({
     project_profile: {
@@ -317,6 +430,7 @@ function renderProfile(profile) {
         discovery: "auto",
         local_rule_file: null
       },
+      agent_environment: selectedAgent.id,
       commands: profile.commands,
       business_paths: profile.business_paths,
       protected_paths: [
@@ -333,6 +447,28 @@ function renderProfile(profile) {
       }
     }
   })}\n`;
+}
+
+function renderAgentConfig(agent) {
+  return `${yaml({
+    agent_environment: {
+      id: agent.id,
+      label: agent.label,
+      description: agent.description,
+      supported: true
+    }
+  })}\n`;
+}
+
+function renderAgentAdapter(agent) {
+  return `# Agent Adapter
+
+- selected_agent: ${agent.id}
+- selected_label: ${agent.label}
+- description: ${agent.description}
+
+This adapter layer is generated by harness:init. Shared workflow files stay reusable; product-specific launch and lifecycle hooks belong here.
+`;
 }
 
 function renderOverlay(overlay) {
@@ -424,6 +560,14 @@ function printProfileSummary(profile) {
     console.log("- edit .harness/project/profile.yaml if the detected modules or commands are incomplete");
     console.log("- edit .harness/project/rules/domain.md to add real project rules");
   }
+}
+
+function printAgentSummary(agent) {
+  console.log("");
+  console.log("Agent selection:");
+  console.log(`- selected agent: ${agent.label} (${agent.id})`);
+  console.log(`- adapter: .harness/project/agent.yaml`);
+  console.log(`- adapter notes: .harness/project/agent-adapter.md`);
 }
 
 async function writeGeneratedFile(target, content) {
@@ -533,6 +677,12 @@ function space(count) {
 function valueOf(prefix) {
   const arg = args.find((item) => item.startsWith(prefix));
   return arg ? arg.slice(prefix.length) : null;
+}
+
+function valueAfter(flag) {
+  const index = args.indexOf(flag);
+  if (index === -1) return null;
+  return args[index + 1] ?? null;
 }
 
 function rel(target) {

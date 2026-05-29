@@ -23,6 +23,8 @@ const requiredPaths = [
   "AGENTS.md",
   ".harness/project/profile.yaml",
   ".harness/project/overlay.yaml",
+  ".harness/project/agent.yaml",
+  ".harness/project/agent-adapter.md",
   ".harness/AGENTS.md",
   ".harness/HARNESS-ARCHITECTURE-AND-USAGE.md",
   ".harness/HARNESS-WORKFLOW.md",
@@ -107,6 +109,7 @@ const requiredPaths = [
   "docs/harness-core-boundary.md",
   "docs/harness-extension-guide.md",
   "docs/harness-hardening-roadmap.md",
+  "docs/harness-agent-selection.md",
   "docs/harness-workflow.md",
   ".harness/skills/build.md",
   ".harness/skills/test.md",
@@ -170,6 +173,7 @@ await checkJson("skills-lock.json", { optional: true });
 await checkTextEncoding();
 await checkSkills();
 await checkProjectOverlay();
+await checkAgentAdapter();
 await checkKnowledge();
 await checkNativeSubagents();
 await checkWorkflow();
@@ -357,11 +361,32 @@ function stripBom(text) {
 }
 
 function isProjectGeneratedPath(rel) {
-  return rel === ".harness/project/profile.yaml" || rel === ".harness/project/overlay.yaml";
+  return rel === ".harness/project/profile.yaml"
+    || rel === ".harness/project/overlay.yaml"
+    || rel === ".harness/project/agent.yaml"
+    || rel === ".harness/project/agent-adapter.md";
 }
 
 function isTemplateOnlyPath(rel) {
   return rel === "docs" || rel.startsWith("docs/");
+}
+
+async function checkAgentAdapter() {
+  if (isTemplatePackage) return;
+  const rel = ".harness/project/agent.yaml";
+  const target = path.join(root, rel);
+  if (!existsSync(target)) return;
+  try {
+    const config = parseYaml(await readFile(target, "utf8"))?.agent_environment;
+    const id = config?.id;
+    const allowed = new Set(["codex", "claude", "cursor", "trae", "generic"]);
+    if (!allowed.has(id)) {
+      errors.push(`${rel} agent_environment.id must be one of: ${[...allowed].join(", ")}`);
+    }
+    if (!config?.label) warnings.push(`${rel} should define agent_environment.label`);
+  } catch (error) {
+    errors.push(`Invalid YAML: ${rel}: ${error.message}`);
+  }
 }
 
 async function checkKnowledge() {

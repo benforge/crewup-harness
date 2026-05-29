@@ -69,7 +69,7 @@ The flow is simple:
 1. `doctor` checks the environment, repository, scripts, and prerequisites
 2. `install` adds the shared workflow layer
 3. `inspect` reads the real directory, language, and scripts
-4. `init` generates the project adapter layer
+4. `init` lets you choose an agent first, then generates the project adapter layer
 5. `check` confirms the workflow can close the loop
 
 After that, use the normal iteration flow:
@@ -249,6 +249,7 @@ It is usually not recommended to commit `.harness/runs/*`, `.harness/reports/*`,
 | [CHANGELOG.md](./CHANGELOG.md) | Version change log |
 | [examples/minimal-node/](./examples/minimal-node) | Minimal runnable example |
 | [docs/](./docs) | Developer docs, boundary rules, extension guide, hardening roadmap |
+| [docs/harness-agent-selection.md](./docs/harness-agent-selection.md) | agent selection and adapter plan |
 
 ## Scope
 

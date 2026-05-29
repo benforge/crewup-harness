@@ -69,7 +69,7 @@ npx crewup check
 1. `doctor` 检查环境、仓库、脚本和闭环前置条件
 2. `install` 把通用工作流装进项目
 3. `inspect` 读取真实目录、语言和脚本情况
-4. `init` 生成项目适配层
+4. `init` 先选择 agent，再生成项目适配层
 5. `check` 确认配置和核心文件能闭环
 
 完成后，再进入日常迭代：
@@ -250,6 +250,7 @@ AGENTS.md          # 仓库级 agent 入口
 | [CHANGELOG.md](./CHANGELOG.md) | 版本变更记录 |
 | [examples/minimal-node/](./examples/minimal-node) | 最小可运行示例 |
 | [docs/](./docs) | 开发者文档、边界说明、扩展指南、加固路线图 |
+| [docs/harness-agent-selection.md](./docs/harness-agent-selection.md) | agent 选择与适配层方案 |
 
 ## 边界
 
