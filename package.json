@@ -1,6 +1,6 @@
 {
   "name": "crewup-harness",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "CrewUp: a reusable AI workflow harness for project-agnostic agent collaboration.",
   "author": "Ben",
   "license": "MIT",
@@ -23,7 +23,9 @@
     "automation"
   ],
   "bin": {
-    "crewup": "./bin/crewup.mjs"
+    "crewup": "./bin/crewup.mjs",
+    "crewup-harness": "./bin/crewup.mjs",
+    "harness": "./bin/crewup.mjs"
   },
   "files": [
     "AGENTS.md",
@@ -41,6 +43,7 @@
     "node": ">=20"
   },
   "scripts": {
+    "test": "npm run harness:check && npm --prefix examples/minimal-node test",
     "harness:check": "node .harness/scripts/check.mjs",
     "harness:inspect": "node .harness/scripts/inspect.mjs",
     "harness:init": "node .harness/scripts/init.mjs",

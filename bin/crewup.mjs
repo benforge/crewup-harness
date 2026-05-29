@@ -46,13 +46,13 @@ if (command === "install") {
 
 const script = scriptByCommand[command];
 if (!script) {
-  console.error(`未知命令：${command}`);
+  console.error(`Unknown command: ${command}`);
   printHelp();
   process.exit(1);
 }
 
 if (command !== "doctor" && !existsSync(path.join(cwd, ".harness"))) {
-  console.error("当前目录没有 .harness/。请先运行：crewup install");
+  console.error("No .harness/ directory found in the current project. Run: crewup install");
   process.exit(1);
 }
 
@@ -66,7 +66,7 @@ async function installHarness({ force }) {
   const hadAgents = existsSync(targetAgents);
 
   if (existsSync(targetHarness) && !force) {
-    console.error("当前目录已存在 .harness/。如需覆盖，请运行：crewup install --force");
+    console.error("A .harness/ directory already exists. Use: crewup install --force");
     process.exit(1);
   }
 
@@ -82,14 +82,15 @@ async function installHarness({ force }) {
     if (force && hadAgents) await assertInsideCwd(targetAgents);
     await cp(sourceAgents, targetAgents, { force: true });
   }
+
   const gitignoreUpdated = await ensureGitignore();
 
-  console.log("CrewUp 已安装到当前项目：");
+  console.log("CrewUp installed into the current project.");
   console.log("- .harness/");
-  console.log(!hadAgents || force ? "- AGENTS.md" : "- AGENTS.md（已存在，未覆盖）");
-  console.log(gitignoreUpdated ? "- .gitignore（已追加 Harness 运行期忽略规则）" : "- .gitignore（Harness 忽略规则已存在）");
+  console.log(!hadAgents || force ? "- AGENTS.md" : "- AGENTS.md (already existed, not overwritten)");
+  console.log(gitignoreUpdated ? "- .gitignore (added CrewUp runtime ignores)" : "- .gitignore (CrewUp ignores already present)");
   console.log("");
-  console.log("下一步：");
+  console.log("Next:");
   console.log("  crewup doctor");
   console.log("  crewup inspect --no-ai");
   console.log("  crewup init --force");
@@ -177,7 +178,7 @@ async function assertInsideCwd(target) {
   const root = path.resolve(cwd);
   const resolved = path.resolve(target);
   if (resolved !== root && !resolved.startsWith(`${root}${path.sep}`)) {
-    throw new Error(`拒绝操作当前目录之外的路径：${resolved}`);
+    throw new Error(`Refusing to operate outside the current directory: ${resolved}`);
   }
   await stat(resolved).catch(() => null);
 }
@@ -195,29 +196,29 @@ function runScript(script, scriptArgs) {
 function printHelp() {
   console.log(`CrewUp CLI
 
-用法：
+Usage:
   crewup install [--force]
   crewup doctor
   crewup inspect --no-ai
   crewup init --force
   crewup check
-  crewup run "现在直接实现：..."
+  crewup run "implement this now..."
   crewup finish <run-id>
   crewup finalize <run-id>
 
-常用命令：
-  install          把 .harness/ 和 AGENTS.md 安装到当前项目
-  doctor           检查环境、能力和闭环前置条件
-  inspect          生成项目画像和适配计划
-  init             生成 .harness/project/ 适配层
-  check            检查 harness 配置和核心脚本
-  run              创建或准备一个正式 run
-  finish           推进到 done，并按归档策略自动执行 git 提交
-  finalize         兼容旧命令，行为同 finish
-  status           查看当前 runs 状态
-  next             查看某个 run 的下一步建议
-  report           生成某个 run 的汇总报告
-  gate-check       运行质量门禁
-  archive-status   解释某个 run 当前是否可以归档提交
-  knowledge        刷新知识层索引`);
+Common commands:
+  install          Copy .harness/ and AGENTS.md into the current project
+  doctor           Check environment, capabilities, and preflight conditions
+  inspect          Generate project snapshot and adaptation plan
+  init             Generate .harness/project/ adaptation layer
+  check            Validate harness config and core scripts
+  run              Create or prepare a work run
+  finish           Move a run to done and auto-commit by archive policy
+  finalize         Compatibility alias for finish
+  status           Show current run status
+  next             Suggest the next step for a run
+  report           Generate a run summary report
+  gate-check       Run quality gates
+  archive-status   Check whether a run is ready for archive commit
+  knowledge        Refresh the knowledge layer`);
 }
