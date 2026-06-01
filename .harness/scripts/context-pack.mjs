@@ -46,6 +46,8 @@ const runInput = await readFile(path.join(runDir, "input.md"), "utf8").catch(() 
 const taskFiles = (await readdir(tasksDir)).filter((name) => name.endsWith(".task.md")).sort();
 const written = [];
 const decisions = [];
+const budgetRecords = [];
+let fileInventory = null;
 
 await mkdir(contextDir, { recursive: true });
 await writeFile(path.join(contextDir, "artifact-index.md"), await renderArtifactIndex(policy), "utf8");
@@ -73,6 +75,19 @@ for (const taskFile of taskFiles) {
   written.push(path.relative(root, target).replaceAll("\\", "/"));
   decisions.push({ agent, ...decision });
 }
+
+await writeFile(path.join(contextDir, "context-budget.json"), `${JSON.stringify({
+  runId,
+  generatedAt: new Date().toISOString(),
+  policy: {
+    maxFilesPerAgent: policy.max_files_per_agent,
+    maxBytesPerFile: policy.max_bytes_per_file,
+    maxTotalBytesPerAgent: policy.max_total_bytes_per_agent,
+    promptBudgets: policy.prompt_budgets ?? {}
+  },
+  agents: budgetRecords
+}, null, 2)}\n`, "utf8");
+written.push(path.relative(root, path.join(contextDir, "context-budget.json")).replaceAll("\\", "/"));
 
 console.log(`已生成 ${written.length} 个上下文文件：${path.relative(root, contextDir)}`);
 for (const item of written) console.log(`- ${item}`);
@@ -134,6 +149,7 @@ async function renderArtifactIndex(policy) {
 async function renderKnowledgeIndex(policy) {
   const maxChars = policy.artifact_index?.knowledge_max_chars ?? 2200;
   const relatedRuns = await readOptional(path.join(contextDir, "related-runs.md"));
+  const specFreeze = await readOptional(path.join(artifactsDir, "spec-freeze.md"));
   const devMap = await readOptional(path.join(root, ".harness", "knowledge", "dev-map.md"));
   const taskBoard = await readOptional(path.join(root, ".harness", "knowledge", "task-board.md"));
   const lessons = await readOptional(path.join(root, ".harness", "knowledge", "lessons-learned.md"));
@@ -142,6 +158,7 @@ async function renderKnowledgeIndex(policy) {
   const skillSops = await readSkillSops();
   const chunks = [];
   if (relatedRuns) chunks.push("### related-runs.md", summarizeMarkdown(relatedRuns, 28));
+  if (specFreeze) chunks.push("### spec-freeze.md", summarizeMarkdown(specFreeze, 16));
   if (devMap) chunks.push("### dev-map.md", summarizeMarkdown(devMap, 18));
   if (taskBoard) chunks.push("### task-board.md", summarizeMarkdown(taskBoard, 14));
   if (decisionIndex) chunks.push("### decision-index.md", summarizeMarkdown(decisionIndex, 12));
@@ -173,6 +190,7 @@ async function renderContextPack(agent, taskContent, allowedPatterns, files, pol
     `- 上下文模式：${decision.mode}`,
     `- 生成时间：${new Date().toISOString()}`,
     `- 升级原因：${decision.reasons.join("; ")}`,
+    `- 需求冻结摘要：${existsSync(path.join(artifactsDir, "spec-freeze.md")) ? "artifacts/spec-freeze.md" : "none"}`,
     "",
     "## 允许修改范围",
     "",
@@ -187,6 +205,15 @@ async function renderContextPack(agent, taskContent, allowedPatterns, files, pol
   ];
 
   if (files.length === 0) {
+    budgetRecords.push({
+      agent,
+      mode: decision.mode,
+      candidateFiles: 0,
+      includedFiles: 0,
+      includedBytes: 0,
+      estimatedTokens: 0,
+      reasons: decision.reasons
+    });
     lines.push("未为该 agent 收集到匹配的项目文件。");
     return `${lines.join("\n")}\n`;
   }
@@ -222,6 +249,15 @@ async function renderContextPack(agent, taskContent, allowedPatterns, files, pol
   }
 
   lines.push("## 统计", "", `- 候选文件数：${files.length}`, `- 已纳入文件数：${count}`, `- 已纳入字节数：${totalBytes}`);
+  budgetRecords.push({
+    agent,
+    mode: decision.mode,
+    candidateFiles: files.length,
+    includedFiles: count,
+    includedBytes: totalBytes,
+    estimatedTokens: Math.ceil(totalBytes / 3),
+    reasons: decision.reasons
+  });
   return `${lines.join("\n")}\n`;
 }
 
@@ -231,7 +267,7 @@ function prioritizeContent(content, taskHints, mode) {
   const hints = [...(taskHints.full ?? []), ...(taskHints.targeted ?? [])].map((item) => item.toLowerCase());
   const picked = sections.filter((section) => hints.some((hint) => section.heading.toLowerCase().includes(hint)));
   const prioritized = picked.map((section) => section.block).join("\n\n");
-  if (mode === "full") return { full: prioritized ? `${prioritized}\n\n${text}` : text, targeted: prioritized || text, light: prioritized || text };
+  if (mode === "full") return { full: text, targeted: prioritized || text, light: prioritized || text };
   if (mode === "targeted") return { full: text, targeted: prioritized || text, light: prioritized || text };
   return { full: text, targeted: text, light: prioritized || text };
 }
@@ -254,10 +290,12 @@ function splitSections(content) {
 
 async function collectFiles(patterns, policy) {
   if (patterns.length === 0) return [];
-  const allFiles = await walk(root, policy);
-  return allFiles
+  fileInventory ??= (await walk(root, policy))
     .map((file) => path.relative(root, file).replaceAll("\\", "/"))
-    .filter((file) => isIncluded(file, patterns, policy))
+    .filter((file) => isCandidateFile(file, policy))
+    .sort();
+  return fileInventory
+    .filter((file) => patterns.some((pattern) => matchPattern(file, pattern)))
     .sort();
 }
 
@@ -277,10 +315,10 @@ async function walk(dir, policy) {
   return files;
 }
 
-function isIncluded(file, patterns, policy) {
+function isCandidateFile(file, policy) {
   if (isExcluded(file, policy)) return false;
   if (!policy.include_extensions.includes(path.extname(file))) return false;
-  return patterns.some((pattern) => matchPattern(file, pattern));
+  return true;
 }
 
 function isExcluded(file, policy) {

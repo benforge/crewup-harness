@@ -75,6 +75,22 @@ export function matchPattern(relPath, pattern) {
   return normalizedPath === normalizedPattern || normalizedPath.startsWith(`${normalizedPattern}/`);
 }
 
+export function extractContextHints(task, runInput) {
+  const text = `${task}\n${runInput}`;
+  const full = [];
+  const targeted = [];
+  const patterns = [
+    { regex: /(?:完整|全量|全文|完整上下文|全部上下文|full context)/i, bucket: full, label: "full context" },
+    { regex: /(?:摘要|总览|结构|目录|关键章节|关键路径|只看)/i, bucket: targeted, label: "structured summary" },
+    { regex: /(?:需求澄清|问答|交互式|拆解|澄清问题|确认边界)/i, bucket: targeted, label: "interactive clarification" }
+  ];
+  for (const item of patterns) {
+    const match = text.match(item.regex);
+    if (match) item.bucket.push(item.label);
+  }
+  return { full, targeted };
+}
+
 function globToRegExp(pattern) {
   let source = "";
   for (let index = 0; index < pattern.length; index += 1) {
@@ -109,20 +125,4 @@ function stripIgnoredSections(markdown) {
     if (!skipping) kept.push(line);
   }
   return kept.join("\n");
-}
-
-export function extractContextHints(task, runInput) {
-  const text = `${task}\n${runInput}`;
-  const full = [];
-  const targeted = [];
-  const patterns = [
-    { regex: /(?:完整|全量|全文|完整上下文|全部上下文|full context)/i, bucket: full, label: "full context" },
-    { regex: /(?:摘要|总览|结构|目录|关键章节|关键路径|只看)/i, bucket: targeted, label: "structured summary" },
-    { regex: /(?:需求澄清|问答|交互式|拆解|澄清问题|确认边界)/i, bucket: targeted, label: "interactive clarification" }
-  ];
-  for (const item of patterns) {
-    const match = text.match(item.regex);
-    if (match) item.bucket.push(item.label);
-  }
-  return { full, targeted };
 }

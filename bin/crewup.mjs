@@ -27,6 +27,7 @@ const scriptByCommand = {
   "native-plan": "native-plan.mjs",
   "native-state": "native-state.mjs",
   "repair-artifacts": "repair-artifacts.mjs",
+  "spec-freeze": "spec-freeze.mjs",
   transition: "transition.mjs",
   knowledge: "knowledge.mjs",
   dashboard: "dashboard.mjs",
@@ -51,6 +52,11 @@ if (!script) {
   console.error(`Unknown command: ${command}`);
   printHelp();
   process.exit(1);
+}
+
+if (command === "init" && !existsSync(path.join(cwd, ".harness"))) {
+  console.log("No .harness/ directory found. Installing CrewUp template first...");
+  await installHarness({ force: false });
 }
 
 if (command !== "doctor" && !existsSync(path.join(cwd, ".harness"))) {
@@ -226,6 +232,7 @@ Common commands:
   report           Generate a run summary report
   gate-check       Run quality gates
   repair-artifacts Normalize required artifact headings and empty states
+  spec-freeze      Generate a compact frozen requirement summary
   archive-status   Check whether a run is ready for archive commit
   knowledge        Refresh the knowledge layer`);
 }

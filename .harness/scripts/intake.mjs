@@ -40,7 +40,6 @@ async function resolveInput() {
 }
 
 function decide(text, policy, explicitRunId) {
-  const normalized = text.toLowerCase();
   const reasons = [];
 
   if (explicitRunId || hasAny(text, policy.explicit_overrides.force_direct_run.phrases)) {
@@ -58,18 +57,18 @@ function decide(text, policy, explicitRunId) {
     return build("backlog_new", reasons, policy, explicitRunId);
   }
 
-  if (/[?？]$/.test(text.trim()) || /(是什么|为什么|怎么理解|区别|解释|说明一下|怎么看)/.test(text)) {
+  if (looksLikeQuestion(text)) {
     reasons.push("request looks like explanation or conceptual Q&A");
     return build("no_harness", reasons, policy, explicitRunId);
   }
 
-  if (/(想法|可能|以后|待办|先记|有几个|几个方向|脑暴|brainstorm|maybe|later)/i.test(text)) {
+  if (looksLikeFutureIdea(text)) {
     reasons.push("request looks like an idea or future candidate");
     return build("backlog_new", reasons, policy, explicitRunId);
   }
 
-  const asksImplementation = /(实现|开发|修复|优化|改造|完善|调整|升级|改一下|加一个|build|implement|fix|create|refactor)/i.test(text);
-  const hasConcreteScope = /(harness|工作流|脚本|配置|页面|组件|接口|api|数据库|迁移|测试|样式|按钮|登录|权限|run|文件|\.md|\.tsx|\.ts|\.js|\.mjs|\.yaml)/i.test(text);
+  const asksImplementation = /(实现|开发|修复|优化|改造|完善|调整|升级|改一|加一|补充|替换|生成|build|implement|fix|create|refactor)/i.test(text);
+  const hasConcreteScope = /(harness|工作流|脚本|配置|页面|组件|接口|api|数据库|迁移|测试|样式|按钮|登录|权限|run|文件|文档|README|readme|docs?|\.md|\.tsx|\.ts|\.js|\.mjs|\.yaml)/i.test(text);
   if (asksImplementation && hasConcreteScope) {
     reasons.push("request asks for implementation with concrete scope");
     reasons.push("direct run is allowed because the user appears to be asking for work now");
@@ -83,6 +82,15 @@ function decide(text, policy, explicitRunId) {
 
   reasons.push(`fallback to policy default: ${policy.default_entry}`);
   return build(policy.default_entry, reasons, policy, explicitRunId);
+}
+
+function looksLikeQuestion(text) {
+  const trimmed = text.trim();
+  return /[?？]$/.test(trimmed) || /(是什么|为什么|怎么理解|区别|解释|说明一下|怎么看)/.test(trimmed);
+}
+
+function looksLikeFutureIdea(text) {
+  return /(想法|可能|以后|待办|先记|有几个|几个方向|脑暴|brainstorm|maybe|later)/i.test(text);
 }
 
 function build(entry, reasons, policy, explicitRunId) {

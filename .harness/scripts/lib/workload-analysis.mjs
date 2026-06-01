@@ -11,12 +11,12 @@ const deepPlanningSignals = [
 ];
 
 const liteSignals = [
-  /小|很小|简单|轻微|微调|文案|样式|颜色|间距|按钮|标题|错别字/i,
+  /小改|很小|轻微|文档|样式|颜色|间距|按钮|标题|错别字/i,
   /copy|css|UI|布局|首页|页面|修复|bug/i
 ];
 
 const ambiguitySignals = [
-  /想法|还没想清楚|不确定|大概|可能|试试|探索|几个方向|脑暴|讨论一下|梳理一下/i,
+  /想法|还没想清楚|不确定|大概|可能|尝试|探索|几个方向|脑暴|讨论一下/i,
   /maybe|brainstorm|explore/i
 ];
 
@@ -82,7 +82,7 @@ function collectSignals(text) {
     deepPlanning: deepPlanningSignals.some((pattern) => pattern.test(text)),
     lite: liteSignals.some((pattern) => pattern.test(text)),
     ambiguous: ambiguitySignals.some((pattern) => pattern.test(text)),
-    multiSentence: text.split(/[。！？!?；;\n]/).filter((item) => item.trim()).length >= 3,
+    multiSentence: text.split(/[。！？?!；;\n]/).filter((item) => item.trim()).length >= 3,
     longInput: text.length > 600
   };
 }
@@ -113,9 +113,9 @@ function complexityLevel(score) {
 function reasonsFor(signals, score, workflowProfile) {
   const reasons = [`complexity ${score}/5 -> ${workflowProfile}`];
   if (signals.highRisk) reasons.push("命中高风险信号，需要 full 档位和更强门禁。");
-  if (signals.deepPlanning) reasons.push("命中架构/方案/跨模块信号，需要标准规划。");
+  if (signals.deepPlanning) reasons.push("命中架构/方案/跨模块信号，需要标准化规划。");
   if (signals.ambiguous) reasons.push("需求仍偏模糊，建议先走 requirements-plan。");
-  if (signals.lite && !signals.highRisk && !signals.deepPlanning) reasons.push("命中轻量变更信号，可以优先 lite。");
+  if (signals.lite && !signals.highRisk && !signals.deepPlanning) reasons.push("命中轻量变更信号，可优先 lite。");
   if (signals.multiSentence) reasons.push("输入包含多段目标，建议保留需求澄清。");
   if (signals.longInput) reasons.push("输入较长，建议用 artifact/context-pack 分段承载。");
   return reasons;

@@ -79,6 +79,9 @@ summary.push("knowledge-select: related-runs");
 runText("prepare-run.mjs", [runId, `--profile=${analysis.workflowProfile}`]);
 summary.push(`prepare-run: ${analysis.workflowProfile}`);
 
+runText("spec-freeze.mjs", [runId]);
+summary.push("spec-freeze: created");
+
 if (analysis.needsRequirementsPlan && !skipRequirementsPlan) {
   runText("requirements-plan.mjs", [runId]);
   summary.push("requirements-plan: created");
@@ -87,8 +90,11 @@ if (analysis.needsRequirementsPlan && !skipRequirementsPlan) {
 const agents = agentsArg ?? await agentsFromTasks(runId);
 if (agents) {
   runText("context-pack.mjs", [runId, `--agents=${agents}`]);
-  runText("native-plan.mjs", [runId, `--agents=${agents}`]);
-  summary.push(`native-plan: ${agents}`);
+runText("native-plan.mjs", [runId, `--agents=${agents}`]);
+summary.push(`native-plan: ${agents}`);
+
+runText("token-ledger.mjs", [runId]);
+summary.push("token-ledger: created");
 }
 
 await writeRunSummary(runId, { summary, analysis, backlogFile });

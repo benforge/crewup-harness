@@ -64,6 +64,10 @@ console.log(`impact_scopes: ${impactScopes.length ? impactScopes.join(",") : "(n
 for (const agentId of selectedAgents) console.log(`- ${agentId}`);
 
 function selectAgents(inputText, agents, impactScopeConfig, profile, runProfile, impactScopes) {
+  if (isDocsOnlyRequest(inputText)) {
+    return ["docs", "reviewer", "release"].filter((agentId) => agents[agentId]);
+  }
+
   const selected = new Set();
   if (runProfile === "full") selected.add("pm");
   if (["standard", "full"].includes(runProfile)) {
@@ -89,8 +93,9 @@ function selectAgents(inputText, agents, impactScopeConfig, profile, runProfile,
   }
 
   if (runProfile === "lite") {
-    if (needsDedicatedTester(inputText)) selected.add("tester");
-    selected.add("tester");
+    if (!isDocsOnlyRequest(inputText)) {
+      selected.add("tester");
+    }
     selected.add("reviewer");
     selected.add("release");
   } else {
@@ -120,6 +125,15 @@ function needsReleaseAgent(inputText) {
 
 function needsDocsAgent(inputText) {
   return /(文档|说明|README|readme|docs?|markdown|\.md|使用说明|接入说明|健康检查说明|开发指南|安装说明|配置说明|教程|手册|指南)/i.test(inputText);
+}
+
+function isDocsOnlyRequest(inputText) {
+  if (!needsDocsAgent(inputText)) return false;
+  const text = String(inputText ?? "");
+  const positiveCodeSignals = /(前端|后端|数据库|接口|API|源码|代码|业务代码|页面|组件|服务|路由|迁移|测试|登录|权限|部署|发布|回归|性能)/i;
+  const negatedCodeSignals = /(不要|不用|无须|无需|不改|别改|不要修改|不要动|不要涉及).{0,8}(前端|后端|数据库|接口|API|源码|代码|业务代码|页面|组件|服务|路由|迁移|测试|登录|权限|部署|发布|回归|性能)/i;
+  if (!positiveCodeSignals.test(text)) return true;
+  return negatedCodeSignals.test(text);
 }
 
 function hasImpact(inputText, flag) {
@@ -247,7 +261,7 @@ function allowedPathsFor(agentId, impactScopeConfig, impactScopes) {
     "requirements-plan": [".harness/runs/<run>/artifacts/requirement-plan.md"],
     requirements: [".harness/runs/<run>/artifacts/requirement.md"],
     architect: [".harness/runs/<run>/artifacts/architecture.md", ".harness/runs/<run>/artifacts/implementation-plan.md"],
-    docs: ["README.md", "docs/**", "*.md"],
+    docs: ["README.md", "docs/**", "*.md", ".harness/runs/<run>/artifacts/test-report.md"],
     tester: [".harness/runs/<run>/artifacts/test-report.md"],
     reviewer: [".harness/runs/<run>/artifacts/review-report.md"],
     release: [".harness/runs/<run>/artifacts/release-summary.md"]
@@ -262,7 +276,7 @@ function requiredOutputsFor(agentId) {
     requirements: ["artifacts/requirement.md"],
     architect: ["artifacts/architecture.md", "artifacts/implementation-plan.md"],
     frontend: ["frontend code changes or implementation notes", "verification notes"],
-    docs: ["documentation changes", "docs/README update notes", "verification notes"],
+    docs: ["documentation changes", "docs/README update notes", "verification notes", "docs validation report", "artifacts/test-report.md"],
     backend: ["backend code changes or API notes", "artifacts/api-change.md"],
     database: ["migration/schema notes", "artifacts/db-migration.md"],
     devops: ["deployment/CI notes", "rollback notes"],

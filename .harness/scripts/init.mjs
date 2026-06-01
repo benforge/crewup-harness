@@ -1,7 +1,9 @@
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { createInterface, emitKeypressEvents } from "node:readline";
+import { resolveScriptPath } from "./lib/script-root.mjs";
 
 const root = process.cwd();
 const args = process.argv.slice(2);
@@ -43,6 +45,8 @@ for (const file of files) {
   await writeGeneratedFile(file.path, file.content);
 }
 
+refreshKnowledgeBaseline();
+
 console.log("Harness project adaptation layer initialized:");
 console.log(`- ${rel(profilePath)}`);
 console.log(`- ${rel(overlayPath)}`);
@@ -51,6 +55,17 @@ console.log(`- ${rel(agentAdapterPath)}`);
 console.log(`- ${rel(rulesDir)}`);
 printProfileSummary(profile);
 printAgentSummary(selectedAgent);
+
+function refreshKnowledgeBaseline() {
+  const result = spawnSync(process.execPath, [resolveScriptPath(root, "knowledge.mjs")], {
+    cwd: root,
+    encoding: "utf8",
+    env: process.env
+  });
+  if (result.status === 0) return;
+  const message = result.stderr?.trim() || result.stdout?.trim() || "unknown error";
+  console.warn(`Knowledge baseline refresh skipped: ${message}`);
+}
 
 async function detectProjectProfile() {
   const rootPackage = await readJson(path.join(root, "package.json"));

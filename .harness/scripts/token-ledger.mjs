@@ -35,7 +35,7 @@ const payload = {
   runId,
   generatedAt: new Date().toISOString(),
   estimate: {
-    method: "ceil(chars / 3)，用于中文/英文混合 prompt 的粗略预算，不代表模型真实计费 token。",
+    method: "ceil(chars / 3) for a rough mixed Chinese/English prompt estimate, not the real model bill.",
     totalChars: summary.totalChars,
     totalBytes: summary.totalBytes,
     estimatedTokens: summary.estimatedTokens
@@ -106,13 +106,13 @@ function renderMarkdown(data) {
     `- estimated_tokens: ${data.estimate.estimatedTokens}`,
     `- total_bytes: ${data.estimate.totalBytes}`,
     "",
-    "## 估算方法",
+    "## Estimation Method",
     "",
     data.estimate.method,
     "",
-    "## 分类统计",
+    "## Breakdown",
     "",
-    "| 类型 | 文件数 | 字符数 | 估算 tokens | 字节数 |",
+    "| Kind | Files | Chars | Estimated Tokens | Bytes |",
     "| --- | ---: | ---: | ---: | ---: |"
   ];
 
@@ -120,19 +120,19 @@ function renderMarkdown(data) {
     lines.push(`| ${kind} | ${item.files} | ${item.chars} | ${item.estimatedTokens} | ${item.bytes} |`);
   }
 
-  lines.push("", "## 最大文件", "", "| 文件 | 类型 | 字符数 | 估算 tokens |", "| --- | --- | ---: | ---: |");
+  lines.push("", "## Largest Files", "", "| File | Kind | Chars | Estimated Tokens |", "| --- | --- | ---: | ---: |");
   for (const item of data.largest) {
     lines.push(`| \`${item.path}\` | ${item.kind} | ${item.chars} | ${item.estimatedTokens} |`);
   }
 
-  lines.push("", "## 优化提示", "");
+  lines.push("", "## Optimization Tips", "");
   if ((data.byKind["context-pack"]?.estimatedTokens ?? 0) > 3000) {
-    lines.push("- context-pack 偏大：优先收紧 allowed scope，或使用 `--agents=<agent>` 分角色生成。");
+    lines.push("- context-pack is large; prefer a narrower allowed scope or pass `--agents=<agent>`.");
   }
   if ((data.byKind["desktop-prompt"]?.estimatedTokens ?? 0) > 3000 || (data.byKind["native-prompt"]?.estimatedTokens ?? 0) > 3000) {
-    lines.push("- prompt 偏大：检查 artifact-index、project overlay 和 role rules 是否超出必要范围。");
+    lines.push("- prompts are large; check artifact-index, project overlay, and role rules for unnecessary breadth.");
   }
-  if (!lines.at(-1)?.startsWith("- ")) lines.push("- 当前没有明显超预算项。");
+  if (!lines.at(-1)?.startsWith("- ")) lines.push("- No obvious over-budget items right now.");
   lines.push("");
   return `${lines.join("\n")}\n`;
 }

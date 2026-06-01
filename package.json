@@ -1,6 +1,6 @@
 {
   "name": "crewup-harness",
-  "version": "0.1.6",
+  "version": "0.2.0",
   "description": "CrewUp: a reusable AI workflow harness for project-agnostic agent collaboration.",
   "author": "Ben",
   "license": "MIT",
@@ -45,6 +45,7 @@
   },
   "scripts": {
     "test": "npm run harness:check && npm --prefix examples/minimal-node test",
+    "test:flow": "node .harness/scripts/test-flow.mjs",
     "harness:check": "node .harness/scripts/check.mjs",
     "harness:inspect": "node .harness/scripts/inspect.mjs",
     "harness:init": "node .harness/scripts/init.mjs",
@@ -58,6 +59,7 @@
     "harness:backlog-item": "node .harness/scripts/backlog-item.mjs",
     "harness:new-run": "node .harness/scripts/new-run.mjs",
     "harness:prepare-run": "node .harness/scripts/prepare-run.mjs",
+    "harness:spec-freeze": "node .harness/scripts/spec-freeze.mjs",
     "harness:transition": "node .harness/scripts/transition.mjs",
     "harness:gate-check": "node .harness/scripts/gate-check.mjs",
     "harness:verify": "node .harness/scripts/verify.mjs",
@@ -81,6 +83,7 @@
     "harness:archive-status": "node .harness/scripts/archive-status.mjs",
     "harness:changed-files": "node .harness/scripts/changed-files.mjs",
     "harness:token-ledger": "node .harness/scripts/token-ledger.mjs",
+    "harness:test-flow": "node .harness/scripts/test-flow.mjs",
     "harness:skills": "node .harness/scripts/skills-report.mjs",
     "harness:skills:resolve": "node .harness/scripts/skills-resolve.mjs",
     "harness:skills:install": "node .harness/scripts/skills-install.mjs",

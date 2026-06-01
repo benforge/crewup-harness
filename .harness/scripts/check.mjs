@@ -88,6 +88,7 @@ const requiredPaths = [
   ".harness/scripts/native-plan.mjs",
   ".harness/scripts/native-state.mjs",
   ".harness/scripts/repair-artifacts.mjs",
+  ".harness/scripts/spec-freeze.mjs",
   ".harness/scripts/repair-state.mjs",
   ".harness/scripts/report.mjs",
   ".harness/scripts/dashboard.mjs",
@@ -102,6 +103,7 @@ const requiredPaths = [
   ".harness/scripts/lib/json.mjs",
   ".harness/scripts/next.mjs",
   ".harness/scripts/token-ledger.mjs",
+  ".harness/scripts/test-flow.mjs",
   ".harness/scripts/skills-report.mjs",
   ".harness/scripts/skills-resolve.mjs",
   ".harness/scripts/skills-install.mjs",
@@ -449,6 +451,7 @@ async function checkKnowledge() {
   }
   for (const file of ["dev-map.md", "module-index.json", "run-index.json", "decision-index.md", "task-board.md"]) {
     const target = path.join(knowledgeRoot, file);
+    if (isTemplatePackage && !existsSync(target)) continue;
     if (!existsSync(target)) {
     warnings.push(`Generated knowledge file missing: .harness/knowledge/${file}. Run npm run harness:knowledge inside the target project when needed.`);
   }

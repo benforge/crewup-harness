@@ -4,5 +4,5 @@ budget:
   max_artifact_updates_per_agent: 5
   notes:
     - "默认使用 auto/lite：小改只启动必要实现 agent 和 reviewer；tester/release 按风险或阶段升级。"
-    - "context-pack 默认只给精简 artifact、短知识层和少量相关文件；需要深度分析时再显式 --full。"
+    - "context-pack 默认只给精简 artifact、知识层和少量相关文件；需要深挖时再切 full。"
     - "真实成本统计需要接入模型调用 usage 数据后再启用。"

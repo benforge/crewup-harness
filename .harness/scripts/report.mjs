@@ -28,9 +28,13 @@ const artifactNames = existsSync(artifactsDir) ? (await readdir(artifactsDir)).s
 const nativeState = await readJson(path.join(nativeDir, "native-state.json"), null);
 const changedFiles = await readJson(path.join(logsDir, "changed-files.json"), { files: [] });
 const archiveAudit = await readArchiveAudit(path.join(logsDir, "archive", "git-commit.md"));
+const contextBudget = await readJson(path.join(logsDir, "context", "context-budget.json"), null);
+const tokenLedger = await readJson(path.join(logsDir, "token-ledger.json"), null);
 
 const agentRows = await buildAgentRows(nativeState, taskNames);
 const artifactRows = await buildArtifactRows(artifactNames);
+const contextBudgetRows = buildContextBudgetRows(contextBudget);
+const tokenRows = buildTokenRows(tokenLedger);
 const deliveryStatus = deliveryStatusFor({ state, archiveAudit, agentRows, artifactRows });
 const verdictTag = verdictTagFor({ deliveryStatus, archiveAudit, agentRows, artifactRows });
 
@@ -60,8 +64,22 @@ const lines = [
   `| tasks | ${taskNames.length} |`,
   `| agents | ${agentRows.length} |`,
   `| artifacts | ${artifactRows.length} |`,
+  `| context estimated tokens | ${contextBudgetTotal(contextBudget)} |`,
+  `| ledger estimated tokens | ${tokenLedger?.estimate?.estimatedTokens ?? "not generated"} |`,
   `| changed files | ${(changedFiles.files ?? []).length} |`,
   `| archive selected paths | ${archiveAudit.selectedPaths.length} |`,
+  "",
+  "## Context Budget",
+  "",
+  "| Agent | Mode | Candidate Files | Included Files | Included Bytes | Estimated Tokens | Reasons |",
+  "| --- | --- | ---: | ---: | ---: | ---: | --- |",
+  ...(contextBudgetRows.length ? contextBudgetRows.map(renderContextBudgetRow) : ["| none | - | 0 | 0 | 0 | 0 | run context budget not generated |"]),
+  "",
+  "## Token Ledger",
+  "",
+  "| Kind | Files | Chars | Estimated Tokens | Bytes |",
+  "| --- | ---: | ---: | ---: | ---: |",
+  ...(tokenRows.length ? tokenRows.map(renderTokenRow) : ["| not generated | 0 | 0 | 0 | 0 |"]),
   "",
   "## Agent Results",
   "",
@@ -214,6 +232,41 @@ function deliveryStatusFor({ state, archiveAudit, agentRows, artifactRows }) {
   if (agentRows.some((item) => /blocked/i.test(item.status) || /blocked/i.test(item.blockers))) return "blocked";
   if (artifactRows.length > 0 || agentRows.length > 0) return "in-progress";
   return "not-started";
+}
+
+function buildContextBudgetRows(budget) {
+  return (budget?.agents ?? []).map((item) => ({
+    agent: item.agent,
+    mode: item.mode,
+    candidateFiles: item.candidateFiles ?? 0,
+    includedFiles: item.includedFiles ?? 0,
+    includedBytes: item.includedBytes ?? 0,
+    estimatedTokens: item.estimatedTokens ?? 0,
+    reasons: (item.reasons ?? []).join("<br>") || "-"
+  }));
+}
+
+function buildTokenRows(ledger) {
+  return Object.entries(ledger?.byKind ?? {}).map(([kind, item]) => ({
+    kind,
+    files: item.files ?? 0,
+    chars: item.chars ?? 0,
+    estimatedTokens: item.estimatedTokens ?? 0,
+    bytes: item.bytes ?? 0
+  }));
+}
+
+function contextBudgetTotal(budget) {
+  const total = (budget?.agents ?? []).reduce((sum, item) => sum + Number(item.estimatedTokens ?? 0), 0);
+  return total || "not generated";
+}
+
+function renderContextBudgetRow(item) {
+  return `| \`${item.agent}\` | ${cell(item.mode)} | ${item.candidateFiles} | ${item.includedFiles} | ${item.includedBytes} | ${item.estimatedTokens} | ${cell(item.reasons)} |`;
+}
+
+function renderTokenRow(item) {
+  return `| ${cell(item.kind)} | ${item.files} | ${item.chars} | ${item.estimatedTokens} | ${item.bytes} |`;
 }
 
 function verdictTagFor({ deliveryStatus }) {

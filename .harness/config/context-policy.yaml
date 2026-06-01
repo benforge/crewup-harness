@@ -88,7 +88,7 @@ context:
       - "表单"
       - "布局"
       - "测试"
-      - "评审"
+      - "审查"
       - "回归"
       - "缺陷"
 
@@ -98,6 +98,7 @@ context:
     max_lines_per_artifact: 8
     knowledge_max_chars: 900
     include_artifacts:
+      - "spec-freeze.md"
       - "requirement.md"
       - "architecture.md"
       - "implementation-plan.md"

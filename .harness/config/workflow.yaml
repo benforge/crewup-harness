@@ -13,7 +13,7 @@ workflow:
 
   stages:
     - id: "intake"
-      name: "需求入口判定"
+      name: "需求入口判断"
       owner: "main"
       input: "用户原始请求"
       output: ".harness/backlog/new/*.md 或 .harness/backlog/ready/*.md 或 existing run"
@@ -55,7 +55,7 @@ workflow:
       gate: "verification_recorded"
 
     - id: "review"
-      name: "评审"
+      name: "审查"
       owner: "reviewer"
       input: "代码 diff、run artifacts、测试报告"
       output: ".harness/runs/<run>/artifacts/review-report.md"
@@ -64,14 +64,14 @@ workflow:
     - id: "release"
       name: "发布准备"
       owner: "release"
-      input: "已通过评审的变更"
+      input: "已通过审查的变更"
       output: ".harness/runs/<run>/artifacts/release-summary.md"
       gate: "release_summary_ready"
 
     - id: "done"
       name: "完成归档"
       owner: "main"
-      input: "通过测试、评审和发布门禁的 run"
+      input: "通过测试、审查和发布门禁的 run"
       output: "backlog/done 或 product sync"
       gate: "done_definition_met"
 
@@ -112,7 +112,7 @@ workflow:
     before_product_sync:
       required: true
       evidence_field: "confirmations.product_sync_approved_at"
-      note: "transition --to=done 自动记录该确认并执行 product-sync。"
+      note: "transition --to=done 会自动记录该确认并执行 product-sync。"
 
   status_values:
     - "in-progress"
@@ -133,7 +133,7 @@ workflow:
         - "verification_recorded"
         - "review_recorded"
     standard:
-      description: "常规功能迭代；需求、方案、实现、验证、评审、发布摘要闭环。"
+      description: "常规功能迭代；需求、方案、实现、验证、审查、发布摘要闭环。"
       default_agents:
         - "requirements"
         - "architect"
@@ -147,7 +147,7 @@ workflow:
         - "review_passed"
         - "release_summary_ready"
     full:
-      description: "高风险或跨模块变更；完整 PM/需求/架构/实现/测试/评审/发布流程。"
+      description: "高风险或跨模块变更；完整 PM/需求/架构/实现/测试/审查/发布流程。"
       default_agents:
         - "pm"
         - "requirements"

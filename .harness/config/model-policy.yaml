@@ -20,7 +20,7 @@ model_profiles:
       - "目标与非目标澄清"
       - "验收标准草拟"
       - "待确认问题整理"
-    notes: "用于正式开发前的 plan-only 需求扩写阶段；低成本中等推理，靠模板和 gate 保持约束力。"
+    notes: "用于正式开发前的 plan-only 需求扩写阶段。"
 
   standard_analysis:
     model: "gpt-5.4"
@@ -31,7 +31,7 @@ model_profiles:
       - "方案拆解"
       - "影响范围判断"
       - "DevOps 常规方案"
-    notes: "适合需求确认、常规架构边界和非编码分析；遇到高风险由主 agent 提升到 review_strong。"
+    notes: "适合需求确认、常规架构边界和非编码分析。"
 
   coding_strong:
     model: "gpt-5.4"
@@ -51,17 +51,17 @@ model_profiles:
       - "测试执行"
       - "测试报告"
       - "常规回归验证"
-    notes: "测试 agent 默认使用中等推理；只有需要修测试或复杂自动化时再提升到 coding_strong。"
+    notes: "测试 agent 默认使用中等推理；只有在修测试或复杂自动化时才升级。"
 
   review_strong:
     model: "gpt-5.4"
     reasoning_effort: "high"
     codex_model_hint: "gpt-5.4"
     use_for:
-      - "代码评审"
+      - "代码审查"
       - "架构风险检查"
       - "安全和回归风险判断"
-    notes: "适合代码评审、架构风险和回归风险判断；保持高推理但不默认使用 5.5。"
+    notes: "适合代码审查、架构风险和回归风险判断。"
 
   critical_review:
     model: "gpt-5.5"
@@ -118,8 +118,8 @@ agent_model_policy:
 
 rules:
   - "main agent 默认使用 low_cost profile 做路由和状态整理。"
-  - "需求扩写先使用 requirements_planning profile，以 plan-only 模式产出 requirement-plan.md。"
-  - "一旦任务需要写代码、改测试或跨文件修改，切换到 coding_strong profile。"
+  - "需求扩写优先使用 requirements_planning profile，以 plan-only 模式产出 requirement-plan.md。"
+  - "一旦任务需要写代码、改测试或跨文件修改，就切换到 coding_strong profile。"
   - "涉及数据库迁移、安全、生产部署、权限模型时，必须使用 critical_review profile 或人工确认。"
   - "模型不可用时，main agent 应说明降级，并记录到 run 日志或最终汇总。"
   - "不要为了省成本跳过 tester 和 reviewer。"

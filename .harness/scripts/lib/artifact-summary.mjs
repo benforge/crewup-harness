@@ -5,7 +5,7 @@ export function stripSkillCandidateBlocks(markdown) {
   let skipping = false;
 
   for (const line of lines) {
-    if (/^##\s*Skill\s*候选\s*$/i.test(line.trim())) {
+    if (/^##\s*Skill\s*Candidates\s*$/i.test(line.trim()) || /^##\s*Skill\s*候选\s*$/i.test(line.trim())) {
       skipping = true;
       continue;
     }
@@ -67,7 +67,7 @@ export function renderArtifactOverview(records, { title = "Artifact 总览", int
     "",
     "| Artifact | 状态 | 内容摘要 | 关键章节 | 大小 | 读取建议 |",
     "| --- | --- | --- | --- | ---: | --- |",
-    ...records.map((item) => `| \`${item.name}\` | ${item.status} | ${escapePipes(item.summary)} | ${escapePipes(item.headings.join("<br>") || "—")} | ${item.bytes} | ${escapePipes(item.readiness)} |`)
+    ...records.map((item) => `| \`${item.name}\` | ${item.status} | ${escapePipes(item.summary)} | ${escapePipes(item.headings.join("<br>") || "-")} | ${item.bytes} | ${escapePipes(item.readiness)} |`)
   ];
 
   if (includeCards) {
@@ -77,7 +77,7 @@ export function renderArtifactOverview(records, { title = "Artifact 总览", int
         `### \`${item.name}\``,
         `- 状态：${item.status}`,
         `- 内容摘要：${item.summary}`,
-        `- 关键章节：${item.headings.join(" / ") || "—"}`,
+        `- 关键章节：${item.headings.join(" / ") || "-"}`,
         `- 读取建议：${item.readiness}`,
         `- 大小：${item.bytes}`,
         ""

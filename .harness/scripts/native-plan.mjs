@@ -46,6 +46,7 @@ const agentEnvironment = await readAgentEnvironment(root);
 const { project_profile: projectProfile } = await loadProjectProfile(root);
 const projectOverlay = await loadProjectOverlay(root, projectProfile.ai_overlay?.profile, { projectProfile });
 const runInput = await readOptional(path.join(runDir, "input.md"));
+const specFreeze = await readOptional(path.join(runDir, "artifacts", "spec-freeze.md"));
 const artifactIndex = await readOptional(path.join(runDir, "logs", "context", "artifact-index.md"));
 const taskFiles = (await readdir(tasksDir)).filter((name) => name.endsWith(".task.md")).sort();
 const tasks = [];
@@ -82,6 +83,7 @@ for (const taskFile of taskFiles) {
     agentType,
     profile,
     task,
+    specFreeze,
     allowedPatterns,
     contextPack,
     projectOverlayContext,
@@ -273,8 +275,9 @@ async function mergeNativeState(plan) {
   };
 }
 
-function renderSpawnPrompt({ agentId, agentType, profile, task, allowedPatterns, contextPack, projectOverlayContext, artifactIndex, contextDecision, budgets = {} }) {
+function renderSpawnPrompt({ agentId, agentType, profile, task, specFreeze, allowedPatterns, contextPack, projectOverlayContext, artifactIndex, contextDecision, budgets = {} }) {
   const taskText = limitText(task, budgets.task_chars ?? 1200);
+  const frozenText = limitText(specFreeze, budgets.document_policy_chars ?? 1200);
   const artifactText = limitText(artifactIndex, budgets.artifact_index_chars ?? 900);
   const contextText = limitText(contextPack, budgets.context_pack_chars ?? 900);
   const overlayText = contextPack
@@ -304,6 +307,12 @@ function renderSpawnPrompt({ agentId, agentType, profile, task, allowedPatterns,
     ...(allowedPatterns.length ? allowedPatterns.map((item) => `- ${item}`) : ["- 无"]),
     "",
     "## 当前任务",
+    "",
+    "### 需求冻结摘要",
+    "",
+    frozenText || "尚未生成需求冻结摘要；如果需要，请先运行 spec-freeze。",
+    "",
+    "### 原始任务",
     "",
     taskText,
     "",
