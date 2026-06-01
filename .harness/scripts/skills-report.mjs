@@ -18,6 +18,7 @@ await mkdir(path.dirname(outPath), { recursive: true });
 await writeFile(outPath, renderReport(), "utf8");
 
 console.log(`Skill report written: ${path.relative(root, outPath)}`);
+printSummary();
 
 function readInstalledSkills() {
   try {
@@ -120,6 +121,29 @@ function renderReport() {
   }
 
   return `${lines.join("\n")}\n`;
+}
+
+function printSummary() {
+  const realInstalled = installed.filter((item) => item.name !== "__error__");
+  const candidates = Object.keys(config.external_skill_candidates ?? {});
+  const roleLabels = [...new Set(Object.values(config.role_skills ?? {}).flat())];
+
+  console.log("");
+  console.log("Skill summary:");
+  console.log(`- installed skills: ${realInstalled.length}`);
+  console.log(`- external candidates: ${candidates.length}`);
+  console.log(`- role skill labels: ${roleLabels.length}`);
+  if (candidates.length > 0) {
+    console.log(`- candidates: ${candidates.join(", ")}`);
+  }
+  if (installedByName.has("__error__")) {
+    console.log("- warning: could not run `npx skills list --json`; see report for details");
+  }
+  console.log("");
+  console.log("Next:");
+  console.log("  npx crewup skills:install       # install configured external candidates");
+  console.log("  npx crewup skills:resolve       # search marketplace matches for role labels");
+  console.log("  npx crewup skills:install-exact # install exact marketplace matches after resolve");
 }
 
 function readJson(target, fallback) {

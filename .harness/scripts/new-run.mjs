@@ -48,6 +48,7 @@ const state = {
   stage: initialStage,
   status: "in-progress",
   workflowProfile: "standard",
+  runType: "feature",
   owners: ["requirements-plan"],
   createdAt: now,
   updatedAt: now,

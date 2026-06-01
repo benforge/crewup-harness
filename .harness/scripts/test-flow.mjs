@@ -18,8 +18,58 @@ try {
   runNpm(["install", tarball], appDir);
 
   runCli(appDir, ["install"]);
+  runCli(appDir, ["inspect", "--no-ai"]);
   runCli(appDir, ["init", "--yes", "--agent", "codex"]);
   runCli(appDir, ["check"]);
+
+  const planOnlyOutput = runCli(appDir, [
+    "run",
+    "--dry-run",
+    "使用 CrewUp 先规划一个大型系统的模块边界和技术路线，不写代码"
+  ]);
+  assertIncludes(planOnlyOutput, "workflow_profile: plan_only", "plan-only dry run profile");
+  assertIncludes(planOnlyOutput, "run_type: plan_only", "plan-only dry run type");
+
+  const implementationOutput = runCli(appDir, [
+    "run",
+    "--dry-run",
+    "使用 CrewUp 现在实现一个后端 API 功能"
+  ]);
+  assertIncludes(implementationOutput, "workflow_profile: lite", "implementation dry run profile");
+  assertIncludes(implementationOutput, "run_type: implementation", "implementation dry run type");
+
+  const complexOutput = runCli(appDir, [
+    "run",
+    "使用 CrewUp 做一个大型项目：设计并实现用户认证、后端 API、数据库表、前端登录页、测试和发布说明。需要 requirements、architecture、backend、frontend、database、tester、reviewer、release 都参与，按严格流程分配子 agent。"
+  ]);
+  assertIncludes(complexOutput, "profile: full", "complex run profile");
+  assertIncludes(complexOutput, "agents:", "complex run agent summary");
+  const complexRunId = extractRunId(complexOutput);
+  if (!complexRunId) throw new Error(`Failed to detect complex runId from output: ${complexOutput}`);
+  const complexRunDir = path.join(appDir, ".harness", "runs", complexRunId);
+  const complexTaskNames = await listTaskNames(path.join(complexRunDir, "tasks"));
+  assertSameMembers(complexTaskNames, [
+    "architect",
+    "backend",
+    "database",
+    "docs",
+    "frontend",
+    "pm",
+    "release",
+    "requirements",
+    "requirements-plan",
+    "reviewer",
+    "tester"
+  ], "complex task assignment");
+  const complexPlan = JSON.parse(await readFile(path.join(complexRunDir, "logs", "native-subagents", "native-subagent-plan.json"), "utf8"));
+  assertSameMembers(complexPlan.tasks.map((task) => task.agent), complexTaskNames, "complex native plan agents");
+  assertSameMembers(complexPlan.groups.map((group) => group.id), [
+    "intake",
+    "implementation",
+    "verification_tester",
+    "verification_reviewer",
+    "verification_release"
+  ], "complex native plan groups");
 
   const runOutput = runCli(appDir, [
     "run",
@@ -58,7 +108,16 @@ try {
     hasSpecFreeze: true,
     hasContextBudget: true,
     hasTokenLedger: true,
-    hasNativePlan: true
+    hasNativePlan: true,
+    dryRunProfiles: {
+      planOnly: "plan_only",
+      implementation: "lite"
+    },
+    complexAssignment: {
+      runId: complexRunId,
+      tasks: complexTaskNames,
+      groups: complexPlan.groups.map((group) => group.id)
+    }
   };
 
   console.log(JSON.stringify(summary, null, 2));
@@ -105,6 +164,20 @@ function assertExists(target, label) {
 
 function assertNotExists(target, label) {
   if (existsSync(target)) throw new Error(`Unexpected ${label}: ${target}`);
+}
+
+function assertIncludes(output, expected, label) {
+  if (!output.includes(expected)) {
+    throw new Error(`Missing ${label}: expected "${expected}" in output:\n${output}`);
+  }
+}
+
+function assertSameMembers(actual, expected, label) {
+  const actualSorted = [...actual].sort();
+  const expectedSorted = [...expected].sort();
+  if (JSON.stringify(actualSorted) !== JSON.stringify(expectedSorted)) {
+    throw new Error(`${label} mismatch.\nExpected: ${expectedSorted.join(", ")}\nActual: ${actualSorted.join(", ")}`);
+  }
 }
 
 async function listTaskNames(dir) {

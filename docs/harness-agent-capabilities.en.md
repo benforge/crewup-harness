@@ -54,3 +54,19 @@ Do not claim full support for an agent environment unless its adapter has been t
 ```text
 install -> inspect -> init -> run -> verify -> report -> finish
 ```
+
+## Main Agent Boundary
+
+The main agent is an orchestrator, not the default implementer. It may:
+
+- decide whether CrewUp is active
+- choose the profile and run type
+- create tasks, allocate context, and trigger subagents
+- check artifact ownership, provenance, and stage gates
+- summarize results, report state, and propose next steps
+
+It should not:
+
+- directly author formal requirements or architecture artifacts when those agents are available
+- directly own primary business implementation when an implementation agent is available
+- bypass no-code, plan-only, stage-entry, or artifact provenance gates for speed

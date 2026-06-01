@@ -1,4 +1,4 @@
-const defaultProfiles = new Set(["lite", "standard", "full"]);
+const defaultProfiles = new Set(["discovery", "plan_only", "lite", "standard", "full"]);
 
 const highRiskSignals = [
   /生产|真实数据|删除|迁移|覆盖|重置|回滚|密钥|权限|鉴权|认证/i,
@@ -20,16 +20,27 @@ const ambiguitySignals = [
   /maybe|brainstorm|explore/i
 ];
 
+const discoverySignals = [
+  /新项目|从零|初始化项目|目录结构|项目结构|模块边界|技术选型|技术路线|阶段计划|路线图|怎么用|如何使用/i,
+  /new project|bootstrap|directory structure|project structure|roadmap/i
+];
+
+const planOnlySignals = [
+  /先规划|只规划|只做规划|只做方案|只做需求|只做架构|先做方案|先不要写代码|不要写代码|不写代码|不改代码|不实现|plan-only|planning only/i
+];
+
 export function analyzeWorkload(inputText, { requestedProfile = "auto" } = {}) {
   const text = String(inputText ?? "");
   const signals = collectSignals(text);
   const complexityScore = scoreForSignals(signals);
   const inferredProfile = profileForScore(complexityScore, signals);
   const workflowProfile = chooseRequestedProfile(requestedProfile, inferredProfile, signals);
-  const needsRequirementsPlan = signals.ambiguous || signals.deepPlanning || workflowProfile !== "lite";
+  const runType = runTypeForProfile(workflowProfile, signals);
+  const needsRequirementsPlan = signals.ambiguous || signals.deepPlanning || signals.discovery || signals.planOnly || workflowProfile !== "lite";
 
   return {
     workflowProfile,
+    runType,
     inferredProfile,
     requestedProfile,
     complexityScore,
@@ -49,6 +60,7 @@ export function renderWorkloadAnalysisMarkdown(analysis) {
     "# 工作量分析",
     "",
     `- workflow_profile: ${analysis.workflowProfile}`,
+    `- run_type: ${analysis.runType}`,
     `- inferred_profile: ${analysis.inferredProfile}`,
     `- requested_profile: ${analysis.requestedProfile}`,
     `- complexity_score: ${analysis.complexityScore}`,
@@ -61,6 +73,8 @@ export function renderWorkloadAnalysisMarkdown(analysis) {
     `- deep_planning: ${analysis.signals.deepPlanning ? "true" : "false"}`,
     `- lite: ${analysis.signals.lite ? "true" : "false"}`,
     `- ambiguous: ${analysis.signals.ambiguous ? "true" : "false"}`,
+    `- discovery: ${analysis.signals.discovery ? "true" : "false"}`,
+    `- plan_only: ${analysis.signals.planOnly ? "true" : "false"}`,
     "",
     "## 原因",
     "",
@@ -72,7 +86,7 @@ export function renderWorkloadAnalysisMarkdown(analysis) {
 function chooseRequestedProfile(requested, inferred, signals) {
   if (!requested || requested === "auto") return inferred;
   if (!defaultProfiles.has(requested)) return "standard";
-  if (requested !== "full" && signals.highRisk) return "full";
+  if (!["full", "plan_only", "discovery"].includes(requested) && signals.highRisk) return "full";
   return requested;
 }
 
@@ -82,6 +96,8 @@ function collectSignals(text) {
     deepPlanning: deepPlanningSignals.some((pattern) => pattern.test(text)),
     lite: liteSignals.some((pattern) => pattern.test(text)),
     ambiguous: ambiguitySignals.some((pattern) => pattern.test(text)),
+    discovery: discoverySignals.some((pattern) => pattern.test(text)),
+    planOnly: planOnlySignals.some((pattern) => pattern.test(text)),
     multiSentence: text.split(/[。！？?!；;\n]/).filter((item) => item.trim()).length >= 3,
     longInput: text.length > 600
   };
@@ -91,6 +107,8 @@ function scoreForSignals(signals) {
   let score = 1;
   if (signals.lite) score += 1;
   if (signals.deepPlanning) score += 2;
+  if (signals.discovery) score += 2;
+  if (signals.planOnly) score += 1;
   if (signals.ambiguous) score += 1;
   if (signals.multiSentence) score += 1;
   if (signals.longInput) score += 1;
@@ -99,9 +117,19 @@ function scoreForSignals(signals) {
 }
 
 function profileForScore(score, signals) {
+  if (signals.planOnly) return "plan_only";
+  if (signals.discovery) return "discovery";
   if (signals.highRisk || score >= 5) return "full";
   if (signals.deepPlanning || signals.ambiguous || score >= 3) return "standard";
   return "lite";
+}
+
+function runTypeForProfile(profile, signals) {
+  if (profile === "discovery") return "discovery";
+  if (profile === "plan_only") return "plan_only";
+  if (signals.highRisk) return "high_risk_feature";
+  if (profile === "lite") return "implementation";
+  return "feature";
 }
 
 function complexityLevel(score) {
@@ -113,6 +141,8 @@ function complexityLevel(score) {
 function reasonsFor(signals, score, workflowProfile) {
   const reasons = [`complexity ${score}/5 -> ${workflowProfile}`];
   if (signals.highRisk) reasons.push("命中高风险信号，需要 full 档位和更强门禁。");
+  if (signals.discovery) reasons.push("命中新项目/目录结构/技术路线信号，进入 discovery 规划流。");
+  if (signals.planOnly) reasons.push("命中只规划/不写代码信号，进入 plan_only 流并禁止业务代码变更。");
   if (signals.deepPlanning) reasons.push("命中架构/方案/跨模块信号，需要标准化规划。");
   if (signals.ambiguous) reasons.push("需求仍偏模糊，建议先走 requirements-plan。");
   if (signals.lite && !signals.highRisk && !signals.deepPlanning) reasons.push("命中轻量变更信号，可优先 lite。");

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0-beta.1
+
+- Added explicit CrewUp activation policy so normal chat does not automatically enter the harness.
+- Added discovery and plan-only workflow routing, plus stricter lite profile semantics for formal narrow tasks.
+- Added artifact owner/provenance checks and no-code gates to keep the main agent in an orchestration role.
+- Expanded bridge result JSON examples with `artifactUpdates` and `artifactsUpdated`.
+- Added pack-install release validation through `npm run test:pack-install` and `npm run release:preflight`.
+- Reworked README and workflow docs around the large-project, strict-harness positioning.
+- Replaced the README hero with a lighter minimal SVG.
+
 ## 0.2.0
 
 - Rewrote the README into a more standard open-source project landing page

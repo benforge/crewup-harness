@@ -1,5 +1,5 @@
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { z } from "zod";
@@ -72,7 +72,7 @@ async function collectInspection() {
     }
   ]));
   const git = collectGitEvidence();
-  const fileSignals = await collectFileSignals();
+  const fileSignals = await collectFileSignals({ topDirs, topFiles });
 
   return {
     name: projectNameArg ?? targetPackage?.name ?? path.basename(root),
@@ -231,7 +231,7 @@ function assertAiConfigured() {
   console.error("Harness 不会在命令行里交互式索要或保存 API Key，避免把密钥写入项目文件或 shell 历史之外的未知位置。");
   process.exit(1);
 }
-async function collectFileSignals() {
+async function collectFileSignals({ topDirs = [], topFiles = [] } = {}) {
   const targets = [
     "package.json",
     "pyproject.toml",
@@ -260,7 +260,11 @@ async function collectFileSignals() {
   ];
   const signals = [];
   for (const target of targets) {
-    if (existsSync(path.join(root, target))) signals.push(target);
+    if (target.includes("/")) {
+      if (exactPathExists(target)) signals.push(target);
+      continue;
+    }
+    if (topDirs.includes(target) || topFiles.includes(target)) signals.push(target);
   }
   return signals.sort();
 }
@@ -373,16 +377,13 @@ async function expandWorkspaceGlobs(globs) {
 }
 
 function detectLanguages(topDirs) {
-  const markers = [
-    ["javascript", ["package.json"]],
-    ["python", ["pyproject.toml", "requirements.txt", "setup.py", "setup.cfg"]],
-    ["cpp", ["CMakeLists.txt", "conanfile.txt", "conanfile.py", "vcpkg.json"]],
-    ["unity", ["Assets", "ProjectSettings", "Packages/manifest.json"]],
-    ["dotnet", ["global.json"]]
-  ];
-  return markers
-    .filter(([, files]) => files.some((file) => existsSync(path.join(root, file)) || topDirs.includes(file)))
-    .map(([language]) => language);
+  const languages = [];
+  if (exactPathExists("package.json")) languages.push("javascript");
+  if (["pyproject.toml", "requirements.txt", "setup.py", "setup.cfg"].some(exactPathExists)) languages.push("python");
+  if (["CMakeLists.txt", "conanfile.txt", "conanfile.py", "vcpkg.json"].some(exactPathExists)) languages.push("cpp");
+  if (hasUnityProject(topDirs)) languages.push("unity");
+  if (exactPathExists("global.json")) languages.push("dotnet");
+  return languages;
 }
 
 function detectPackageManager(rootPackage) {
@@ -394,7 +395,7 @@ function detectPackageManager(rootPackage) {
   if (existsSync(path.join(root, "poetry.lock"))) return "poetry";
   if (existsSync(path.join(root, "pyproject.toml"))) return "python";
   if (existsSync(path.join(root, "CMakeLists.txt"))) return "cmake";
-  if (existsSync(path.join(root, "ProjectSettings"))) return "unity";
+  if (exactPathExists("ProjectSettings")) return "unity";
   return "manual";
 }
 
@@ -452,7 +453,7 @@ function hasRootProjectMarkers() {
     "vcpkg.json",
     "global.json",
     "ProjectSettings"
-  ].some((file) => existsSync(path.join(root, file)));
+  ].some(exactPathExists);
 }
 
 function isHarnessTemplatePackage(packageJson) {
@@ -520,7 +521,33 @@ async function readJson(target) {
 function runCommand(parts) {
   const [command, ...commandArgs] = parts;
   const result = spawnSync(command, commandArgs, { cwd: root, encoding: "utf8" });
-  return [result.stdout ?? "", result.stderr ?? "", result.status ?? 0].join("").trim();
+  if (result.status === 0) return (result.stdout ?? "").trim();
+  return [result.stdout ?? "", result.stderr ?? ""].join("").trim();
+}
+
+function hasUnityProject(topDirs) {
+  return topDirs.includes("Assets") && (topDirs.includes("ProjectSettings") || exactPathExists("Packages/manifest.json"));
+}
+
+function exactPathExists(relativePath) {
+  const parts = normalizeRelPath(relativePath).split("/").filter(Boolean);
+  if (parts.length === 0) return false;
+
+  let current = root;
+  for (const part of parts) {
+    const match = safeReadDir(current).find((entry) => entry.name === part);
+    if (!match) return false;
+    current = path.join(current, match.name);
+  }
+  return true;
+}
+
+function safeReadDir(target) {
+  try {
+    return readdirSync(target, { withFileTypes: true });
+  } catch {
+    return [];
+  }
 }
 
 function renderInspectionReport(payload) {

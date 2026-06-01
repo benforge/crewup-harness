@@ -58,3 +58,19 @@ Manual 模式不是一个 agent 产品，而是兜底路径。它适合希望使
 ```text
 install -> inspect -> init -> run -> verify -> report -> finish
 ```
+
+## 主 agent 能力边界
+
+主 agent 是 orchestrator，不是默认实现者。它可以：
+
+- 判断是否进入 CrewUp
+- 选择 profile 和 run type
+- 创建任务、分配上下文、触发子 agent
+- 检查产物 owner、provenance、stage gate
+- 汇总结果、报告状态、提出下一步
+
+它不应：
+
+- 在 requirements/architect agent 可用时直接撰写对应正式产物
+- 在实现类 agent 可用时直接承担主要业务代码实现
+- 为了快而绕过 no-code、plan-only、stage-entry 或 artifact provenance gate

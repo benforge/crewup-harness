@@ -1,0 +1,43 @@
+<svg width="1280" height="560" viewBox="0 0 1280 560" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">CrewUp workflow overview</title>
+  <desc id="desc">A minimal diagram showing an opt-in AI harness flow from request to delegated agents, gates, and archive.</desc>
+  <rect width="1280" height="560" fill="#F7F8F4"/>
+  <rect x="96" y="78" width="1088" height="404" rx="28" fill="#FFFFFF" stroke="#D8DDD0" stroke-width="2"/>
+  <text x="144" y="150" fill="#17201B" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="54" font-weight="700">CrewUp</text>
+  <text x="144" y="195" fill="#5A665F" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="24">Explicit, strict AI harness for large engineering work</text>
+
+  <g font-family="Inter, Segoe UI, Arial, sans-serif">
+    <rect x="146" y="270" width="150" height="88" rx="14" fill="#EAF2E6" stroke="#9EB38F"/>
+    <text x="221" y="305" text-anchor="middle" fill="#1E3327" font-size="18" font-weight="700">Opt-in</text>
+    <text x="221" y="333" text-anchor="middle" fill="#506055" font-size="15">CrewUp signal</text>
+
+    <path d="M314 314H376" stroke="#809084" stroke-width="3" stroke-linecap="round"/>
+    <path d="M366 302L380 314L366 326" stroke="#809084" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <rect x="392" y="270" width="150" height="88" rx="14" fill="#F4EEDC" stroke="#C4AE6A"/>
+    <text x="467" y="305" text-anchor="middle" fill="#3D3219" font-size="18" font-weight="700">Plan</text>
+    <text x="467" y="333" text-anchor="middle" fill="#675D46" font-size="15">Artifacts owned</text>
+
+    <path d="M560 314H622" stroke="#809084" stroke-width="3" stroke-linecap="round"/>
+    <path d="M612 302L626 314L612 326" stroke="#809084" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <rect x="638" y="242" width="178" height="144" rx="16" fill="#EEF1F5" stroke="#9CA9B8"/>
+    <text x="727" y="278" text-anchor="middle" fill="#263340" font-size="18" font-weight="700">Main agent</text>
+    <text x="727" y="307" text-anchor="middle" fill="#566270" font-size="15">route</text>
+    <text x="727" y="333" text-anchor="middle" fill="#566270" font-size="15">delegate</text>
+    <text x="727" y="359" text-anchor="middle" fill="#566270" font-size="15">gate</text>
+
+    <path d="M834 314H896" stroke="#809084" stroke-width="3" stroke-linecap="round"/>
+    <path d="M886 302L900 314L886 326" stroke="#809084" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <rect x="914" y="226" width="170" height="48" rx="12" fill="#E8F0ED" stroke="#95ADA5"/>
+    <text x="999" y="257" text-anchor="middle" fill="#24372F" font-size="16" font-weight="700">Requirements</text>
+    <rect x="914" y="290" width="170" height="48" rx="12" fill="#E8F0ED" stroke="#95ADA5"/>
+    <text x="999" y="321" text-anchor="middle" fill="#24372F" font-size="16" font-weight="700">Architect</text>
+    <rect x="914" y="354" width="170" height="48" rx="12" fill="#E8F0ED" stroke="#95ADA5"/>
+    <text x="999" y="385" text-anchor="middle" fill="#24372F" font-size="16" font-weight="700">Builder / Tester</text>
+
+    <path d="M1000 418V438H262V374" stroke="#BCC5B9" stroke-width="2" stroke-dasharray="7 7"/>
+    <text x="632" y="458" text-anchor="middle" fill="#6A756C" font-size="15">verified outputs return through gates and archive</text>
+  </g>
+</svg>

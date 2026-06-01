@@ -37,6 +37,7 @@ const requiredPaths = [
   ".harness/config/write-policy.yaml",
   ".harness/config/checks.yaml",
   ".harness/config/context-policy.yaml",
+  ".harness/config/harness-scope-policy.yaml",
   ".harness/config/intake-policy.yaml",
   ".harness/config/risk-policy.yaml",
   ".harness/config/requirements-planning.yaml",
@@ -99,6 +100,7 @@ const requiredPaths = [
   ".harness/scripts/changed-files.mjs",
   ".harness/scripts/lib/delegation-guard.mjs",
   ".harness/scripts/lib/agent-runtime.mjs",
+  ".harness/scripts/lib/artifact-provenance.mjs",
   ".harness/scripts/lib/script-root.mjs",
   ".harness/scripts/lib/json.mjs",
   ".harness/scripts/next.mjs",
@@ -143,6 +145,7 @@ const configFiles = [
   ".harness/config/budget-policy.yaml",
   ".harness/config/checks.yaml",
   ".harness/config/context-policy.yaml",
+  ".harness/config/harness-scope-policy.yaml",
   ".harness/config/delegation-policy.yaml",
   ".harness/config/desktop-runner.yaml",
   ".harness/config/document-policy.yaml",
@@ -188,6 +191,8 @@ await checkAgentRuntime();
 await checkKnowledge();
 await checkNativeSubagents();
 await checkWorkflow();
+await checkHarnessScopePolicy();
+await checkArtifactOwners();
 await checkNativeExecutionGates();
 await checkDelegationGuardWiring();
 await checkBacklogFileNames();
@@ -576,9 +581,20 @@ async function checkWorkflow() {
   const { project_profile: project } = await loadProjectProfile(root);
   if (!workflow?.stages?.length) errors.push(".harness/config/workflow.yaml must define workflow.stages");
   if (!workflow?.transitions) errors.push(".harness/config/workflow.yaml must define workflow.transitions");
+  if (!workflow?.stage_entry_gates) errors.push(".harness/config/workflow.yaml must define workflow.stage_entry_gates");
   for (const stage of ["intake", "requirements_plan", "requirements_confirm", "plan", "implement", "verify", "review", "release", "done"]) {
     if (!(workflow.stages ?? []).some((item) => item.id === stage)) {
       errors.push(`workflow.stages must include ${stage}`);
+    }
+  }
+  for (const stage of ["requirements_confirm", "plan", "implement", "verify", "review", "release", "done"]) {
+    if (!workflow?.stage_entry_gates?.[stage]) {
+      errors.push(`workflow.stage_entry_gates must include ${stage}`);
+    }
+  }
+  for (const stage of ["requirements_confirm", "plan", "implement", "review", "release", "done"]) {
+    if (workflow?.stage_entry_gates?.[stage]?.require_artifact_provenance !== true) {
+      errors.push(`workflow.stage_entry_gates.${stage}.require_artifact_provenance must be true`);
     }
   }
   if (!project?.impact_scopes) {
@@ -586,6 +602,17 @@ async function checkWorkflow() {
     const localRules = await collectLocalAiRuleFiles(root, localRuleFile);
     if (localRules.length === 0) {
       warnings.push(`Project profile has no impact_scopes and no local ${localRuleFile} files were discovered`);
+    }
+  }
+
+  const liteDescription = workflow?.workflow_profiles?.lite?.description ?? "";
+  if (!/不是 quick mode/i.test(liteDescription)) {
+    errors.push("workflow_profiles.lite.description must state that lite is not quick mode");
+  }
+  const liteAgents = new Set(workflow?.workflow_profiles?.lite?.default_agents ?? []);
+  for (const role of ["tester", "reviewer", "release"]) {
+    if (!liteAgents.has(role)) {
+      errors.push(`workflow_profiles.lite.default_agents must include ${role} for strict narrow formal runs`);
     }
   }
 
@@ -600,6 +627,50 @@ async function checkWorkflow() {
   for (const role of ["tester", "reviewer", "release"]) {
     if (!verificationAgents.has(role)) {
       errors.push(`project_profile.default_agents.verification must include ${role} for tester -> reviewer -> release closure`);
+    }
+  }
+}
+
+async function checkHarnessScopePolicy() {
+  const rel = ".harness/config/harness-scope-policy.yaml";
+  const target = path.join(root, rel);
+  if (!existsSync(target)) {
+    errors.push(`Missing required path: ${rel}`);
+    return;
+  }
+
+  const scope = parseYaml(await readFile(target, "utf8"))?.harness_scope;
+  if (scope?.activation_policy?.default !== "inactive_until_explicit") {
+    errors.push(`${rel} activation_policy.default must be inactive_until_explicit`);
+  }
+  if (scope?.once_run_created?.main_agent_code_write !== "forbidden") {
+    errors.push(`${rel} once_run_created.main_agent_code_write must be forbidden`);
+  }
+  for (const key of ["delegation_required", "artifact_ownership_required", "gate_check_required", "report_required", "finish_required"]) {
+    if (scope?.once_run_created?.[key] !== true) {
+      errors.push(`${rel} once_run_created.${key} must be true`);
+    }
+  }
+  if (scope?.profile_semantics?.lite && !/not quick mode/i.test(scope.profile_semantics.lite)) {
+    errors.push(`${rel} profile_semantics.lite must state that lite is not quick mode`);
+  }
+}
+
+async function checkArtifactOwners() {
+  const schemaPath = path.join(root, ".harness/config/artifact-schema.yaml");
+  const agentsPath = path.join(root, ".harness/config/agents.yaml");
+  if (!existsSync(schemaPath) || !existsSync(agentsPath)) return;
+
+  const schema = parseYaml(await readFile(schemaPath, "utf8"));
+  const agents = parseYaml(await readFile(agentsPath, "utf8"))?.agents ?? {};
+  const validOwners = new Set(["main", ...Object.keys(agents)]);
+  for (const [artifact, rules] of Object.entries(schema?.artifacts ?? {})) {
+    if (!rules.owner) {
+      errors.push(`artifact-schema.yaml ${artifact} must declare owner`);
+      continue;
+    }
+    if (!validOwners.has(rules.owner)) {
+      errors.push(`artifact-schema.yaml ${artifact} owner is unknown: ${rules.owner}`);
     }
   }
 }

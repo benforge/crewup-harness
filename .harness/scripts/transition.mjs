@@ -7,6 +7,11 @@ import { loadProjectProfile } from "./lib/project-profile.mjs";
 import { loadProjectOverlay, resolveImpactScopes } from "./lib/project-overlay.mjs";
 import { resolveScriptPath } from "./lib/script-root.mjs";
 import {
+  artifactHasOwnerProvenance,
+  collectArtifactProvenance,
+  describeArtifactProvenance
+} from "./lib/artifact-provenance.mjs";
+import {
   configureDelegationGuard,
   collectWorkspaceChanges,
   evaluateDelegationGuard,
@@ -49,6 +54,7 @@ configureDelegationGuard(projectProfile);
 const projectOverlay = await loadProjectOverlay(root, projectProfile.ai_overlay?.profile, { projectProfile });
 const impactScopesConfig = resolveImpactScopes(projectProfile, projectOverlay.profile);
 const state = JSON.parse(await readFile(statePath, "utf8"));
+const artifactProvenance = await collectArtifactProvenance(root, runId);
 const from = state.stage ?? "intake";
 const allowed = workflow.transitions?.[from]?.allowed_next ?? [];
 const validStages = new Set((workflow.stages ?? []).map((stage) => stage.id));
@@ -89,12 +95,12 @@ async function enforceGate(targetStage, currentState) {
 
   if (targetStage === "requirements_confirm") {
     requireNativeExecutionForStage("requirements_confirm");
-    await requireArtifactContent("requirement-plan.md", { noPlaceholders: true });
+    await requireArtifactContent("requirement-plan.md", { noPlaceholders: true, requireOwner: true });
   }
 
   if (targetStage === "plan") {
     requireNativeExecutionForStage("plan");
-    await requireArtifactContent("requirement.md", { noPlaceholders: true });
+    await requireArtifactContent("requirement.md", { noPlaceholders: true, requireOwner: true });
   }
 
   if (targetStage === "implement") {
@@ -103,9 +109,9 @@ async function enforceGate(targetStage, currentState) {
     }
     requireNativeExecutionForStage("implement");
     if (!isDocsOnlyRun(currentState) && !isLiteImplementationOnlyRun(currentState)) {
-      await requireArtifactContent("requirement.md", { noPlaceholders: true, requireImpactScope: true, requireAcceptanceCriteria: true });
-      await requireArtifactContent("architecture.md", { noPlaceholders: true });
-      await requireArtifactContent("implementation-plan.md", { noPlaceholders: true });
+      await requireArtifactContent("requirement.md", { noPlaceholders: true, requireImpactScope: true, requireAcceptanceCriteria: true, requireOwner: true });
+      await requireArtifactContent("architecture.md", { noPlaceholders: true, requireOwner: true });
+      await requireArtifactContent("implementation-plan.md", { noPlaceholders: true, requireOwner: true });
     }
   }
 
@@ -115,19 +121,19 @@ async function enforceGate(targetStage, currentState) {
 
   if (targetStage === "review") {
     requireNativeExecutionForStage("review");
-    await requireArtifactContent("test-report.md", { noPlaceholders: true, noRequiredCheckFailures: true });
+    await requireArtifactContent("test-report.md", { noPlaceholders: true, noRequiredCheckFailures: true, requireOwner: true });
   }
 
   if (targetStage === "release") {
     requireNativeExecutionForStage("release");
-    await requireArtifactContent("review-report.md", { noPlaceholders: true, reviewPassed: true });
+    await requireArtifactContent("review-report.md", { noPlaceholders: true, reviewPassed: true, requireOwner: true });
   }
 
   if (targetStage === "done") {
     requireNativeExecutionForStage("done");
-    await requireArtifactContent("test-report.md", { noPlaceholders: true, noRequiredCheckFailures: true });
-    await requireArtifactContent("review-report.md", { noPlaceholders: true, reviewPassed: true });
-    await requireArtifactContent("release-summary.md", { noPlaceholders: true });
+    await requireArtifactContent("test-report.md", { noPlaceholders: true, noRequiredCheckFailures: true, requireOwner: true });
+    await requireArtifactContent("review-report.md", { noPlaceholders: true, reviewPassed: true, requireOwner: true });
+    await requireArtifactContent("release-summary.md", { noPlaceholders: true, requireOwner: true });
     requireNoOpenNativeAgents();
   }
 }
@@ -180,6 +186,26 @@ async function requireArtifactContent(name, options = {}) {
   if (options.reviewPassed && reviewHasBlockingIssues(content)) {
     fail("review-report.md is not passed or still contains blocking issues.");
   }
+  if (options.requireOwner) requireArtifactOwnerProvenance(name);
+}
+
+function requireArtifactOwnerProvenance(name) {
+  const owner = artifactSchema[name]?.owner;
+  if (!owner) return;
+  if (artifactHasOwnerProvenance(artifactProvenance, name, owner)) return;
+  if (!shouldRequireArtifactProvenance()) {
+    console.warn(`Warning: Artifact ${name} lacks provenance from owner ${owner}. Found: ${describeArtifactProvenance(artifactProvenance, name)}. Treating as legacy/manual artifact.`);
+    return;
+  }
+  fail(`Artifact ${name} lacks provenance from owner ${owner}. Found: ${describeArtifactProvenance(artifactProvenance, name)}`);
+}
+
+function shouldRequireArtifactProvenance() {
+  return Boolean(
+    existsSync(path.join(logsDir, "orchestrate-results.json"))
+      || existsSync(path.join(logsDir, "native-subagents", "native-state.json"))
+      || existsSync(path.join(logsDir, "agent-bridge", "bridge-state.json"))
+  );
 }
 
 function requireNoOpenNativeAgents() {

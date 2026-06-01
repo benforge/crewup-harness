@@ -114,6 +114,54 @@ workflow:
       evidence_field: "confirmations.product_sync_approved_at"
       note: "transition --to=done 会自动记录该确认并执行 product-sync。"
 
+  stage_entry_gates:
+    requirements_confirm:
+      required_agents:
+        - "requirements-plan"
+      required_artifacts:
+        - "requirement-plan.md"
+      require_artifact_provenance: true
+    plan:
+      required_agents:
+        - "requirements"
+      required_artifacts:
+        - "requirement.md"
+      require_artifact_provenance: true
+    implement:
+      required_agents:
+        - "architect"
+      required_artifacts:
+        - "requirement.md"
+        - "architecture.md"
+        - "implementation-plan.md"
+      require_user_confirmation: "implementation_approved_at"
+      require_artifact_provenance: true
+    verify:
+      required_agents:
+        - "implementation_agents"
+      require_changed_files_recorded: true
+    review:
+      required_agents:
+        - "tester"
+      required_artifacts:
+        - "test-report.md"
+      require_artifact_provenance: true
+    release:
+      required_agents:
+        - "reviewer"
+      required_artifacts:
+        - "review-report.md"
+      require_artifact_provenance: true
+    done:
+      required_agents:
+        - "release"
+      required_artifacts:
+        - "test-report.md"
+        - "review-report.md"
+        - "release-summary.md"
+      require_artifact_provenance: true
+      require_native_agents_closed: true
+
   status_values:
     - "in-progress"
     - "waiting_user"
@@ -122,8 +170,38 @@ workflow:
     - "archived"
 
   workflow_profiles:
+    discovery:
+      description: "新项目、目录结构、技术选型、模块边界和阶段路线规划；只产出规划，不写业务代码。"
+      run_type: "discovery"
+      no_code: true
+      default_agents:
+        - "requirements-plan"
+        - "requirements"
+        - "architect"
+        - "reviewer"
+      required_gates:
+        - "project_shape_documented"
+        - "module_boundaries_defined"
+        - "next_runs_suggested"
+        - "no_business_code_changes"
+    plan_only:
+      description: "明确要求只做方案、需求、架构或实施计划；不进入业务代码实现。"
+      run_type: "plan_only"
+      no_code: true
+      default_agents:
+        - "requirements-plan"
+        - "requirements"
+        - "architect"
+        - "reviewer"
+      required_gates:
+        - "acceptance_criteria_ready"
+        - "planning_artifacts_ready"
+        - "review_recorded"
+        - "no_business_code_changes"
     lite:
-      description: "小修、小文档、小范围 bug；仍保留实现、tester、reviewer、release 的轻量闭环，避免实现完成后主 agent 直接结束。"
+      description: "小范围正式变更的严格短路径，不是 quick mode；仍保留实现 agent、tester、reviewer、release、gate-check、report 和 finish。"
+      run_type: "implementation"
+      no_code: false
       default_agents:
         - "tester"
         - "reviewer"
@@ -134,6 +212,8 @@ workflow:
         - "review_recorded"
     standard:
       description: "常规功能迭代；需求、方案、实现、验证、审查、发布摘要闭环。"
+      run_type: "feature"
+      no_code: false
       default_agents:
         - "requirements"
         - "architect"
@@ -148,6 +228,8 @@ workflow:
         - "release_summary_ready"
     full:
       description: "高风险或跨模块变更；完整 PM/需求/架构/实现/测试/审查/发布流程。"
+      run_type: "feature"
+      no_code: false
       default_agents:
         - "pm"
         - "requirements"

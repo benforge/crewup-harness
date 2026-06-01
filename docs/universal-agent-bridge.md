@@ -64,7 +64,17 @@ npx crewup agent-plan <run-id>
   "agent": "frontend",
   "status": "completed",
   "summary": "完成了什么。",
-  "artifactUpdates": [],
+  "artifactUpdates": [
+    {
+      "artifact": "implementation-plan",
+      "path": ".harness/runs/<run-id>/artifacts/implementation-plan.md",
+      "owner": "architect",
+      "action": "created"
+    }
+  ],
+  "artifactsUpdated": [
+    ".harness/runs/<run-id>/artifacts/implementation-plan.md"
+  ],
   "fileChanges": [],
   "recommendedCodeChanges": [],
   "tests": ["npm test"],
@@ -72,6 +82,8 @@ npx crewup agent-plan <run-id>
   "handoff": "给主 agent 的下一步交接。"
 }
 ```
+
+`artifactUpdates` 用于 provenance gate：每个主要产物都应写明产物名、路径、owner 和动作。`artifactsUpdated` 保留为较轻的路径列表，方便旧工具或人工写回。
 
 合法 `status` 值：
 

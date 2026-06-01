@@ -2,68 +2,86 @@
 
 [中文](./harness-workflow.md) | English
 
+CrewUp is explicit opt-in by default. Without a clear CrewUp/harness/run signal, the chat remains normal assistant work. Once CrewUp is active, the strict loop applies and the main agent only orchestrates, delegates, checks gates, and summarizes.
+
 ## Main Flow
 
 ```text
-doctor -> install -> inspect -> init -> check -> run -> spec-freeze -> agent-plan -> orchestrate -> gate-check -> report -> finish
+doctor -> install -> inspect -> init -> check -> run -> spec-freeze
+  -> agent-plan -> orchestrate -> gate-check -> report -> finish
 ```
 
-## What Each Step Does
+## Step Reference
 
 | Step | Purpose | Main output |
 | --- | --- | --- |
-| `doctor` | preflight check | environment and capability report |
-| `install` | copy the reusable core into a target repo | `.harness/` and `AGENTS.md` |
-| `inspect` | discover the real repo shape | project evidence and adaptation plan |
-| `init` | generate the project adaptation layer and knowledge baseline | `.harness/project/*`, `.harness/knowledge/*` |
-| `check` | validate the harness install | config and script integrity report |
-| `run` | start a work cycle | run state, tasks, context packs, token ledger |
-| `spec-freeze` | freeze a compact requirement summary | `artifacts/spec-freeze.md` and `logs/spec-freeze.json` |
-| `agent-plan` | generate either Codex native plan or bridge handoff | native plan or `logs/agent-bridge/*` |
-| `orchestrate` | collect SDK/native/bridge results | agent logs, artifacts, and status |
-| `status` | inspect backlog/run state | native, context budget, and token ledger overview |
-| `report` | summarize delivery state | structured Markdown report with token/context budget data |
-| `gate-check` | verify completion criteria | pass/fail quality gate |
-| `finish` | close the cycle | closed run and archive-ready output |
+| `doctor` | Check runtime prerequisites | Environment and capability report |
+| `install` | Copy the reusable core into a target repo | `.harness/`, `AGENTS.md`, runtime ignore |
+| `inspect` | Discover the real project shape | `.harness/project/inspect.json`, adapter advice |
+| `init` | Generate project adapter and execution config | `.harness/project/*` |
+| `check` | Validate harness installation | Config, script, template, and boundary checks |
+| `run` | Start a formal workflow or dry-run routing | Run state, tasks, context pack, token ledger |
+| `spec-freeze` | Freeze a short requirement summary | `artifacts/spec-freeze.md`, `logs/spec-freeze.json` |
+| `agent-plan` | Generate Codex native plan or bridge handoff | Native plan or `logs/agent-bridge/*` |
+| `orchestrate` | Collect native/bridge/manual results | Agent logs, artifact updates, and status |
+| `gate-check` | Check completion, artifact ownership, and overreach risk | Passed/failed quality gates |
+| `report` | Summarize delivery state | Structured Markdown report |
+| `finish` | Close the workflow | Closed run and archivable output |
+
+## Profile Routing
+
+| Profile | Trigger | Key rule |
+| --- | --- | --- |
+| `discovery` | Discovery, repository shape, module boundaries, technical direction | Discover and plan before implementation |
+| `plan_only` | The user explicitly asks for planning only or no code | No-code gate is active; business code changes are blocked |
+| `lite` | Narrow but still formal engineering work | Not a quick mode; tasks, delegation, and gates remain |
+| `standard` | Normal implementation or multi-file work | Full loop |
+| `full` | High-risk, broad, multi-stage work | Stronger requirements, architecture, tester, reviewer, and release gates |
+
+Use dry-run to inspect routing:
+
+```bash
+npx crewup run --dry-run "Use CrewUp to plan module boundaries and technical direction for a large system. Do not write code."
+```
+
+## When Subagents Activate
+
+| Subagent | Typical trigger | Artifact ownership |
+| --- | --- | --- |
+| `requirements` | Incomplete scope, unclear requirements, acceptance criteria needed | requirement / requirement-plan |
+| `architect` | System design, cross-module changes, technical direction, migration plan | architecture / implementation-plan |
+| `backend`, `frontend`, `database`, `devops` | Domain implementation or configuration changes | Domain execution result and handoff |
+| `tester` | Test strategy, missing tests, verification evidence | test-report |
+| `reviewer` | Quality, security, regression-risk review | review-report |
+| `docs` | Documentation, guides, migration notes | docs artifact |
+| `release` | Release preparation, change summary, archive | release-summary |
+
+The main agent may prepare runs, create tasks, allocate context, check gates, and summarize state. It should not directly author primary requirements/architecture artifacts or complete business implementation when an implementation agent is available.
 
 ## Execution Paths
 
-| Selected agent | Path | What happens |
+| Selected agent | Path | Behavior |
 | --- | --- | --- |
-| `codex` | native | CrewUp prepares native subagent prompts and Codex executes them. |
+| `codex` | native | CrewUp generates native subagent prompts and plans for Codex execution. |
 | `claude` | bridge | CrewUp writes handoff files; Claude writes `result.json`; CrewUp collects it. |
 | `cursor` | bridge | CrewUp writes handoff files; Cursor writes `result.json`; CrewUp collects it. |
 | `trae` | bridge | CrewUp writes handoff files; Trae writes `result.json`; CrewUp collects it. |
 | `manual` | bridge/manual | A human or script writes `result.json`; CrewUp collects it. |
 
-## Flow Smoke Test
+## Self-Test Loop
 
 ```bash
-npm run test:flow
+npm run test:pack-install
+npm run release:preflight
 ```
 
-This creates a temporary project, verifies install, init, a docs-only run, `spec-freeze`, `context-budget.json`, and the native plan, then cleans up the temp directory.
+`test:pack-install` packs the current package and verifies install, inspect, init, check, profile dry-runs, a formal run, and report generation in a temporary project. `release:preflight` adds core checks, example tests, pack-install, and `npm pack --dry-run`.
 
-## Request Format
+## Closure Rules
 
-When starting a new task, ask for:
+Every formal run should leave:
 
-- goal
-- scope
-- target stack
-- constraints
-- acceptance criteria
-- what should not be touched
-
-## Example
-
-> Build a blog platform with a public frontend, an admin frontend, an API backend, and a database layer. First deliver the architecture, folder structure, data model, and phase plan. Do not implement the full product yet.
-
-## Close Rule
-
-Every run should end with:
-
-1. a report
-2. verification
-3. a clear handoff
-4. archive or commit status
+1. Structured report
+2. Verification evidence
+3. Subagent handoff or result JSON
+4. Clear completed, blocked, or archived state

@@ -1,0 +1,15 @@
+.harness/project/*.json
+.harness/project/*.yaml
+.harness/project/rules/
+.harness/reports/*
+!.harness/reports/.gitkeep
+.harness/dashboard/*
+!.harness/dashboard/.gitkeep
+.harness/runs/*
+!.harness/runs/.gitkeep
+.harness/backlog/**/*.md
+.harness/knowledge/*.json
+.harness/knowledge/*.md
+!.harness/knowledge/README.md
+!.harness/knowledge/lessons-learned.md
+!.harness/knowledge/.gitkeep

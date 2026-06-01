@@ -59,6 +59,7 @@ await updateRunState({ workflowProfile, workloadAnalysis });
 
 console.log(`已生成 ${selectedAgents.length} 个 agent 任务：${path.relative(root, tasksDir)}`);
 console.log(`workflow_profile: ${workflowProfile}`);
+console.log(`run_type: ${workloadAnalysis.runType}`);
 console.log(`complexity: ${workloadAnalysis.complexityScore}/5 (${workloadAnalysis.complexityLevel})`);
 console.log(`impact_scopes: ${impactScopes.length ? impactScopes.join(",") : "(none)"}`);
 for (const agentId of selectedAgents) console.log(`- ${agentId}`);
@@ -66,6 +67,10 @@ for (const agentId of selectedAgents) console.log(`- ${agentId}`);
 function selectAgents(inputText, agents, impactScopeConfig, profile, runProfile, impactScopes) {
   if (isDocsOnlyRequest(inputText)) {
     return ["docs", "reviewer", "release"].filter((agentId) => agents[agentId]);
+  }
+
+  if (["discovery", "plan_only"].includes(runProfile)) {
+    return ["requirements-plan", "requirements", "architect", "reviewer"].filter((agentId) => agents[agentId]);
   }
 
   const selected = new Set();
@@ -307,6 +312,7 @@ function buildMainSummary(selectedAgents, workflowProfile, impactScopes) {
 
 - runId: ${runId}
 - workflow_profile: ${workflowProfile}
+- run_type: ${workloadAnalysis.runType}
 - impact_scopes: ${impactScopes.length ? impactScopes.join(", ") : "(none)"}
 
 ## 主 agent 模型
@@ -326,6 +332,7 @@ ${selectedAgents.map((agent) => `- tasks/${agent}.task.md`).join("\n")}
 - 当生命周期工具可用时，使用 native subagents。
 - 用户确认前，规划产物必须保留在 run artifacts 内。
 - 产品文档同步只能在 release 后，并且获得明确确认后执行。
+- discovery/plan_only run 只允许规划和评审，不允许业务代码变更。
 `;
 }
 
@@ -371,10 +378,12 @@ async function updateRunState({ workflowProfile, workloadAnalysis }) {
   const state = JSON.parse(await readFile(statePath, "utf8"));
   const now = new Date().toISOString();
   state.workflowProfile = workflowProfile;
+  state.runType = workloadAnalysis.runType;
   state.workloadAnalysis = {
     complexityScore: workloadAnalysis.complexityScore,
     complexityLevel: workloadAnalysis.complexityLevel,
     inferredProfile: workloadAnalysis.inferredProfile,
+    runType: workloadAnalysis.runType,
     needsRequirementsPlan: workloadAnalysis.needsRequirementsPlan,
     updatedAt: now
   };

@@ -64,7 +64,17 @@ Each external agent must write:
   "agent": "frontend",
   "status": "completed",
   "summary": "What was completed.",
-  "artifactUpdates": [],
+  "artifactUpdates": [
+    {
+      "artifact": "implementation-plan",
+      "path": ".harness/runs/<run-id>/artifacts/implementation-plan.md",
+      "owner": "architect",
+      "action": "created"
+    }
+  ],
+  "artifactsUpdated": [
+    ".harness/runs/<run-id>/artifacts/implementation-plan.md"
+  ],
   "fileChanges": [],
   "recommendedCodeChanges": [],
   "tests": ["npm test"],
@@ -72,6 +82,8 @@ Each external agent must write:
   "handoff": "Next step for the main agent."
 }
 ```
+
+`artifactUpdates` feeds the provenance gate: every primary artifact should include the artifact name, path, owner, and action. `artifactsUpdated` remains as a lighter path list for older tools or manual writeback.
 
 Valid `status` values:
 

@@ -1,6 +1,6 @@
 {
   "name": "crewup-harness",
-  "version": "0.2.0",
+  "version": "0.3.0-beta.1",
   "description": "CrewUp: a reusable AI workflow harness for project-agnostic agent collaboration.",
   "author": "Ben",
   "license": "MIT",
@@ -30,6 +30,21 @@
   "files": [
     "AGENTS.md",
     ".harness",
+    "!.harness/project/*.json",
+    "!.harness/project/*.yaml",
+    "!.harness/project/rules/**",
+    "!.harness/reports/**",
+    ".harness/reports/.gitkeep",
+    "!.harness/dashboard/**",
+    ".harness/dashboard/.gitkeep",
+    "!.harness/runs/**",
+    ".harness/runs/.gitkeep",
+    "!.harness/backlog/**/*.md",
+    "!.harness/knowledge/*.json",
+    "!.harness/knowledge/*.md",
+    ".harness/knowledge/.gitkeep",
+    ".harness/knowledge/README.md",
+    ".harness/knowledge/lessons-learned.md",
     "bin",
     "assets",
     "README.md",
@@ -45,6 +60,8 @@
   },
   "scripts": {
     "test": "npm run harness:check && npm --prefix examples/minimal-node test",
+    "test:pack-install": "node .harness/scripts/test-flow.mjs",
+    "release:preflight": "npm run harness:check && npm test && npm run test:pack-install && npm pack --dry-run",
     "test:flow": "node .harness/scripts/test-flow.mjs",
     "harness:check": "node .harness/scripts/check.mjs",
     "harness:inspect": "node .harness/scripts/inspect.mjs",
@@ -98,4 +115,3 @@
     "zod": "^4.0.0"
   }
 }
-

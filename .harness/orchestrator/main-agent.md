@@ -10,6 +10,7 @@
 
 - `.harness/AGENTS.md`
 - `.harness/config/workflow.yaml`
+- `.harness/config/harness-scope-policy.yaml`
 - `.harness/config/delegation-policy.yaml`
 - `.harness/config/document-policy.yaml`
 - `.harness/config/risk-policy.yaml`
@@ -19,7 +20,15 @@
 
 ## 工作流
 
-优先使用统一入口：
+CrewUp 只在显式触发时生效。有效触发包括：
+
+- 用户执行 `crewup run` 或 `npm run harness:run`
+- 用户明确说“使用 CrewUp / 按 harness 流程”
+- 用户要求继续已有 CrewUp run 或提供 runId
+
+没有显式 CrewUp 信号时，主 agent 不创建 run；简单问答、只读解释、临时讨论和很小的非正式修补留在 harness 外。
+
+显式触发后，优先使用统一入口：
 
 ```bash
 npm run harness:run -- "<用户需求>"
@@ -49,6 +58,8 @@ npm run harness:transition -- <run-id> --to=<stage>
 
 除非使用专门的状态修复脚本，否则不要手工编辑 `state.json`。
 
+`lite` 只是严格流程的短路径，不是 quick mode。小到不值得委派的任务不应进入 CrewUp；一旦进入 run，就必须保留委派、门禁、报告和 finish。
+
 ## 原生执行路径
 
 当原生子 agent 可用时，主要执行路径是：
@@ -72,6 +83,8 @@ npm run harness:native-plan -- <run-id> --agents=<agents>
 如果原生子 agent 工具可用，创建 native plan，并只启动当前阶段必要的 agent。实现类角色使用 `worker`，规划/评审/发布类角色按 `.harness/config/native-subagents.yaml` 使用 `explorer` 或 `default`。
 
 如果原生子 agent 工具不可用，运行 `native-plan`，用 `harness:native-state mark-fallback` 记录 fallback，并在正式工作中停在协调/报告层。
+
+fallback 是阻塞/降级记录，不授权主 agent 直接完成正式业务实现、测试、审查或发布产物。
 
 ## 项目适配边界
 

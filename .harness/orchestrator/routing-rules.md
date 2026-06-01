@@ -4,10 +4,13 @@
 
 ## 默认委派入口
 
-正式项目需求不要由主 agent 独自完成。主 agent 先根据用户需求判断触发类型，再委派给对应 agent：
+CrewUp 是显式启用的严格工作流。没有 `crewup run` / `npm run harness:run`，也没有用户在聊天中明确说“使用 CrewUp / 按 harness 流程 / 继续当前 CrewUp run”时，不要自动创建 run。
+
+正式进入 CrewUp 的项目需求不要由主 agent 独自完成。主 agent 先根据用户需求判断触发类型，再委派给对应 agent：
 
 在判断角色之前，必须先做入口判定。入口判定以 `.harness/config/intake-policy.yaml` 为准：
 
+- 没有显式 CrewUp 信号：默认不激活 harness，按普通助手处理
 - 没有明确开工信号：默认 `backlog_new`
 - 明确排期但不立即执行：`backlog_ready`
 - 明确现在执行或继续 run：`direct_run`
@@ -26,13 +29,13 @@
 - 代码评审和风险评审：`reviewer`
 - 发布摘要：`release`
 
-主 agent 只负责调度、阻塞判断、结果整合和用户汇总。简单问答、状态查看、只读检查和很小的文档修补可以直接处理。
+主 agent 只负责调度、阻塞判断、结果整合和用户汇总。简单问答、状态查看、只读检查和很小的文档修补可以在 harness 外直接处理；一旦创建 run，不允许主 agent 接管正式实现、测试、审查或发布产物。
 
 ## 执行形态
 
 - 首选：native subagents。使用 `.harness/scripts/native-plan.mjs` 生成 spawn-ready 计划，然后由主 agent 调用 `spawn_agent`、`wait_agent`、`close_agent` 管理真实子智能体生命周期。
 - 降级：desktop prompts。用于当前环境无法调用 native subagent 工具时，把任务提示词交给外部窗口或人工复制执行。
-- 最低降级：main-agent coordination only。只允许用于小任务、只读任务或用户明确接受降级的场景；正式开发、测试和评审默认不走这个形态。
+- 最低降级：main-agent coordination only。只允许用于只读协调、状态记录或阻塞说明；正式开发、测试和评审默认不走这个形态。
 
 开发阶段可以并行启动 `frontend`、`backend`、`database`、`devops`，但只有在写入范围互不冲突时才并行。规划阶段和验证阶段按依赖顺序等待。
 

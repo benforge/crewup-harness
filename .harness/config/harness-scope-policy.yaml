@@ -1,0 +1,50 @@
+harness_scope:
+  target: "large_project_formal_work"
+  summary: "CrewUp governs explicit, formal, auditable AI engineering work for large projects."
+
+  activation_policy:
+    default: "inactive_until_explicit"
+    activate_when:
+      - "command: crewup run"
+      - "command: npm run harness:run"
+      - "user explicitly says CrewUp"
+      - "user explicitly says harness workflow"
+      - "user asks to continue an existing CrewUp run"
+      - "user provides a concrete runId and asks to continue it"
+    do_not_activate_when:
+      - "simple question"
+      - "code explanation"
+      - "ad hoc review without CrewUp mention"
+      - "brainstorming without CrewUp mention"
+      - "tiny edit request"
+      - "status check unrelated to a CrewUp run"
+
+  not_for:
+    - "tiny fixes"
+    - "single-file trivial edits"
+    - "casual Q&A"
+    - "one-off code explanation"
+    - "informal brainstorming without explicit CrewUp activation"
+
+  outside_harness_allowed:
+    - "simple_question"
+    - "status_check"
+    - "read_only_inspection"
+    - "tiny_doc_patch"
+
+  once_run_created:
+    main_agent_code_write: "forbidden"
+    delegation_required: true
+    artifact_ownership_required: true
+    native_or_bridge_result_required: true
+    gate_check_required: true
+    report_required: true
+    finish_required: true
+    shortcuts_allowed: false
+
+  profile_semantics:
+    discovery: "Formal no-code discovery for large project shape, module boundaries, technology route, and staged roadmap."
+    plan_only: "Formal no-code planning flow for requirements and architecture artifacts."
+    lite: "Narrow formal run, not quick mode; still requires delegated implementation, verification, review, release summary, gates, report, and finish."
+    standard: "Normal formal feature/change run."
+    full: "High-risk or cross-module formal run with PM/risk/rollback emphasis."

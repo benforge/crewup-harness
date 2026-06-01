@@ -22,7 +22,7 @@ const projectChecks = [
 ];
 
 const cliChecks = [
-  ["crewup bin", bin.crewup === "./bin/crewup.mjs", "package bin points to ./bin/crewup.mjs"],
+  ["crewup bin", normalizeBinPath(bin.crewup) === "bin/crewup.mjs", "package bin points to bin/crewup.mjs"],
   ["doctor script", Boolean(scripts["harness:doctor"]), "npm script is available"],
   ["check script", Boolean(scripts["harness:check"]), "npm script is available"],
   ["inspect script", Boolean(scripts["harness:inspect"]), "npm script is available"],
@@ -102,6 +102,10 @@ function detectLockfile() {
   if (existsSync(path.join(root, "pnpm-lock.yaml"))) return "pnpm-lock.yaml";
   if (existsSync(path.join(root, "yarn.lock"))) return "yarn.lock";
   return "";
+}
+
+function normalizeBinPath(value) {
+  return String(value ?? "").replaceAll("\\", "/").replace(/^\.\//, "");
 }
 
 function gitInfo() {

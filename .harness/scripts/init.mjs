@@ -1,5 +1,5 @@
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { createInterface, emitKeypressEvents } from "node:readline";
@@ -233,16 +233,13 @@ async function expandWorkspaceGlobs(globs) {
 }
 
 function detectLanguages(topDirs) {
-  const markers = [
-    ["javascript", ["package.json"]],
-    ["python", ["pyproject.toml", "requirements.txt", "setup.py", "setup.cfg"]],
-    ["cpp", ["CMakeLists.txt", "conanfile.txt", "conanfile.py", "vcpkg.json"]],
-    ["unity", ["Assets", "ProjectSettings", "Packages/manifest.json"]],
-    ["dotnet", ["global.json"]]
-  ];
-  return markers
-    .filter(([, files]) => files.some((file) => existsSync(path.join(root, file)) || topDirs.includes(file)))
-    .map(([language]) => language);
+  const languages = [];
+  if (exactPathExists("package.json")) languages.push("javascript");
+  if (["pyproject.toml", "requirements.txt", "setup.py", "setup.cfg"].some(exactPathExists)) languages.push("python");
+  if (["CMakeLists.txt", "conanfile.txt", "conanfile.py", "vcpkg.json"].some(exactPathExists)) languages.push("cpp");
+  if (hasUnityProject(topDirs)) languages.push("unity");
+  if (exactPathExists("global.json")) languages.push("dotnet");
+  return languages;
 }
 
 function detectPackageManager(rootPackage) {
@@ -254,8 +251,33 @@ function detectPackageManager(rootPackage) {
   if (existsSync(path.join(root, "poetry.lock"))) return "poetry";
   if (existsSync(path.join(root, "pyproject.toml"))) return "python";
   if (existsSync(path.join(root, "CMakeLists.txt"))) return "cmake";
-  if (existsSync(path.join(root, "ProjectSettings"))) return "unity";
+  if (exactPathExists("ProjectSettings")) return "unity";
   return "manual";
+}
+
+function hasUnityProject(topDirs) {
+  return topDirs.includes("Assets") && (topDirs.includes("ProjectSettings") || exactPathExists("Packages/manifest.json"));
+}
+
+function exactPathExists(relativePath) {
+  const parts = normalizeRelPath(relativePath).split("/").filter(Boolean);
+  if (parts.length === 0) return false;
+
+  let current = root;
+  for (const part of parts) {
+    const match = safeReadDir(current).find((entry) => entry.name === part);
+    if (!match) return false;
+    current = path.join(current, match.name);
+  }
+  return true;
+}
+
+function safeReadDir(target) {
+  try {
+    return readdirSync(target, { withFileTypes: true });
+  } catch {
+    return [];
+  }
 }
 
 function detectCommands(rootPackage, packageManager, languages) {
@@ -312,7 +334,7 @@ function hasRootProjectMarkers() {
     "vcpkg.json",
     "global.json",
     "ProjectSettings"
-  ].some((file) => existsSync(path.join(root, file)));
+  ].some(exactPathExists);
 }
 
 function isHarnessTemplatePackage(packageJson) {

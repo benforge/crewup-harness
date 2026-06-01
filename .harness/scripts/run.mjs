@@ -99,9 +99,10 @@ summary.push("token-ledger: created");
 
 await writeRunSummary(runId, { summary, analysis, backlogFile });
 
-console.log(`Harness run 已准备好：${runId}`);
-console.log(`- profile: ${analysis.workflowProfile}`);
-console.log(`- complexity: ${analysis.complexityScore}/5 (${analysis.complexityLevel})`);
+  console.log(`Harness run 已准备好：${runId}`);
+  console.log(`- profile: ${analysis.workflowProfile}`);
+  console.log(`- run_type: ${analysis.runType}`);
+  console.log(`- complexity: ${analysis.complexityScore}/5 (${analysis.complexityLevel})`);
 console.log(`- agents: ${agents || "(none)"}`);
 const agentEnvironment = await readAgentEnvironment(root);
 if (isNativeAgentEnvironment(agentEnvironment)) {
@@ -184,6 +185,7 @@ function renderSummary({ summary: items, analysis: workload, backlogFile: item }
     `- generatedAt: ${new Date().toISOString()}`,
     `- backlog: ${item ?? "无"}`,
     `- workflow_profile: ${workload.workflowProfile}`,
+    `- run_type: ${workload.runType}`,
     `- complexity: ${workload.complexityScore}/5 (${workload.complexityLevel})`,
     "",
     "## 步骤",

@@ -1,5 +1,6 @@
 artifacts:
   requirement-interview.md:
+    owner: "requirements-plan"
     required: false
     required_headings:
       - "状态"
@@ -9,6 +10,7 @@ artifacts:
       - "收敛判断"
 
   requirement-plan.md:
+    owner: "requirements-plan"
     required_headings:
       - "原始需求摘要"
       - "过往背景"
@@ -19,6 +21,7 @@ artifacts:
       - "待确认问题"
 
   requirement.md:
+    owner: "requirements"
     required_headings:
       - "背景"
       - "过往背景"
@@ -32,6 +35,7 @@ artifacts:
       - "回滚方式"
 
   architecture.md:
+    owner: "architect"
     required_headings:
       - "影响范围"
       - "历史架构约束"
@@ -40,6 +44,7 @@ artifacts:
       - "风险"
 
   implementation-plan.md:
+    owner: "architect"
     required_headings:
       - "任务摘要"
       - "文件和模块"
@@ -48,14 +53,17 @@ artifacts:
       - "完成检查"
 
   api-change.md:
+    owner: "backend"
     required_headings:
       - "是否涉及 API"
 
   db-migration.md:
+    owner: "database"
     required_headings:
       - "是否涉及数据库"
 
   test-report.md:
+    owner: "tester"
     required_headings:
       - "Run"
       - "结果汇总"
@@ -65,6 +73,7 @@ artifacts:
       - "未覆盖风险"
 
   review-report.md:
+    owner: "reviewer"
     required_headings:
       - "结论"
       - "阻塞问题"
@@ -74,6 +83,7 @@ artifacts:
       - "是否满足完成定义"
 
   release-summary.md:
+    owner: "release"
     required_headings:
       - "变更内容"
       - "部署步骤"

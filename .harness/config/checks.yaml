@@ -1,7 +1,7 @@
 checks:
   - id: "harness-check"
     name: "Harness structure and config check"
-    command: "npx crewup check"
+    command: "node .harness/scripts/check.mjs"
     required: true
     when_script_exists: null
 

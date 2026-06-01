@@ -4,11 +4,17 @@ import path from "node:path";
 import { parse as parseYaml } from "yaml";
 import { loadProjectProfile } from "./lib/project-profile.mjs";
 import {
+  artifactHasOwnerProvenance,
+  collectArtifactProvenance,
+  describeArtifactProvenance
+} from "./lib/artifact-provenance.mjs";
+import {
   configureDelegationGuard,
   collectWorkspaceChanges,
   evaluateDelegationGuard,
   readChangedFilesManifest,
   readNativeState,
+  isBusinessCodePath,
   nativeExecutionProblems,
   requiredNativeAgentsForStageCompletion
 } from "./lib/delegation-guard.mjs";
@@ -38,14 +44,17 @@ if (!existsSync(statePath)) problems.push("Missing state.json");
 if (!existsSync(tasksDir)) problems.push("Missing tasks/. Run npm run harness:prepare-run -- <run-id>.");
 
 const state = existsSync(statePath) ? JSON.parse(await readFile(statePath, "utf8")) : {};
+const artifactProvenance = await collectArtifactProvenance(root, runId);
 
 await checkArtifacts();
+await checkArtifactProvenance();
 await checkRequirementPlanGate();
 await checkNativeState();
 await checkVerifyReport();
 await checkReviewReport();
 await checkReleaseSummary();
 await checkAgentLogs();
+await checkNoCodeProfile();
 await checkStageGate(state);
 await checkStateConsistency(state);
 await checkDelegationGuard(state);
@@ -92,6 +101,28 @@ async function checkArtifacts() {
       }
     }
   }
+}
+
+async function checkArtifactProvenance() {
+  const requiredForCurrentStage = new Set(requiredArtifactsForStage(state.stage));
+  for (const [file, rules] of Object.entries(schema.artifacts ?? {})) {
+    if (!requiredForCurrentStage.has(file)) continue;
+    if (!existsSync(path.join(artifactsDir, file))) continue;
+    if (!rules.owner) continue;
+    if (artifactHasOwnerProvenance(artifactProvenance, file, rules.owner)) continue;
+
+    const message = `Artifact ${file} lacks provenance from owner ${rules.owner}. Found: ${describeArtifactProvenance(artifactProvenance, file)}`;
+    if (shouldRequireArtifactProvenance()) problems.push(message);
+    else warnings.push(`${message}. Treating as legacy/manual artifact until run has native/bridge/orchestrate results.`);
+  }
+}
+
+function shouldRequireArtifactProvenance() {
+  return Boolean(
+    existsSync(path.join(logsDir, "orchestrate-results.json"))
+      || existsSync(path.join(logsDir, "native-subagents", "native-state.json"))
+      || existsSync(path.join(logsDir, "agent-bridge", "bridge-state.json"))
+  );
 }
 
 async function checkRequirementPlanGate() {
@@ -251,6 +282,16 @@ async function checkAgentLogs() {
   }
 }
 
+async function checkNoCodeProfile() {
+  if (!isNoCodeProfile()) return;
+  const workspaceFiles = collectWorkspaceChanges(root, runId, state);
+  const manifestFiles = readChangedFilesManifest(root, runId);
+  const businessFiles = [...new Set([...workspaceFiles, ...manifestFiles].filter(isBusinessCodePath))];
+  if (businessFiles.length === 0) return;
+  problems.push(`No-code workflow profile ${state.workflowProfile} detected business code changes: ${businessFiles.join(", ")}`);
+  problems.push("Planning-only runs must stop at requirements/architecture/review artifacts; create a separate implementation run for code changes.");
+}
+
 async function checkStageGate(currentState) {
   const stage = currentState.stage;
   if (!stage) return;
@@ -265,6 +306,10 @@ async function checkStageGate(currentState) {
       if (!existsSync(path.join(artifactsDir, artifact))) problems.push(`Done stage missing artifact: ${artifact}`);
     }
   }
+}
+
+function isNoCodeProfile() {
+  return ["discovery", "plan_only"].includes(state.workflowProfile) || ["discovery", "plan_only"].includes(state.runType);
 }
 
 async function checkStateConsistency(currentState) {

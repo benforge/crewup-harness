@@ -350,7 +350,8 @@ function renderSpawnPrompt({ agentId, agentType, profile, task, specFreeze, allo
       status: "completed",
       summary: "一句话总结结果",
       filesChanged: [],
-      artifactsUpdated: [],
+      artifactUpdates: [{ path: "artifacts/<owned-artifact>.md" }],
+      artifactsUpdated: ["artifacts/<owned-artifact>.md"],
       tests: [],
       blockers: [],
       handoff: "下一步交接"

@@ -14,8 +14,11 @@
 
 ## 默认路由
 
+- CrewUp 默认不接管所有聊天。只有执行 `crewup run` / `npm run harness:run`，或用户在聊天中明确要求“使用 CrewUp / 按 harness 流程 / 继续当前 CrewUp run”时，才进入正式 harness 工作流。
+- 没有显式 CrewUp 信号时，简单问答、代码解释、临时讨论、只读检查和很小的非正式修补保持在普通助手模式，不创建 run。
 - 简单解释、状态查看、只读检查和很小的 harness 文档修补，可以由主 agent 直接处理。
-- 正式项目工作应进入 harness 工作流：新功能、迭代、需求、架构、实现、测试、评审、发布摘要或项目决策。
+- 一旦进入 run，正式项目工作必须走 harness 工作流：新功能、迭代、需求、架构、实现、测试、评审、发布摘要或项目决策。
+- CrewUp 面向大型项目和正式工程工作；小到不值得委派的任务应留在 harness 外，而不是把主 agent 变成实现者。
 - 常规闭环路径是：
 
 ```text
@@ -23,6 +26,7 @@ intake -> requirements_plan -> requirements_confirm -> plan -> implement -> veri
 ```
 
 - 使用能闭环的最小工作流 profile。
+- `lite` 是严格流程的短路径，不是 quick mode；仍需要委派、验证、审查、发布摘要、门禁、报告和 finish。
 - 当存在风险、歧义、跨模块影响、数据变更、认证/安全、部署、删除或生产配置时，需要升级处理。
 
 ## 委派规则

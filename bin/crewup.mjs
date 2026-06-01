@@ -17,23 +17,43 @@ const scriptByCommand = {
   run: "run.mjs",
   finalize: "finalize.mjs",
   finish: "finish.mjs",
+  "overlay-report": "overlay-report.mjs",
   status: "status.mjs",
+  intake: "intake.mjs",
+  "backlog-item": "backlog-item.mjs",
+  "new-run": "new-run.mjs",
+  "prepare-run": "prepare-run.mjs",
   next: "next.mjs",
   report: "report.mjs",
   "gate-check": "gate-check.mjs",
   verify: "verify.mjs",
   "context-pack": "context-pack.mjs",
   "agent-plan": "native-plan.mjs",
+  "desktop-plan": "desktop-plan.mjs",
+  "desktop-light": "desktop-light.mjs",
+  "requirements-interview": "requirements-interview.mjs",
+  "requirements-plan": "requirements-plan.mjs",
   "native-plan": "native-plan.mjs",
   "native-state": "native-state.mjs",
   "repair-artifacts": "repair-artifacts.mjs",
+  "repair-state": "repair-state.mjs",
   "spec-freeze": "spec-freeze.mjs",
   transition: "transition.mjs",
   knowledge: "knowledge.mjs",
+  "knowledge-select": "knowledge-select.mjs",
   dashboard: "dashboard.mjs",
   "archive-commit": "archive-commit.mjs",
   "archive-status": "archive-status.mjs",
   "changed-files": "changed-files.mjs",
+  "token-ledger": "token-ledger.mjs",
+  "test-flow": "test-flow.mjs",
+  skills: "skills-report.mjs",
+  "skills:resolve": "skills-resolve.mjs",
+  "skills:install": "skills-install.mjs",
+  "skills:install-exact": "skills-install.mjs",
+  "skills:audit": "skills-audit.mjs",
+  "product-sync": "product-sync.mjs",
+  orchestrate: "orchestrate.mjs",
   cleanup: "cleanup.mjs"
 };
 
@@ -64,7 +84,7 @@ if (command !== "doctor" && !existsSync(path.join(cwd, ".harness"))) {
   process.exit(1);
 }
 
-runScript(script, args);
+runScript(script, command === "skills:install-exact" ? ["--exact", ...args] : args);
 
 async function installHarness({ force }) {
   const sourceHarness = path.join(packageRoot, ".harness");
@@ -225,6 +245,7 @@ Common commands:
   check            Validate harness config and core scripts
   run              Create or prepare a work run
   agent-plan       Generate a Codex native plan or universal bridge handoff
+  orchestrate      Collect/apply native, API, or bridge agent results
   finish           Move a run to done and auto-commit by archive policy
   finalize         Compatibility alias for finish
   status           Show current run status
@@ -233,6 +254,12 @@ Common commands:
   gate-check       Run quality gates
   repair-artifacts Normalize required artifact headings and empty states
   spec-freeze      Generate a compact frozen requirement summary
+  skills           Report installed skills, role labels, and external candidates
+  skills:install   Install configured external skill candidates
+  skills:resolve   Search marketplace matches for role skill labels
+  skills:install-exact
+                   Install exact marketplace matches after skills:resolve
   archive-status   Check whether a run is ready for archive commit
+  product-sync     Sync approved release artifacts into product docs
   knowledge        Refresh the knowledge layer`);
 }

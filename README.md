@@ -2,184 +2,160 @@
 
 中文 | [English](./README.en.md)
 
-![CrewUp brand](assets/crewup-hero.png)
+![CrewUp workflow](assets/crewup-hero.svg)
 
-CrewUp 是一套面向真实工程仓库的可复用 AI 协作工作流协议。它把需求入口、上下文整理、角色委派、执行回写、验证、审查、发布准备与归档串成一个可追踪的闭环，帮助团队把 AI 开发流程做得更稳定、更统一。
+CrewUp 是一套面向大型、正式工程项目的 AI harness。它不负责替代某个 agent 写代码，而是把“什么时候进入流程、谁生成什么产物、谁执行实现、哪些门禁必须通过、最终如何归档”变成一套可复用、可检查、可追踪的工作流。
 
-CrewUp 不绑定具体技术栈，也不要求仓库必须长成某一种固定目录。它会先在目标仓库里读取真实证据，再通过 `crewup inspect` 和 `crewup init` 生成项目适配层，让通用工作流落到当前项目的实际结构上。
+CrewUp 的默认理念很明确：
+
+- 没有明确说 `CrewUp`、`harness`、`crewup run` 或类似触发词时，聊天窗仍然是普通助手对话。
+- 一旦明确进入 CrewUp，主 agent 只负责调度、委派、门禁和汇总，不直接承担正式业务实现或主要产物撰写。
+- requirements、architect、builder、tester、reviewer、docs、release 等产物由对应子 agent 或外部执行者负责。
+- CrewUp 面向大型项目和严谨流程；小修小补、临时问答、一次性脚本通常不需要启用它。
 
 ## 适用场景
 
 - 需要把 AI 开发流程标准化的团队或个人
-- 需要在 Codex、Claude、Cursor、Trae 等不同 agent 工具之间保持一致流程的项目
-- 需要把需求、规划、实现、验证、审查和发布串成闭环的真实仓库
+- 需要在 Codex、Claude、Cursor、Trae 或人工执行之间保持一致交付协议的项目
+- 需要把需求、架构、实现、验证、审查、发布准备和归档串成闭环的真实仓库
+- 希望主 agent 不失控、不越权，只做 orchestration 的大型 AI 工程流程
 
 ## 核心能力
 
-- Codex 原生优先，其他 agent 通过统一桥接接入
-- 先识别真实仓库，再生成项目适配层
-- 需求冻结、上下文打包、token 账本、阶段门禁一体化
-- docs-only 任务走轻闭环，减少无效测试和上下文开销
-- 中英文双语文档与自测命令
+- 显式 opt-in：只有明确请求 CrewUp/harness 流程时才进入严格工作流
+- 项目适配：先 `inspect` 真实仓库，再 `init` 生成 `.harness/project/` 适配层
+- 严格委派：主 agent 负责 route/delegate/gate/summarize，产物由对应角色生成
+- 阶段门禁：stage entry gate、artifact provenance、no-code profile gate 防止越权和漏产物
+- 多执行环境：Codex native 优先，Claude/Cursor/Trae/manual 通过 Universal Agent Bridge 写回结果
+- 发布自测：提供本地检查、临时项目 pack-install 测试和 release preflight
 
-## 工作方式
-
-```mermaid
-flowchart TD
-  A["CrewUp Core"] --> B["Codex Native Path"]
-  A --> C["Universal Agent Bridge"]
-  C --> D["Claude"]
-  C --> E["Cursor"]
-  C --> F["Trae"]
-  C --> G["Manual"]
-  B --> H["native subagents"]
-  D --> I["result.json"]
-  E --> I
-  F --> I
-  G --> I
-  H --> J["artifacts / gates / finish"]
-  I --> J
-```
-
-## 安装
+## 快速开始
 
 ```bash
 npm install -D crewup-harness
-```
-
-先做环境检查：
-
-```bash
-npx crewup doctor
-```
-
-## 首次初始化
-
-```bash
 npx crewup install
 npx crewup inspect --no-ai
-npx crewup init
+npx crewup init --agent codex --yes
 npx crewup check
 ```
 
-`crewup init` 会先在目标项目中准备模板，再生成项目适配层和知识层基线。
-
-## 选择执行环境
+如果已经配置模型环境，并希望基于真实项目证据进一步修正适配层，可以运行：
 
 ```bash
-npx crewup init --agent codex
-npx crewup init --agent claude
-npx crewup init --agent cursor
-npx crewup init --agent trae
-npx crewup init --agent manual
+npx crewup inspect --ai
 ```
 
-不传 `--agent` 时会进入交互式选择。支持上下键，终端不支持 raw mode 时会自动退化为数字选择。CI 或脚本中可使用 `--yes` / `--no-interactive`。
+## 使用方式
 
-## 日常使用
+命令行显式启动：
 
 ```bash
-npx crewup run "现在实现：..."
-npx crewup status
-npx crewup next <run-id>
-npx crewup report <run-id>
-npx crewup gate-check <run-id>
-npx crewup finish <run-id>
-npm run test:flow
+npx crewup run "使用 CrewUp 规划支付系统重构，先输出需求边界、架构方案和分阶段计划"
 ```
 
-```mermaid
-flowchart LR
-  A["需求输入"] --> B["Intake 分流"]
-  B --> C["Backlog"]
-  C --> D["Run 创建"]
-  D --> E["任务拆分"]
-  E --> F["上下文打包"]
-  F --> G["Agent Plan"]
-  G --> H["执行环境"]
-  H --> I["结果回写"]
-  I --> J["测试 / 审查 / 发布摘要"]
-  J --> K["Gate Check"]
-  K --> L["Finish / Archive Commit"]
+聊天窗显式启动：
+
+```text
+用 CrewUp 做：为这个大型项目设计模块边界、迁移计划和验收门禁，先不要写业务代码。
 ```
+
+非显式请求仍按普通助手对话处理，不应自动进入 CrewUp 流程。
+
+## 工作流
+
+```text
+doctor -> install -> inspect -> init -> check -> run -> spec-freeze
+  -> agent-plan -> orchestrate -> gate-check -> report -> finish
+```
+
+常用命令：
+
+| 命令 | 作用 |
+| --- | --- |
+| `npx crewup doctor` | 检查运行环境和前置条件 |
+| `npx crewup install` | 把 CrewUp 模板安装到目标项目 |
+| `npx crewup inspect --no-ai` | 基于文件系统识别项目结构 |
+| `npx crewup init --agent codex --yes` | 生成项目适配层和执行环境配置 |
+| `npx crewup check` | 校验核心配置、脚本和模板 |
+| `npx crewup run "..."` | 创建并准备一次正式 run |
+| `npx crewup run --dry-run "..."` | 只查看分流结果，不创建 run |
+| `npx crewup agent-plan <run-id>` | 生成 native 子 agent 计划或 bridge handoff |
+| `npx crewup gate-check <run-id>` | 检查质量门禁、产物归属和越权风险 |
+| `npx crewup report <run-id>` | 生成结构化交付报告 |
+| `npx crewup finish <run-id>` | 关闭 run 并按策略归档 |
+| `npx crewup skills` | 查看已安装 skill、角色标签和外部候选 |
+
+## 工作流类型
+
+| Profile | 适用场景 | 约束 |
+| --- | --- | --- |
+| `discovery` | 新项目摸底、模块边界、技术路线探索 | 以发现和规划为主，不直接进入实现 |
+| `plan_only` | 用户明确要求只规划、不写代码 | no-code gate 生效，禁止业务代码变更 |
+| `lite` | 范围很窄但仍需正式流程的小型工程任务 | 不是 quick mode，仍保留委派和门禁 |
+| `standard` | 常规跨文件工程任务 | 完整任务、上下文、执行和验证闭环 |
+| `full` | 高风险、大范围、多阶段项目工作 | 更强 requirements/architect/test/review/release 门禁 |
+
+## 执行环境
+
+| 环境 | 模式 | 说明 |
+| --- | --- | --- |
+| `codex` | native | 生成 Codex 原生子 agent 任务和计划，是当前稳定主路径 |
+| `claude` | bridge | 生成 handoff，由 Claude 执行并写回 `result.json` |
+| `cursor` | bridge | 生成 handoff，由 Cursor 执行并写回 `result.json` |
+| `trae` | bridge | 生成 handoff，由 Trae 执行并写回 `result.json` |
+| `manual` | manual/bridge | 人或脚本按契约写回结果 |
+
+Bridge 的目标是稳定交接和结果回写，不宣称所有外部工具都有相同的原生多 agent API。
 
 ## 关键目录
 
 ```text
 .harness/
-  AGENTS.md                # 进入正式项目工作前的总入口
+  AGENTS.md                # 正式项目工作入口
   orchestrator/            # 主 agent、路由和桥接协议
-  config/                  # 工作流、模型、门禁、委派、上下文策略
+  config/                  # scope、workflow、model、gate、delegation、write policy
   project/                 # 目标项目适配层，由 init 生成
   runs/                    # 每次 run 的输入、任务、产物和日志
-  reports/                 # 运行态摘要
-  knowledge/               # 可选的知识层
+  reports/                 # 运行态报告
+  knowledge/               # 可选知识层和经验沉淀
 ```
 
-## 典型用法
-
-Codex 路径：
+## 发布前验证
 
 ```bash
-npx crewup init --agent codex
-npx crewup run "现在实现登录功能"
+npm run harness:check
+npm test
+npm run test:pack-install
+npm run release:preflight
 ```
 
-Claude / Cursor / Trae 路径：
+`test:pack-install` 会把当前包打成 tarball，在临时空项目里安装后执行 `crewup install -> inspect -> init -> check -> run --dry-run -> run -> report`，用于验证真实开发者安装路径。
+
+## Skill 增强
+
+安装到目标项目后，使用 CLI 命令管理可选 skill：
 
 ```bash
-npx crewup init --agent claude
-npx crewup run "现在实现登录功能"
-npx crewup agent-plan <run-id>
+npx crewup skills
+npx crewup skills:install
+npx crewup skills:resolve
+npx crewup skills:install-exact
 ```
 
-## 执行模式
-
-| 模式 | 适用对象 | 说明 |
-| --- | --- | --- |
-| `native` | Codex | 优先使用 Codex 当前环境中的原生子 agent 能力 |
-| `bridge` | Claude / Cursor / Trae | 生成 handoff 和 result 写回协议，让外部工具接入同一闭环 |
-| `manual` | 人工或脚本流程 | 保留任务、上下文、门禁和报告，由用户或脚本补充结果 |
-
-Claude、Cursor、Trae 的支持重点是“同一工作流协议”和“稳定结果回写”，不是强行假设所有工具都有完全相同的原生多 agent API。
-
-## 常用命令
-
-| 命令 | 作用 |
-| --- | --- |
-| `npx crewup doctor` | 检查运行环境和前置条件 |
-| `npx crewup install` | 在目标项目中安装 CrewUp 模板 |
-| `npx crewup inspect --no-ai` | 基于文件系统静态识别项目结构 |
-| `npx crewup inspect --ai` | 在可用模型环境下增强项目识别 |
-| `npx crewup init` | 生成项目适配层 |
-| `npx crewup check` | 校验核心配置和必需文件 |
-| `npx crewup run "..."` | 创建并准备一次需求 run |
-| `npx crewup agent-plan <run-id>` | 生成 native plan 或 bridge handoff |
-| `npx crewup status` | 查看当前 run、预算和上下文状态 |
-| `npx crewup report <run-id>` | 生成结构化报告 |
-| `npx crewup gate-check <run-id>` | 执行闭环门禁检查 |
-| `npx crewup finish <run-id>` | 完成 run 并按策略归档 |
+`skills.yaml` 是角色 skill 标签和外部候选目录，不代表 skill 已安装。普通用户通常只需要 `npx crewup skills` 查看报告，再按需执行 `npx crewup skills:install`。
 
 ## 更多文档
 
 | 文档 | 内容 |
 | --- | --- |
-| [工作流](./docs/harness-workflow.md) | 命令流程和 run 生命周期 |
-| [Universal Agent Bridge](./docs/universal-agent-bridge.md) | 外部 agent 交接和结果写回协议 |
+| [工作流](./docs/harness-workflow.md) | 命令流程、profile 和 run 生命周期 |
+| [Universal Agent Bridge](./docs/universal-agent-bridge.md) | 外部 agent handoff 和 result JSON 契约 |
 | [Agent 选择](./docs/harness-agent-selection.md) | 初始化时的 agent 选择和适配层生成 |
 | [Agent 能力矩阵](./docs/harness-agent-capabilities.md) | 支持等级、能力边界和声明规则 |
-| [核心边界](./docs/harness-core-boundary.md) | 可复用核心与项目适配层边界 |
+| [核心边界](./docs/harness-core-boundary.md) | 可复用核心、项目适配层和运行态目录边界 |
+| [迭代记录](./docs/harness-workflow-iteration-plan.md) | 本轮严格工作流优化的设计和变更记录 |
 | [扩展指南](./docs/harness-extension-guide.md) | skills、policies、rules、templates 扩展方式 |
-
-## 说明
-
-- `spec-freeze` 会把需求压缩成短摘要，减少后续重复长上下文读取。
-- `context-pack` 会根据任务只收集必要文件，尽量压低 token 消耗。
-- `native-plan` 会生成原生子 agent 计划或 bridge handoff。
-- 文档类任务会走更轻的闭环，不再默认拉完整测试链。
-- `status` 和 `report` 会显示 context budget 与 token ledger。
-- `npm run test:flow` 会在临时项目里跑完整安装、初始化、文档闭环和产物检查。
 
 ## 边界
 
-CrewUp 不替代你的构建系统、测试框架、CI/CD、业务架构或团队规范。它提供的是 AI 协作和交付闭环协议；真实项目仍应保留自己的 README、测试命令、发布流程和代码规范，CrewUp 会在初始化和运行过程中读取并引用这些信息。
+CrewUp 不替代你的构建系统、测试框架、CI/CD、业务架构或团队规范。它提供的是 AI 协作和交付闭环协议。真实项目仍应保留自己的 README、测试命令、发布流程和代码规范；CrewUp 会在初始化和运行过程中读取并引用这些信息。

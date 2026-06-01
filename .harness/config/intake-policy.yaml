@@ -3,6 +3,16 @@ intake_policy:
   require_intake_decision_before_run: true
   write_decision_log: true
   decision_log: ".harness/reports/intake-decision.md"
+  activation:
+    default: "inactive_until_explicit"
+    explicit_signals:
+      - "crewup run"
+      - "npm run harness:run"
+      - "使用 CrewUp"
+      - "按 harness 流程"
+      - "继续当前 CrewUp run"
+      - "继续这个 run"
+    rule: "没有显式 CrewUp/harness/run 信号时，不要自动创建 backlog 或 run；普通问答、临时讨论和很小的非正式修补留在 harness 外。"
 
   entries:
     backlog_new:
@@ -64,6 +74,7 @@ intake_policy:
         - "只解释"
 
   main_agent_rule:
+    - "CrewUp 默认不接管所有聊天；只有显式 CrewUp/harness/run 信号才激活。"
     - "正式需求入口必须先做 intake decision，再创建 run。"
     - "没有明确开工信号时，不要直接创建 run。"
     - "直接 run 也必须从 backlog/ready 条目创建，或选择已有 run；不要绕过 backlog 直接写 runs。"
