@@ -205,7 +205,7 @@ Usage:
   crewup install [--force]
   crewup doctor
   crewup inspect --no-ai
-  crewup init --force
+  crewup init [--force] [--agent <name>] [--yes]
   crewup check
   crewup run "implement this now..."
   crewup finish <run-id>
@@ -215,7 +215,7 @@ Common commands:
   install          Copy .harness/ and AGENTS.md into the current project
   doctor           Check environment, capabilities, and preflight conditions
   inspect          Generate project snapshot and adaptation plan
-  init             Generate .harness/project/ adaptation layer
+  init             Generate .harness/project/ adaptation layer; prompts for agent by default
   check            Validate harness config and core scripts
   run              Create or prepare a work run
   agent-plan       Generate a Codex native plan or universal bridge handoff

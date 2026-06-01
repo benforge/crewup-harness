@@ -67,7 +67,7 @@ npx crewup init --agent trae
 npx crewup init --agent manual
 ```
 
-Without `--agent`, CrewUp opens an interactive picker.
+Without `--agent`, CrewUp opens an interactive picker. It supports arrow-key selection when the terminal allows raw mode, and falls back to numbered selection otherwise. In CI or scripts, use `--yes` / `--no-interactive` to default to Codex.
 
 ## Daily Workflow
 

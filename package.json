@@ -1,6 +1,6 @@
 {
   "name": "crewup-harness",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "CrewUp: a reusable AI workflow harness for project-agnostic agent collaboration.",
   "author": "Ben",
   "license": "MIT",
@@ -23,9 +23,9 @@
     "automation"
   ],
   "bin": {
-    "crewup": "./bin/crewup.mjs",
-    "crewup-harness": "./bin/crewup.mjs",
-    "harness": "./bin/crewup.mjs"
+    "crewup": "bin/crewup.mjs",
+    "crewup-harness": "bin/crewup.mjs",
+    "harness": "bin/crewup.mjs"
   },
   "files": [
     "AGENTS.md",

@@ -1,12 +1,13 @@
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { emitKeypressEvents } from "node:readline";
+import { createInterface, emitKeypressEvents } from "node:readline";
 
 const root = process.cwd();
 const args = process.argv.slice(2);
 const force = args.includes("--force");
 const dryRun = args.includes("--dry-run");
+const nonInteractive = args.includes("--yes") || args.includes("-y") || args.includes("--no-interactive");
 const projectNameArg = valueOf("--name=");
 const agentArg = valueOf("--agent=") ?? valueAfter("--agent");
 
@@ -325,8 +326,18 @@ async function resolveAgentSelection() {
     if (selected) return selected;
     throw new Error(`Unknown agent: ${agentArg}. Expected one of: ${candidates.map((item) => item.id).join(", ")}`);
   }
-  if (!process.stdin.isTTY || !process.stdout.isTTY) return candidates[0];
+  if (shouldUseDefaultAgent()) {
+    console.log("No agent selected; using default agent: Codex (codex).");
+    console.log("Use `crewup init --agent <codex|claude|cursor|trae|manual>` to choose explicitly.");
+    return candidates[0];
+  }
   return await promptForAgent(candidates);
+}
+
+function shouldUseDefaultAgent() {
+  if (nonInteractive) return true;
+  if (process.env.CI || process.env.CREWUP_NON_INTERACTIVE === "1") return true;
+  return false;
 }
 
 function getAgentCandidates() {
@@ -410,10 +421,13 @@ function getAgentCandidates() {
 }
 
 async function promptForAgent(candidates) {
+  if (!process.stdin.isTTY || !process.stdout.isTTY || typeof process.stdin.setRawMode !== "function") {
+    return await promptForAgentLine(candidates);
+  }
+
   emitKeypressEvents(process.stdin);
   let selectedIndex = 0;
-  const canRawMode = typeof process.stdin.setRawMode === "function";
-  if (canRawMode) process.stdin.setRawMode(true);
+  process.stdin.setRawMode(true);
   process.stdin.resume();
 
   return await new Promise((resolve) => {
@@ -432,7 +446,7 @@ async function promptForAgent(candidates) {
 
     const cleanup = () => {
       process.stdin.off("keypress", onKeypress);
-      if (canRawMode) process.stdin.setRawMode(false);
+      process.stdin.setRawMode(false);
       process.stdin.pause();
     };
 
@@ -468,6 +482,44 @@ async function promptForAgent(candidates) {
     process.stdin.on("keypress", onKeypress);
     render();
   });
+}
+
+async function promptForAgentLine(candidates) {
+  printAgentChoices(candidates);
+  const input = await readLine("Select agent [1]: ");
+  const value = input.trim().toLowerCase();
+  if (!value) return candidates[0];
+
+  const numeric = Number.parseInt(value, 10);
+  if (Number.isInteger(numeric) && numeric >= 1 && numeric <= candidates.length) return candidates[numeric - 1];
+
+  const selected = candidates.find((item) => item.id === value);
+  if (selected) return selected;
+
+  throw new Error(`Unknown agent selection: ${input}. Expected 1-${candidates.length} or one of: ${candidates.map((item) => item.id).join(", ")}`);
+}
+
+function printAgentChoices(candidates) {
+  console.log("Select the agent environment to generate for:");
+  console.log("");
+  candidates.forEach((item, index) => {
+    console.log(`${index + 1}. ${item.label} (${item.id}, ${item.support_level})`);
+    console.log(`   ${item.description}`);
+  });
+  console.log("");
+}
+
+async function readLine(question) {
+  const rl = createInterface({
+    input: process.stdin,
+    output: process.stdout,
+    terminal: Boolean(process.stdout.isTTY)
+  });
+  try {
+    return await new Promise((resolve) => rl.question(question, resolve));
+  } finally {
+    rl.close();
+  }
 }
 
 function renderProfile(profile) {

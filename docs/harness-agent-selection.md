@@ -27,6 +27,8 @@ Codex 仍然是稳定主路径。Claude、Cursor、Trae 和人工流程通过 br
 
 `crewup init --agent <name>` 会跳过交互选择，直接使用指定 agent。
 
+CI 或脚本中可以使用 `crewup init --yes` 或 `crewup init --no-interactive`，此时默认选择 `codex` 并打印明确提示。
+
 ## 推荐 agent 名称
 
 | 名称 | 含义 |

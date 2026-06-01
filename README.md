@@ -67,7 +67,7 @@ npx crewup init --agent trae
 npx crewup init --agent manual
 ```
 
-不传 `--agent` 时会进入交互式选择。
+不传 `--agent` 时会进入交互式选择。支持上下键回车选择；如果当前终端不支持 raw mode，会自动退到编号选择。CI 或脚本中可以使用 `--yes` / `--no-interactive` 默认选择 Codex。
 
 ## 日常工作流
 

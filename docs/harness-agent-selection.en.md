@@ -27,6 +27,8 @@ Let users choose the execution environment during `crewup init`, then generate o
 
 `crewup init --agent <name>` bypasses the prompt and uses the selected agent directly.
 
+In CI or scripts, use `crewup init --yes` or `crewup init --no-interactive`; CrewUp defaults to `codex` and prints an explicit notice.
+
 ## Recommended Agent Names
 
 | Name | Meaning |
