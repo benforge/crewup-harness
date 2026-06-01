@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.0-beta.2
+
+- Updated the README hero artwork with a more minimal blue, white, and black developer-tool style.
+
 ## 0.3.0-beta.1
 
 - Added explicit CrewUp activation policy so normal chat does not automatically enter the harness.
