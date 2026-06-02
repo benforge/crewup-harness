@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 0.3.1
+
+- Changed `crewup install --force` into a safe upgrade path that preserves existing `.harness` runtime state, knowledge, backlog items, reports, dashboard output, and project adaptation.
+- Added `crewup install --reset` for explicit destructive reinstall.
+
 ## 0.3.0
 
 - Added feedback routing policy so tester/reviewer findings must be delegated back to implementation/docs agents instead of being fixed by the main agent.

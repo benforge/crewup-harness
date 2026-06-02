@@ -1,4 +1,4 @@
-import { mkdir, readFile, readdir, rm, mkdtemp } from "node:fs/promises";
+import { mkdir, readFile, readdir, rm, mkdtemp, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import os from "node:os";
@@ -18,6 +18,10 @@ try {
   runNpm(["install", tarball], appDir);
 
   runCli(appDir, ["install"]);
+  await seedExistingHarnessState(appDir);
+  runCli(appDir, ["install", "--force"]);
+  assertExistingHarnessStatePreserved(appDir);
+
   runCli(appDir, ["inspect", "--no-ai"]);
   runCli(appDir, ["init", "--yes", "--agent", "codex"]);
   runCli(appDir, ["check"]);
@@ -164,6 +168,35 @@ function assertExists(target, label) {
 
 function assertNotExists(target, label) {
   if (existsSync(target)) throw new Error(`Unexpected ${label}: ${target}`);
+}
+
+async function seedExistingHarnessState(appDir) {
+  const files = [
+    [".harness/runs/keep-run/state.json", "{}\n"],
+    [".harness/knowledge/custom-note.md", "keep knowledge\n"],
+    [".harness/project/custom-state.md", "keep project state\n"],
+    [".harness/reports/custom-report.md", "keep report\n"],
+    [".harness/dashboard/index.html", "<html>keep dashboard</html>\n"],
+    [".harness/backlog/ready/001-custom-item.md", "keep backlog\n"]
+  ];
+  for (const [relPath, content] of files) {
+    const target = path.join(appDir, relPath);
+    await mkdir(path.dirname(target), { recursive: true });
+    await writeFile(target, content, "utf8");
+  }
+}
+
+function assertExistingHarnessStatePreserved(appDir) {
+  for (const relPath of [
+    ".harness/runs/keep-run/state.json",
+    ".harness/knowledge/custom-note.md",
+    ".harness/project/custom-state.md",
+    ".harness/reports/custom-report.md",
+    ".harness/dashboard/index.html",
+    ".harness/backlog/ready/001-custom-item.md"
+  ]) {
+    assertExists(path.join(appDir, relPath), `preserved ${relPath}`);
+  }
 }
 
 function assertIncludes(output, expected, label) {

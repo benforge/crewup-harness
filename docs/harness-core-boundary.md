@@ -47,4 +47,7 @@ CrewUp 把可复用工作流核心和项目专属适配层分开。
 
 ## 重置规则
 
-`runs/`、`reports/`、`dashboard/` 以及大部分 `knowledge/` 都应视为可重新生成的运行态状态。
+`runs/`、`reports/`、`dashboard/`、`backlog/`、`project/` 以及 `knowledge/` 都不应在普通升级时被删除。
+
+- `crewup install --force` 是安全升级：更新可复用核心，但保留已有运行态、知识、backlog 和项目适配层。
+- `crewup install --reset` 是清空重装：会删除旧 `.harness/`，只应在用户明确要重置时使用。

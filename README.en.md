@@ -41,6 +41,14 @@ npx crewup init --agent codex --yes
 npx crewup check
 ```
 
+To upgrade a project that already has CrewUp installed, use the safe upgrade path:
+
+```bash
+npx crewup install --force
+```
+
+`--force` updates the reusable harness core while preserving `.harness/runs/`, `.harness/knowledge/`, `.harness/project/`, `.harness/reports/`, `.harness/dashboard/`, and backlog runtime state. Use `npx crewup install --reset` only when you explicitly want to remove the old harness state and reinstall from scratch.
+
 If you have a model runtime configured and want AI-assisted project evidence refinement:
 
 ```bash
@@ -84,6 +92,8 @@ Common commands:
 | --- | --- |
 | `npx crewup doctor` | Check runtime environment and prerequisites |
 | `npx crewup install` | Install the CrewUp template into a target project |
+| `npx crewup install --force` | Safely upgrade the harness core while preserving existing runs, knowledge, project adaptation, and runtime state |
+| `npx crewup install --reset` | Clear and reinstall `.harness/`; deletes old runtime state and should be used only for explicit resets |
 | `npx crewup inspect --no-ai` | Inspect project structure from the filesystem |
 | `npx crewup init --agent codex --yes` | Generate project adapter and execution environment config |
 | `npx crewup check` | Validate core config, scripts, and templates |

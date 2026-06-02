@@ -64,7 +64,7 @@ if (!command || ["help", "--help", "-h"].includes(command)) {
 }
 
 if (command === "install") {
-  await installHarness({ force: args.includes("--force") });
+  await installHarness({ force: args.includes("--force"), reset: args.includes("--reset") });
   process.exit(0);
 }
 
@@ -87,28 +87,29 @@ if (command !== "doctor" && !existsSync(path.join(cwd, ".harness"))) {
 
 runScript(script, command === "skills:install-exact" ? ["--exact", ...args] : args);
 
-async function installHarness({ force }) {
+async function installHarness({ force, reset }) {
   const sourceHarness = path.join(packageRoot, ".harness");
   const targetHarness = path.join(cwd, ".harness");
   const sourceAgents = path.join(packageRoot, "AGENTS.md");
   const targetAgents = path.join(cwd, "AGENTS.md");
   const hadAgents = existsSync(targetAgents);
+  const hadHarness = existsSync(targetHarness);
 
-  if (existsSync(targetHarness) && !force) {
+  if (hadHarness && !force && !reset) {
     console.error("A .harness/ directory already exists. Use: crewup install --force");
     process.exit(1);
   }
 
-  if (force && existsSync(targetHarness)) {
+  if (reset && hadHarness) {
     await assertInsideCwd(targetHarness);
     await rm(targetHarness, { recursive: true, force: true });
   }
 
   await mkdir(targetHarness, { recursive: true });
-  await copyHarness(sourceHarness, targetHarness);
+  await copyHarness(sourceHarness, targetHarness, { preserveExistingState: force && hadHarness && !reset });
 
-  if (!hadAgents || force) {
-    if (force && hadAgents) await assertInsideCwd(targetAgents);
+  if (!hadAgents || force || reset) {
+    if ((force || reset) && hadAgents) await assertInsideCwd(targetAgents);
     await cp(sourceAgents, targetAgents, { force: true });
   }
 
@@ -116,7 +117,9 @@ async function installHarness({ force }) {
 
   console.log("CrewUp installed into the current project.");
   console.log("- .harness/");
-  console.log(!hadAgents || force ? "- AGENTS.md" : "- AGENTS.md (already existed, not overwritten)");
+  if (force && hadHarness && !reset) console.log("- preserved .harness runtime/project state");
+  if (reset) console.log("- reset existing .harness/ before install");
+  console.log(!hadAgents || force || reset ? "- AGENTS.md" : "- AGENTS.md (already existed, not overwritten)");
   console.log(gitignoreUpdated ? "- .gitignore (added CrewUp runtime ignores)" : "- .gitignore (CrewUp ignores already present)");
   console.log("");
   console.log("Next:");
@@ -126,7 +129,7 @@ async function installHarness({ force }) {
   console.log("  crewup check");
 }
 
-async function copyHarness(source, target) {
+async function copyHarness(source, target, options = {}) {
   const entries = await readdir(source, { withFileTypes: true });
   for (const entry of entries) {
     const sourcePath = path.join(source, entry.name);
@@ -134,10 +137,11 @@ async function copyHarness(source, target) {
     const rel = path.relative(path.join(packageRoot, ".harness"), sourcePath).replaceAll("\\", "/");
 
     if (shouldSkipInstallPath(rel)) continue;
+    if (options.preserveExistingState && shouldPreserveExistingStatePath(rel) && existsSync(targetPath)) continue;
 
     if (entry.isDirectory()) {
       await mkdir(targetPath, { recursive: true });
-      await copyHarness(sourcePath, targetPath);
+      await copyHarness(sourcePath, targetPath, options);
       await ensureGitkeepForRuntimeDir(rel, targetPath);
       continue;
     }
@@ -162,6 +166,19 @@ function shouldSkipInstallPath(rel) {
   if (normalized.startsWith("dashboard/") && normalized !== "dashboard/.gitkeep") return true;
   if (normalized.startsWith("knowledge/") && !["knowledge/.gitkeep", "knowledge/README.md", "knowledge/lessons-learned.md"].includes(normalized)) return true;
   return false;
+}
+
+function shouldPreserveExistingStatePath(rel) {
+  const normalized = rel.replaceAll("\\", "/");
+  if (!normalized) return false;
+  return [
+    "runs/",
+    "reports/",
+    "dashboard/",
+    "knowledge/",
+    "backlog/",
+    "project/"
+  ].some((prefix) => normalized === prefix.slice(0, -1) || normalized.startsWith(prefix));
 }
 
 async function ensureGitignore() {
@@ -229,7 +246,7 @@ function printHelp() {
   console.log(`CrewUp CLI
 
 Usage:
-  crewup install [--force]
+  crewup install [--force] [--reset]
   crewup doctor
   crewup inspect --no-ai
   crewup init [--force] [--agent <name>] [--yes]
@@ -239,7 +256,7 @@ Usage:
   crewup finalize <run-id>
 
 Common commands:
-  install          Copy .harness/ and AGENTS.md into the current project
+  install          Copy or update .harness/ and AGENTS.md; --force preserves runtime state, --reset clears .harness first
   doctor           Check environment, capabilities, and preflight conditions
   inspect          Generate project snapshot and adaptation plan
   init             Generate .harness/project/ adaptation layer; prompts for agent by default

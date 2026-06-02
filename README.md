@@ -41,6 +41,14 @@ npx crewup init --agent codex --yes
 npx crewup check
 ```
 
+升级已安装过 CrewUp 的项目时，使用安全升级：
+
+```bash
+npx crewup install --force
+```
+
+`--force` 会更新可复用 harness 核心，但保留 `.harness/runs/`、`.harness/knowledge/`、`.harness/project/`、`.harness/reports/`、`.harness/dashboard/` 和 backlog 运行态数据。只有确实要清空旧 harness 时才使用 `npx crewup install --reset`。
+
 如果已经配置模型环境，并希望基于真实项目证据进一步修正适配层，可以运行：
 
 ```bash
@@ -84,6 +92,8 @@ doctor -> install -> inspect -> init -> check -> run -> spec-freeze
 | --- | --- |
 | `npx crewup doctor` | 检查运行环境和前置条件 |
 | `npx crewup install` | 把 CrewUp 模板安装到目标项目 |
+| `npx crewup install --force` | 安全升级 harness 核心，保留已有 run、knowledge、project 适配层和运行态数据 |
+| `npx crewup install --reset` | 清空并重装 `.harness/`，会删除旧运行态数据，仅在明确需要重置时使用 |
 | `npx crewup inspect --no-ai` | 基于文件系统识别项目结构 |
 | `npx crewup init --agent codex --yes` | 生成项目适配层和执行环境配置 |
 | `npx crewup check` | 校验核心配置、脚本和模板 |
