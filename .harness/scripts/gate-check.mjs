@@ -394,10 +394,6 @@ function hasPlaceholder(content) {
   return hasTemplatePlaceholder(content);
 }
 
-function hasTemplatePlaceholder(content) {
-  return hasPlaceholder(content);
-}
-
 function isDocsOnlyRun() {
   const taskAgents = availableTaskAgentsSync();
   if (!taskAgents.has("docs")) return false;

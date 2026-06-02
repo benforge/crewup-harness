@@ -28,6 +28,9 @@ try {
   runCli(appDir, ["inspect", "--no-ai"]);
   runCli(appDir, ["init", "--yes", "--agent", "codex"]);
   runCli(appDir, ["check"]);
+  const missingGate = runInstalledScript(appDir, ".harness/scripts/gate-check.mjs", ["missing-run"], { expectedStatus: 1 });
+  assertNotIncludes(missingGate, "SyntaxError", "gate-check syntax error");
+  assertNotIncludes(missingGate, "hasTemplatePlaceholder", "gate-check duplicate placeholder declaration");
 
   const planOnlyOutput = runCli(appDir, [
     "run",
@@ -123,6 +126,14 @@ try {
     modelHint: "gpt-5.5",
     reasoningEffort: "medium"
   });
+  const planOnlyStatePath = path.join(planOnlyRunDir, "state.json");
+  const planOnlyState = JSON.parse(await readFile(planOnlyStatePath, "utf8"));
+  planOnlyState.stage = "plan";
+  planOnlyState.status = "in-progress";
+  await writeFile(planOnlyStatePath, `${JSON.stringify(planOnlyState, null, 2)}\n`, "utf8");
+  const planOnlyNext = runCli(appDir, ["next", planOnlyRunId]);
+  assertIncludes(planOnlyNext, "planning-only run", "plan-only next stop note");
+  assertNotIncludes(planOnlyNext, "--to=implement", "plan-only next implementation transition");
 
   const complexOutput = runCli(appDir, [
     "run",
@@ -256,6 +267,15 @@ function runCli(cwd, args) {
   return `${result.stdout ?? ""}${result.stderr ?? ""}`;
 }
 
+function runInstalledScript(cwd, scriptRelPath, args, { expectedStatus = 0 } = {}) {
+  const script = path.join(cwd, "node_modules", "crewup-harness", scriptRelPath);
+  const result = spawnSync(process.execPath, [script, ...args], { cwd, encoding: "utf8" });
+  if (result.status !== expectedStatus) {
+    throw new Error(`Expected ${scriptRelPath} status ${expectedStatus}, got ${result.status}\n${result.stdout || ""}${result.stderr || ""}`);
+  }
+  return `${result.stdout ?? ""}${result.stderr ?? ""}`;
+}
+
 function assertPlaceholderDetector() {
   const legitimatePlanningText = [
     "## 待确认问题\n- 评论是否需要审核流由后续产品确认。",
@@ -323,6 +343,12 @@ function assertExistingHarnessStatePreserved(appDir) {
 function assertIncludes(output, expected, label) {
   if (!output.includes(expected)) {
     throw new Error(`Missing ${label}: expected "${expected}" in output:\n${output}`);
+  }
+}
+
+function assertNotIncludes(output, unexpected, label) {
+  if (output.includes(unexpected)) {
+    throw new Error(`Unexpected ${label}: found "${unexpected}" in output:\n${output}`);
   }
 }
 

@@ -276,6 +276,7 @@ function suggestTransition(stage, artifactHealth, nativeHealth, agentHealth) {
   if (!next) return null;
   if (artifactHealth.total > 0 && artifactHealth.ready < artifactHealth.total) return null;
   if (stage === "plan" && next === "implement") {
+    if (isNoCodeWorkflow()) return null;
     return ["npm", ["run", "harness:transition", "--", runId, "--to=implement", "--approve-implementation"], "planning artifacts look ready; implementation still requires user approval"];
   }
   return ["npm", ["run", "harness:transition", "--", runId, `--to=${next}`], `try transition to ${next}`];
@@ -290,6 +291,10 @@ function isLiteImplementationOnlyRun() {
     && !agents.has("requirements")
     && !agents.has("architect")
     && !agents.has("pm");
+}
+
+function isNoCodeWorkflow() {
+  return ["discovery", "plan_only"].includes(state.workflowProfile) || ["discovery", "plan_only"].includes(state.runType);
 }
 
 function requiredArtifactsForStage(stage) {
@@ -317,6 +322,9 @@ function stageNotes(stage, agents) {
   if (stage === "done") {
     result.push("Run is done; recheck gates, inspect token ledger, or preview archive commit.");
     return result;
+  }
+  if (isNoCodeWorkflow()) {
+    result.push("This is a planning-only run; stop after requirements, architecture, and review artifacts. Create a separate implementation run for code changes.");
   }
   if (agents.length > 0) {
     result.push(`Current task agents: ${agents.join(", ")}`);

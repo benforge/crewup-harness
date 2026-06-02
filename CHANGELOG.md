@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.3.5
+
+- Fixed a `gate-check` syntax failure caused by a duplicate `hasTemplatePlaceholder` declaration.
+- Stopped `harness:next` from suggesting `plan -> implement` for `plan_only` / `discovery` runs; planning-only runs now explicitly tell the user to create a separate implementation run for code changes.
+- Added flow coverage for `gate-check` syntax safety and plan-only `next` guidance.
+
 ## 0.3.4
 
 - Added native result files to each subagent's allowed write scope so subagents can write their own `<agent>.result.md` and `<agent>.result.json` outputs without the main agent creating them.
