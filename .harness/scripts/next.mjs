@@ -7,6 +7,7 @@ import {
   nativeExecutionProblems,
   requiredNativeAgentsForStageCompletion
 } from "./lib/delegation-guard.mjs";
+import { hasTemplatePlaceholder } from "./lib/placeholder-detector.mjs";
 
 const root = process.cwd();
 const args = process.argv.slice(2);
@@ -307,8 +308,7 @@ function requiredArtifactsForStage(stage) {
 }
 
 function hasPlaceholder(content) {
-  return /template|placeholder|TBD|待补充|待确认/i.test(content)
-    || /^\s*-\s*$/m.test(content);
+  return hasTemplatePlaceholder(content);
 }
 
 function stageNotes(stage, agents) {

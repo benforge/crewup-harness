@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 0.3.3
+
+- Narrowed placeholder detection in `next`, `gate-check`, and `transition` so normal planning terms such as `待确认问题`, `占位首页`, and `环境变量模板` no longer trigger unnecessary owner-agent repair loops.
+- Added regression coverage for placeholder detection to prevent repeated subagent rework caused by gate false positives.
+
 ## 0.3.2
 
 - Tightened planning-run orchestration so `requirements-plan`, `requirements`, and `architect` run sequentially with explicit prerequisites instead of being spawned together.

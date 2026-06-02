@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { spawnSync } from "node:child_process";
+import { hasTemplatePlaceholder } from "./lib/placeholder-detector.mjs";
 
 const root = process.cwd();
 const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "crewup-flow-"));
@@ -13,6 +14,8 @@ await mkdir(appDir, { recursive: true });
 await mkdir(packDir, { recursive: true });
 
 try {
+  assertPlaceholderDetector();
+
   runNpm(["init", "-y"], appDir);
   const tarball = packPackage(packDir);
   runNpm(["install", tarball], appDir);
@@ -219,6 +222,28 @@ function runCli(cwd, args) {
     throw new Error((result.stdout || "") + (result.stderr || ""));
   }
   return `${result.stdout ?? ""}${result.stderr ?? ""}`;
+}
+
+function assertPlaceholderDetector() {
+  const legitimatePlanningText = [
+    "## 待确认问题\n- 评论是否需要审核流由后续产品确认。",
+    "## 实施阶段\n- 首页可显示占位首页，用于规划首屏模块边界。",
+    "## 配置\n- 提供环境变量模板，说明 DATABASE_URL 与 AUTH_SECRET。"
+  ].join("\n\n");
+  if (hasTemplatePlaceholder(legitimatePlanningText)) {
+    throw new Error("placeholder detector flagged legitimate planning language");
+  }
+
+  for (const placeholder of [
+    "TBD",
+    "待 Architect Agent 补充",
+    "这里填写验收标准",
+    "- "
+  ]) {
+    if (!hasTemplatePlaceholder(placeholder)) {
+      throw new Error(`placeholder detector missed template placeholder: ${placeholder}`);
+    }
+  }
 }
 
 function extractRunId(output) {

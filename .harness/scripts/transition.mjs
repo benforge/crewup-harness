@@ -20,6 +20,7 @@ import {
   readChangedFilesManifest,
   readNativeState
 } from "./lib/delegation-guard.mjs";
+import { hasTemplatePlaceholder } from "./lib/placeholder-detector.mjs";
 
 const root = process.cwd();
 const args = process.argv.slice(2);
@@ -320,24 +321,7 @@ function listTaskFiles(tasksDir) {
 }
 
 function hasPlaceholder(content) {
-  if (/(模板|占位|placeholder|TBD|待补充|待完善|待\s+\S+\s+Agent\s+补充)/i.test(content)) return true;
-  if (/^\s*-\s*$/m.test(content)) return true;
-  return [
-    "说明为什么要做这个需求",
-    "一句话说明本次 run 要交付什么",
-    "待 Architect Agent 补充",
-    "待 Tester Agent 补充",
-    "待 Release Agent 补充",
-    "作为「」，我希望",
-    "请先阅读 `logs/context/related-runs.md`",
-    "复用的历史背景：",
-    "冲突或变化：",
-    "需要延续的约束：",
-    "需要避开的旧问题：",
-    "- 延续：",
-    "- 推翻：",
-    "- 新增："
-  ].some((snippet) => content.includes(snippet));
+  return hasTemplatePlaceholder(content);
 }
 
 function hasMarkedImpactScope(content) {

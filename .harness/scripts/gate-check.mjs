@@ -18,6 +18,7 @@ import {
   nativeExecutionProblems,
   requiredNativeAgentsForStageCompletion
 } from "./lib/delegation-guard.mjs";
+import { hasTemplatePlaceholder } from "./lib/placeholder-detector.mjs";
 
 const root = process.cwd();
 const runId = process.argv[2];
@@ -390,8 +391,7 @@ async function checkDelegationGuard(currentState) {
 }
 
 function hasPlaceholder(content) {
-  return /模板|占位|placeholder|TBD|待补充|待完善|待\s+\S+\s+Agent\s+补充|请先阅读 `logs\/context\/related-runs\.md`|复用的历史背景：|冲突或变化：|需要延续的约束：|需要避开的旧问题：|- 延续：|- 推翻：|- 新增：/i.test(content)
-    || /^\s*-\s*$/m.test(content);
+  return hasTemplatePlaceholder(content);
 }
 
 function hasTemplatePlaceholder(content) {
