@@ -129,7 +129,7 @@ function needsReleaseAgent(inputText) {
 }
 
 function needsDocsAgent(inputText) {
-  return /(文档|说明|README|readme|docs?|markdown|\.md|使用说明|接入说明|健康检查说明|开发指南|安装说明|配置说明|教程|手册|指南)/i.test(inputText);
+  return /(文档|说明|README|readme|docs?|markdown|\.md|使用说明|接入说明|健康检查说明|开发指南|安装说明|配置说明|教程|手册|指南|公开\s*API|public\s*api|配置方式|启动命令|部署步骤|迁移说明|用户可见)/i.test(inputText);
 }
 
 function isDocsOnlyRequest(inputText) {
@@ -231,6 +231,7 @@ ${allowed.length ? allowed.map((item) => `- ${item}`).join("\n") : "- 无"}
 - 其他活跃 agent 负责的文件
 - 未经 release 确认前的产品长期文档目录
 - 密钥、token、生产环境文件
+- tester/reviewer 发现问题时，不要让主 agent 修改业务代码；必须把 requiredFixes 回派给对应实现 agent。
 
 ## 必须产出
 
@@ -333,6 +334,8 @@ ${selectedAgents.map((agent) => `- tasks/${agent}.task.md`).join("\n")}
 - 用户确认前，规划产物必须保留在 run artifacts 内。
 - 产品文档同步只能在 release 后，并且获得明确确认后执行。
 - discovery/plan_only run 只允许规划和评审，不允许业务代码变更。
+- tester/reviewer 反馈需要代码修复时，主 agent 只负责转派给 frontend/backend/database/devops/docs 等 owner agent，不直接编辑业务文件。
+- 主窗口只保留子 agent 结果摘要、阻塞和下一步，不粘贴长日志或完整上下文包。
 `;
 }
 

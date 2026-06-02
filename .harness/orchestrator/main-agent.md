@@ -80,6 +80,14 @@ npm run harness:native-plan -- <run-id> --agents=<agents>
 - 代码和风险评审交给 `reviewer`。
 - 发布摘要交给 `release`。
 
+Tester 或 reviewer 返回失败、阻塞、建议修复时，主 agent 只能做三件事：
+
+1. 识别应修复的 owner agent，例如 `frontend`、`backend`、`database`、`devops` 或 `docs`。
+2. 使用现有子 agent handle 发送反馈，或重新生成/启动同角色修复 agent。
+3. 收集修复结果后重新进入 verify/review。
+
+主 agent 不得因为 tester 反馈而直接修改业务文件。可以直接更新的只包括 run 状态、任务、handoff、报告和归档记录。
+
 如果原生子 agent 工具可用，创建 native plan，并只启动当前阶段必要的 agent。实现类角色使用 `worker`，规划/评审/发布类角色按 `.harness/config/native-subagents.yaml` 使用 `explorer` 或 `default`。
 
 如果原生子 agent 工具不可用，运行 `native-plan`，用 `harness:native-state mark-fallback` 记录 fallback，并在正式工作中停在协调/报告层。
@@ -141,6 +149,13 @@ npm run harness:report -- <run-id>
 
 如果 native state 标记了结果存在，但结果文件缺失，应把它报告为流程缺口。
 
+## 主窗口上下文控制
+
+- 不把完整 context pack、完整测试日志、完整子 agent 对话粘贴回主窗口。
+- 子 agent 结果只保留：状态、关键文件、测试命令/结果、阻塞、目标修复 agent、下一步。
+- 需要深入细节时，让对应子 agent 继续处理，或引用 `.harness/runs/<run-id>/logs/**` 文件路径。
+- 主 agent 的职责是维护状态和决策，不复写子 agent 的长分析。
+
 ## 归档提交
 
 当 run 到达 `done`，检查归档状态：
@@ -150,3 +165,17 @@ npm run harness:report -- <run-id>
 - 如果被阻塞或失败，说明自动 git 提交没有闭环，并给出修复命令或阻塞原因。
 
 必需门禁或归档策略未解决时，不要把正式 run 描述成已经闭环。
+
+归档默认是自动策略：`finish <run-id>` 会推进 done 门禁，确认 product-sync 策略，并在 `.harness/config/archive-policy.yaml` 允许时执行自动 git archive commit。若用户希望人工控制，可先运行：
+
+```bash
+npm run harness:archive-status -- <run-id>
+npm run harness:finish -- <run-id>
+```
+
+如果 run 启动过预览或 dev 服务，必须先停止：
+
+```bash
+npm run harness:dev-service -- <run-id> status
+npm run harness:dev-service -- <run-id> stop
+```

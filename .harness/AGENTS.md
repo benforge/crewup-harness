@@ -34,6 +34,7 @@ intake -> requirements_plan -> requirements_confirm -> plan -> implement -> veri
 - 主 agent 负责协调工作、创建或选择 run、准备任务、启动子 agent、收集结果、运行门禁并汇总。
 - 开发类工作交给实现角色：`frontend`、`backend`、`database`、`devops`，必要时包括 `tester`。
 - 规划和质量角色通常不直接写业务代码：`pm`、`requirements`、`architect`、`reviewer`、`release`。
+- `tester` / `reviewer` 反馈需要修改业务文件时，主 agent 必须把修复转派给对应实现类 agent，不得在主窗口直接修改业务代码。
 - 如果原生子 agent 工具不可用，需要在 run 中记录 fallback，并停在协调/报告层。fallback 不授权主 agent 悄悄完成正式实现工作。
 
 ## 项目适配层
@@ -92,3 +93,5 @@ npm run harness:gate-check -- <run-id>
 ```
 
 启用归档提交时，最终汇总必须说明提交是已创建、已跳过、被阻塞还是失败。
+
+如果 run 启动过开发/预览服务，完成前必须运行 `npm run harness:dev-service -- <run-id> stop` 或确认服务未运行；`done` 门禁会阻止仍在运行的服务进入归档。

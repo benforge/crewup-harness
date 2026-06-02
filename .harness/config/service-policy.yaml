@@ -1,0 +1,28 @@
+service_policy:
+  purpose: "Define how a run starts preview/dev services for user verification and how those services are closed."
+
+  default_mode: "manual_command_with_audit"
+  start_after:
+    - "implementation agents completed"
+    - "tester recorded at least one verification path that benefits from a running service"
+
+  command_resolution:
+    order:
+      - "project_profile.commands.dev"
+      - "project_profile.commands.preview"
+      - "project_profile.commands.start"
+    fallback: "blocked_needs_manual_command"
+
+  lifecycle:
+    start_command: "npx crewup dev-service <run-id> start"
+    status_command: "npx crewup dev-service <run-id> status"
+    stop_command: "npx crewup dev-service <run-id> stop"
+    audit_file: ".harness/runs/<run>/logs/dev-service.json"
+    log_file: ".harness/runs/<run>/logs/dev-service.log"
+
+  rules:
+    - "The main agent may start and stop services, but must not leave a service running at done/archive."
+    - "Before final summary, report service URL or port when known."
+    - "Before finish/done, stop the service or explain why no service was started."
+    - "If no dev/preview/start command is detected, ask the user for the command or record a blocker."
+

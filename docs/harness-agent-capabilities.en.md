@@ -6,6 +6,16 @@ CrewUp supports a stable workflow core and a pluggable agent adapter layer.
 
 An adapter is not considered native until it can launch work, collect results, and write back state in a repeatable way.
 
+## Product Role Boundary
+
+CrewUp is not designed to let one main agent do everything. It keeps the main agent in an orchestration role:
+
+- Main agent: creates runs, selects profiles, assigns tasks, controls context, checks gates, and summarizes state.
+- Role agents: produce their owned formal artifacts or execute domain implementation, verification, review, and documentation work.
+- Adapters: decide whether those roles run through Codex native subagents, Claude/Cursor/Trae bridge, or a manual runner.
+
+Regardless of adapter, results must be written back into run state and result files before `gate-check` can treat them as trusted evidence.
+
 ## Capability Matrix
 
 | Agent | Support Level | Mode | Native Subagents | Parallel Subagents | Result Writeback | Notes |

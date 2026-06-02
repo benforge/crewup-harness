@@ -4,6 +4,16 @@
 
 CrewUp is explicit opt-in by default. Without a clear CrewUp/harness/run signal, the chat remains normal assistant work. Once CrewUp is active, the strict loop applies and the main agent only orchestrates, delegates, checks gates, and summarizes.
 
+## Product Model
+
+CrewUp splits AI engineering work into run state, role-owned artifacts, and gates:
+
+- Run state: every formal request gets a `.harness/runs/<run-id>/` workspace with input, state, tasks, context packs, subagent results, and reports.
+- Role artifacts: requirements, architect, builder, tester, reviewer, docs, and release each own their delivery artifacts; the main agent routes and validates them.
+- Gates: before moving forward, CrewUp checks stage gates, artifact provenance, repair feedback, no-code profiles, service shutdown, and archive readiness.
+
+That makes CrewUp an AI delivery harness for large projects, not a shortcut command that silently writes code.
+
 ## Main Flow
 
 ```text
@@ -48,7 +58,9 @@ npx crewup run --dry-run "Use CrewUp to plan module boundaries and technical dir
 
 | Subagent | Typical trigger | Artifact ownership |
 | --- | --- | --- |
-| `requirements` | Incomplete scope, unclear requirements, acceptance criteria needed | requirement / requirement-plan |
+| `pm` | High-risk, cross-team, or product-tradeoff-heavy full runs | Requirement background, priority, product constraints |
+| `requirements-plan` | Large, ambiguous, or multi-stage requests that need expansion first | requirement-plan |
+| `requirements` | Incomplete scope, unclear requirements, acceptance criteria needed | requirement |
 | `architect` | System design, cross-module changes, technical direction, migration plan | architecture / implementation-plan |
 | `backend`, `frontend`, `database`, `devops` | Domain implementation or configuration changes | Domain execution result and handoff |
 | `tester` | Test strategy, missing tests, verification evidence | test-report |

@@ -6,6 +6,16 @@ CrewUp 由稳定的工作流核心和可插拔的 agent 适配层组成。
 
 只有当某个适配器可以稳定地启动任务、收集结果并写回状态时，才应该被称为 native 支持。
 
+## 产品角色边界
+
+CrewUp 的核心不是“让一个主 agent 做完所有事”，而是把主 agent 固定在调度角色：
+
+- 主 agent：创建 run、选择 profile、分配任务、控制上下文、检查 gate、汇总状态。
+- 角色 agent：生成自己负责的正式产物，或者执行对应领域的实现、验证、审查和文档更新。
+- 适配器：决定这些角色是由 Codex native 子 agent、Claude/Cursor/Trae bridge，还是 manual runner 执行。
+
+无论使用哪种适配器，结果都必须回写到 run 状态和结果文件中，才能被 gate-check 视为可信证据。
+
 ## 能力矩阵
 
 | Agent | 支持等级 | 模式 | 原生子 agent | 并行子 agent | 结果写回 | 说明 |

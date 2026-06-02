@@ -53,6 +53,8 @@ await checkNativeState();
 await checkVerifyReport();
 await checkReviewReport();
 await checkReleaseSummary();
+await checkFeedbackLoop();
+await checkDevServiceLifecycle();
 await checkAgentLogs();
 await checkNoCodeProfile();
 await checkStageGate(state);
@@ -269,6 +271,52 @@ async function checkReleaseSummary() {
   const content = await readFile(target, "utf8");
   if (state.stage === "done" && hasPlaceholder(content)) {
     problems.push("release-summary.md still contains placeholders before done.");
+  }
+}
+
+async function checkFeedbackLoop() {
+  if (!["review", "release", "done"].includes(state.stage)) return;
+  for (const agent of ["tester", "reviewer"]) {
+    const payload = await readAgentResultJson(agent);
+    if (!payload) continue;
+    if (payload.fixRequired === true || (payload.requiredFixes ?? []).length > 0 || (payload.blockingIssues ?? []).length > 0) {
+      const targets = (payload.targetAgents ?? []).join(", ") || "(missing targetAgents)";
+      problems.push(`${agent} feedback requires delegated repair before continuing. targetAgents: ${targets}`);
+    }
+  }
+}
+
+async function checkDevServiceLifecycle() {
+  if (state.stage !== "done") return;
+  const target = path.join(logsDir, "dev-service.json");
+  if (!existsSync(target)) return;
+  const service = JSON.parse(await readFile(target, "utf8"));
+  if (service.status !== "running" || !service.pid) return;
+  if (isPidRunning(service.pid)) {
+    problems.push(`Dev service is still running at done/archive: pid ${service.pid}. Run npm run harness:dev-service -- ${runId} stop`);
+  }
+}
+
+async function readAgentResultJson(agent) {
+  const nativePath = path.join(logsDir, "native-subagents", `${agent}.result.json`);
+  const bridgePath = path.join(logsDir, "agent-bridge", `${agent}.result.json`);
+  for (const target of [nativePath, bridgePath]) {
+    if (!existsSync(target)) continue;
+    try {
+      return JSON.parse(await readFile(target, "utf8"));
+    } catch {
+      warnings.push(`Invalid JSON result for ${agent}: ${path.relative(root, target)}`);
+    }
+  }
+  return null;
+}
+
+function isPidRunning(pid) {
+  try {
+    process.kill(Number(pid), 0);
+    return true;
+  } catch {
+    return false;
   }
 }
 

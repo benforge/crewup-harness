@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+## 0.3.0
+
+- Added feedback routing policy so tester/reviewer findings must be delegated back to implementation/docs agents instead of being fixed by the main agent.
+- Added run-scoped dev service lifecycle commands and done/archive gates for leftover preview services.
+- Clarified docs agent activation timing and main-window context budget rules.
+- Updated the README hero artwork with a minimal white and blue product illustration.
+- Expanded bilingual README and workflow docs around the CrewUp product model, role boundaries, feedback repair, preview services, and dashboard/docs timing.
+
 ## 0.3.0-beta.2
 
 - Updated the README hero artwork with a more minimal blue, white, and black developer-tool style.

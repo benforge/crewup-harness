@@ -135,6 +135,8 @@ async function enforceGate(targetStage, currentState) {
     await requireArtifactContent("review-report.md", { noPlaceholders: true, reviewPassed: true, requireOwner: true });
     await requireArtifactContent("release-summary.md", { noPlaceholders: true, requireOwner: true });
     requireNoOpenNativeAgents();
+    await requireNoRunningDevService();
+    await refreshDashboard();
   }
 }
 
@@ -174,8 +176,8 @@ async function requireArtifactContent(name, options = {}) {
     if (!content.includes(`## ${heading}`)) fail(`Artifact ${name} missing required heading: ${heading}`);
   }
   if (options.noPlaceholders && hasPlaceholder(content)) fail(`Artifact ${name} still contains template placeholders.`);
-  if (options.requireImpactScope && !hasMarkedImpactScope(content)) {
-    fail(`requirement.md must mark at least one discovered impact scope before implementation. Available scopes: ${availableImpactScopes().join(", ") || "(none)"}`);
+  if (options.requireImpactScope && availableImpactScopes().length > 0 && !hasMarkedImpactScope(content)) {
+    fail(`requirement.md must mark at least one discovered impact scope before implementation. Available scopes: ${availableImpactScopes().join(", ")}`);
   }
   if (options.requireAcceptanceCriteria && !hasAcceptanceCriteria(content)) {
     fail("requirement.md must include concrete acceptance criteria before implementation.");
@@ -219,6 +221,24 @@ function requireNoOpenNativeAgents() {
   });
   if (open.length > 0) {
     fail(`Native subagents must be closed before run done/archive: ${open.map((agent) => `${agent.agent}:${agent.status}`).join(", ")}`);
+  }
+}
+
+async function requireNoRunningDevService() {
+  const servicePath = path.join(logsDir, "dev-service.json");
+  if (!existsSync(servicePath)) return;
+  const service = JSON.parse(await readFile(servicePath, "utf8"));
+  if (service.status !== "running" || !service.pid) return;
+  if (!isPidRunning(service.pid)) return;
+  fail(`Dev service is still running before done/archive: pid ${service.pid}. Run \`npm run harness:dev-service -- ${runId} stop\`.`);
+}
+
+function isPidRunning(pid) {
+  try {
+    process.kill(Number(pid), 0);
+    return true;
+  } catch {
+    return false;
   }
 }
 
@@ -456,6 +476,25 @@ function runArchiveCommit() {
   if (result.status !== 0) {
     console.error("Run 已进入 done，但归档 git 提交失败。修复后请运行：");
     console.error(`npm run harness:archive-commit -- ${runId}`);
+    process.exit(result.status ?? 1);
+  }
+}
+
+async function refreshDashboard() {
+  const result = spawnSync(process.execPath, [
+    resolveScriptPath(root, "dashboard.mjs")
+  ], {
+    cwd: root,
+    encoding: "utf8",
+    stdio: "inherit",
+    env: {
+      ...process.env,
+      HARNESS_DASHBOARD_QUIET: "1"
+    }
+  });
+
+  if (result.status !== 0) {
+    console.error("Done reached, but dashboard generation failed.");
     process.exit(result.status ?? 1);
   }
 }

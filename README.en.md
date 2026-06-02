@@ -6,6 +6,8 @@
 
 CrewUp is an AI harness for large, formal engineering projects. It does not try to replace an agent with a magic coding shortcut. It defines when the harness is active, which role owns which artifact, who executes implementation work, which gates must pass, and how the run is reported and archived.
 
+Think of it as the control layer for an AI engineering crew. The main agent stops growing into an everything-doer and instead behaves like a delivery lead: create the run, split the work, allocate context, wait for subagent results, check artifact ownership, and enforce gates. Requirements, architecture, implementation, testing, review, documentation, and release summaries are produced by the owning role agent or external runner.
+
 The operating model is intentionally strict:
 
 - Without an explicit `CrewUp`, `harness`, `crewup run`, or similar signal, the chat remains a normal assistant conversation.
@@ -68,6 +70,14 @@ doctor -> install -> inspect -> init -> check -> run -> spec-freeze
   -> agent-plan -> orchestrate -> gate-check -> report -> finish
 ```
 
+A formal run is split into three layers:
+
+| Layer | Owns | Does not own |
+| --- | --- | --- |
+| Main agent | CrewUp activation, profile selection, run creation, task routing, gate checks, status summaries | Formal business implementation or primary artifacts owned by requirements/architect/tester/reviewer/docs/release |
+| Subagents / external runners | Role artifacts, implementation changes, verification, review, risk notes, result writeback | Bypassing run state, artifact ownership, or write scopes |
+| Harness gates | Explicit opt-in, stage transitions, artifact provenance, feedback repair, service shutdown, archive readiness | Replacing the project's own tests, build, CI/CD, or engineering standards |
+
 Common commands:
 
 | Command | Purpose |
@@ -83,7 +93,10 @@ Common commands:
 | `npx crewup gate-check <run-id>` | Check quality gates, artifact ownership, and overreach risks |
 | `npx crewup report <run-id>` | Generate a structured delivery report |
 | `npx crewup finish <run-id>` | Close the run and archive by policy |
+| `npx crewup dashboard` | Generate or refresh `.harness/dashboard/index.html` |
 | `npx crewup skills` | Report installed skills, role labels, and external candidates |
+| `npx crewup dev-service <run-id> start` | Start a run-scoped dev/preview service and record its pid |
+| `npx crewup dev-service <run-id> stop` | Stop the service started for the current run |
 
 ## Workflow Profiles
 
@@ -143,6 +156,57 @@ npx crewup skills:install-exact
 ```
 
 `skills.yaml` is a role-label and external-candidate registry. It does not mean those skills are installed. Most users only need `npx crewup skills` to inspect the report, then `npx crewup skills:install` if they want the configured external candidates.
+
+## Feedback And Preview Services
+
+When tester or reviewer feedback requires changes, the main agent routes that feedback back to the owning implementation agent. It should not directly edit business code. Feedback uses `fixRequired`, `targetAgents`, and `requiredFixes` to drive the repair loop.
+
+For user-visible verification, start a run-scoped service:
+
+```bash
+npx crewup dev-service <run-id> start
+npx crewup dev-service <run-id> status
+npx crewup dev-service <run-id> stop
+```
+
+If the service is still running before `finish` / `done`, the gate blocks archive to avoid leftover processes.
+
+## When The Dashboard Is Generated
+
+`.harness/dashboard/` exists by default to reserve the runtime dashboard location. The actual page is:
+
+```text
+.harness/dashboard/index.html
+```
+
+It is generated or refreshed when:
+
+- you run `npx crewup dashboard`
+- `orchestrate` writes runtime status
+- `finish <run-id>` reaches `done`
+
+If you only created a run, but did not run `orchestrate` and have not finished it to `done`, the dashboard directory may contain only `.gitkeep`. That is expected.
+
+## When The Docs Agent Runs
+
+`docs` is not a fixed agent in every run. It starts when documentation is part of the deliverable, or when the implementation changes something users or maintainers need to know.
+
+These requests trigger `docs`:
+
+```bash
+npx crewup run "Update README with install and startup instructions. Do not change source code."
+npx crewup run "Implement login and update integration/configuration docs."
+npx crewup run "Add a public API and document the endpoint and migration notes."
+npx crewup run "Change startup commands and deployment steps; update the developer guide."
+```
+
+Typical trigger signals include:
+
+- README, docs, documentation, usage guide, integration guide, configuration guide, developer guide, install guide
+- public API, configuration changes, startup commands, deployment steps, migration notes
+- user-visible behavior changes that need maintainer or user-facing explanation
+
+If a run only changes internal implementation details and has no documentation impact, `docs` may stay inactive. In that case, the `release` agent records “no documentation changes” in `release-summary.md`. `release` owns the release summary; `docs` owns README/docs project documentation.
 
 ## More Docs
 

@@ -17,6 +17,15 @@ context:
     native_overlay_chars: 800
     full_context_chars: 6000
 
+  main_window:
+    max_result_summary_chars_per_agent: 800
+    max_error_log_chars: 1200
+    rules:
+      - "Do not paste full context packs into the main chat window."
+      - "Do not paste full subagent transcripts into the main chat window."
+      - "Summarize subagent outputs as status, files/artifacts, tests, blockers, targetAgents, and handoff."
+      - "Reference run log paths for details instead of duplicating long content."
+
   auto_escalation:
     enabled: true
     default_mode: "light"

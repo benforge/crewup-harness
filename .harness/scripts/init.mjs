@@ -287,6 +287,9 @@ function detectCommands(rootPackage, packageManager, languages) {
   if (scripts.test) commands.test = `${packageManager} run test`;
   if (scripts.typecheck) commands.typecheck = `${packageManager} run typecheck`;
   if (scripts.lint) commands.lint = `${packageManager} run lint`;
+  if (scripts.dev) commands.dev = `${packageManager} run dev`;
+  if (scripts.preview) commands.preview = `${packageManager} run preview`;
+  if (scripts.start) commands.start = `${packageManager} run start`;
   if (packageManager === "npm") commands.install = "npm install";
   if (packageManager === "pnpm") commands.install = "pnpm install";
   if (packageManager === "yarn") commands.install = "yarn install";

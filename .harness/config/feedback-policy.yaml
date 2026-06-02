@@ -1,0 +1,41 @@
+feedback_policy:
+  purpose: "Keep tester/reviewer feedback inside delegated repair loops instead of letting the main agent edit business files."
+
+  main_agent_rules:
+    - "Tester or reviewer feedback is not permission for the main agent to modify business code."
+    - "When feedback requires code changes, the main agent must route the feedback to the owning implementation agent."
+    - "The main agent may update run state, tasks, handoff notes, reports, and routing records only."
+    - "If the owning implementation agent is closed, prefer resuming or respawning the same role instead of editing in the main window."
+
+  feedback_sources:
+    tester:
+      owns_artifacts:
+        - "test-report.md"
+      may_recommend_fix_agents:
+        - "frontend"
+        - "backend"
+        - "database"
+        - "devops"
+        - "docs"
+      forbidden:
+        - "direct business-code fixes"
+    reviewer:
+      owns_artifacts:
+        - "review-report.md"
+      may_recommend_fix_agents:
+        - "frontend"
+        - "backend"
+        - "database"
+        - "devops"
+        - "docs"
+      forbidden:
+        - "direct business-code fixes"
+
+  result_contract:
+    feedbackFields:
+      - "fixRequired"
+      - "targetAgents"
+      - "requiredFixes"
+      - "blockingIssues"
+    note: "When fixRequired is true, targetAgents must name the implementation/docs agents that should receive the repair task."
+

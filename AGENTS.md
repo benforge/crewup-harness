@@ -9,10 +9,12 @@
 - `.harness/orchestrator/routing-rules.md`
 - `.harness/config/delegation-policy.yaml`
 - `.harness/config/harness-scope-policy.yaml`
+- `.harness/config/feedback-policy.yaml`
 - `.harness/config/model-policy.yaml`
 - `.harness/config/write-policy.yaml`
 - `.harness/config/risk-policy.yaml`
 - `.harness/config/document-policy.yaml`
+- `.harness/config/service-policy.yaml`
 
 ## 模板规则
 

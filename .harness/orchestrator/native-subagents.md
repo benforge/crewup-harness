@@ -179,4 +179,6 @@ Blockers:
 Handoff:
 ```
 
-The main agent summarizes these results back to the user as a table with agent, status, key output, changed files/artifacts, tests, blockers, and handoff.
+The main agent summarizes these results back to the user as a table with agent, status, key output, changed files/artifacts, tests, blockers, target repair agents, and handoff.
+
+If tester or reviewer feedback requires code changes, the main agent must route the feedback back to the owning implementation agent. It must not patch business files directly in the main window. Prefer `send_input` or `resume_agent` for the existing role handle; spawn a replacement only when reuse is impossible.

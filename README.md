@@ -6,6 +6,8 @@
 
 CrewUp 是一套面向大型、正式工程项目的 AI harness。它不负责替代某个 agent 写代码，而是把“什么时候进入流程、谁生成什么产物、谁执行实现、哪些门禁必须通过、最终如何归档”变成一套可复用、可检查、可追踪的工作流。
 
+它的产品定位是“AI 团队协作控制层”：主 agent 不再无限扩张成万能执行者，而是像交付负责人一样创建 run、拆分任务、分配上下文、等待子 agent 结果、检查产物归属和质量门禁。真正的需求、架构、实现、测试、审查、文档和发布摘要，由对应角色 agent 或外部执行者完成。
+
 CrewUp 的默认理念很明确：
 
 - 没有明确说 `CrewUp`、`harness`、`crewup run` 或类似触发词时，聊天窗仍然是普通助手对话。
@@ -68,6 +70,14 @@ doctor -> install -> inspect -> init -> check -> run -> spec-freeze
   -> agent-plan -> orchestrate -> gate-check -> report -> finish
 ```
 
+一次正式 run 会被拆成三层：
+
+| 层级 | 负责什么 | 不负责什么 |
+| --- | --- | --- |
+| 主 agent | 判断是否进入 CrewUp、选择 profile、创建 run、分配任务、检查 gate、汇总状态 | 不直接写正式业务实现，不替 requirements/architect/tester/reviewer/docs/release 生成主要产物 |
+| 子 agent / 外部执行者 | 按角色生成产物、实现变更、测试验证、审查风险、写回结果 | 不绕过 run 状态、产物归属和写入范围 |
+| Harness 门禁 | 校验显式 opt-in、阶段流转、artifact provenance、反馈修复、服务关闭和归档条件 | 不替代项目自己的测试、构建、CI/CD 或业务规范 |
+
 常用命令：
 
 | 命令 | 作用 |
@@ -83,7 +93,10 @@ doctor -> install -> inspect -> init -> check -> run -> spec-freeze
 | `npx crewup gate-check <run-id>` | 检查质量门禁、产物归属和越权风险 |
 | `npx crewup report <run-id>` | 生成结构化交付报告 |
 | `npx crewup finish <run-id>` | 关闭 run 并按策略归档 |
+| `npx crewup dashboard` | 生成或刷新 `.harness/dashboard/index.html` |
 | `npx crewup skills` | 查看已安装 skill、角色标签和外部候选 |
+| `npx crewup dev-service <run-id> start` | 为当前 run 启动项目 dev/preview 服务并记录 pid |
+| `npx crewup dev-service <run-id> stop` | 停止当前 run 启动的服务，避免归档后残留进程 |
 
 ## 工作流类型
 
@@ -143,6 +156,57 @@ npx crewup skills:install-exact
 ```
 
 `skills.yaml` 是角色 skill 标签和外部候选目录，不代表 skill 已安装。普通用户通常只需要 `npx crewup skills` 查看报告，再按需执行 `npx crewup skills:install`。
+
+## 反馈与预览服务
+
+Tester 或 reviewer 发现问题时，主 agent 只负责把反馈转派给对应实现 agent，不直接修改业务代码。反馈结果会通过 `fixRequired`、`targetAgents` 和 `requiredFixes` 字段进入后续修复循环。
+
+需要给用户查看运行效果时，可以按 run 启动服务：
+
+```bash
+npx crewup dev-service <run-id> start
+npx crewup dev-service <run-id> status
+npx crewup dev-service <run-id> stop
+```
+
+`finish` / `done` 前如果服务仍在运行，门禁会阻止归档，避免遗留进程。
+
+## Dashboard 什么时候生成
+
+`.harness/dashboard/` 目录默认存在，是为了保留运行态 dashboard 的位置。真正的页面文件是：
+
+```text
+.harness/dashboard/index.html
+```
+
+它会在这些时候生成或刷新：
+
+- 运行 `npx crewup dashboard`
+- `orchestrate` 写入运行态状态时自动刷新
+- `finish <run-id>` 推进到 `done` 时自动刷新
+
+如果你只创建了 run，但没有执行 `orchestrate`，也还没有 `finish` 到 done，那么 dashboard 目录里可能只有 `.gitkeep`，这是正常的。
+
+## Docs Agent 什么时候启动
+
+`docs` 不是每个 run 都固定启动的 agent。它只在“文档是交付物”或“实现改变了用户需要知道的东西”时启动。
+
+这些请求会触发 `docs`：
+
+```bash
+npx crewup run "更新 README，补充安装和启动说明，不改源码"
+npx crewup run "实现登录功能，并同步更新接入说明和配置说明"
+npx crewup run "新增公开 API，补充接口文档和迁移说明"
+npx crewup run "调整启动命令和部署步骤，需要更新开发指南"
+```
+
+通常触发信号包括：
+
+- README、docs、文档、使用说明、接入说明、配置说明、开发指南、安装说明
+- 公开 API、配置方式、启动命令、部署步骤、迁移说明
+- 用户可见行为变化，需要给使用者或维护者留下说明
+
+如果只是内部实现修复，没有文档影响，`docs` 可以不启动；这时由 `release` agent 在 `release-summary.md` 里记录“无文档变更”。`release` 负责发布摘要，`docs` 负责 README/docs 等项目文档，它们不是同一个角色。
 
 ## 更多文档
 

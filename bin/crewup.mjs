@@ -46,6 +46,7 @@ const scriptByCommand = {
   "archive-status": "archive-status.mjs",
   "changed-files": "changed-files.mjs",
   "token-ledger": "token-ledger.mjs",
+  "dev-service": "dev-service.mjs",
   "test-flow": "test-flow.mjs",
   skills: "skills-report.mjs",
   "skills:resolve": "skills-resolve.mjs",
@@ -260,6 +261,7 @@ Common commands:
   skills:install-exact
                    Install exact marketplace matches after skills:resolve
   archive-status   Check whether a run is ready for archive commit
+  dev-service      Start, stop, or inspect a run-scoped preview/dev service
   product-sync     Sync approved release artifacts into product docs
   knowledge        Refresh the knowledge layer`);
 }
