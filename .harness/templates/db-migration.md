@@ -1,22 +1,22 @@
-# 数据库迁移记录
+# Database Migration Record
 
-## 是否涉及数据库
+## Database Impact
 
-- [ ] 是
-- [x] 否
+- [ ] yes
+- [x] no
 
-## 表结构变化
+## Schema Changes
 
-- 无。
+- none
 
-## 索引变化
+## Index Changes
 
-- 无。
+- none
 
-## 数据迁移
+## Data Migration
 
-- 无。
+- none
 
-## 回滚 SQL 或回滚方式
+## Rollback SQL Or Rollback Method
 
-- 无数据库回滚动作。
+- no database rollback action

@@ -4,11 +4,10 @@ model_profiles:
     reasoning_effort: "low"
     codex_model_hint: "gpt-5.4-mini"
     use_for:
-      - "任务路由"
-      - "状态整理"
-      - "简单文档归档"
-      - "发布摘要初稿"
-    notes: "适合低风险、低复杂度、可由规则判断的工作。"
+      - "routing"
+      - "state bookkeeping"
+      - "simple documentation/archive summaries"
+    notes: "Use for low-risk coordination and rule-based decisions."
 
   requirements_planning:
     model: "gpt-5.4-mini"
@@ -16,136 +15,122 @@ model_profiles:
     codex_model_hint: "gpt-5.4-mini"
     mode_hint: "plan_only"
     use_for:
-      - "需求扩写"
-      - "目标与非目标澄清"
-      - "验收标准草拟"
-      - "待确认问题整理"
-    notes: "用于正式开发前的 plan-only 需求扩写阶段。"
+      - "requirement expansion"
+      - "goal and non-goal clarification"
+      - "acceptance criteria drafting"
+      - "open question organization"
+    notes: "Use before formal requirements when the request needs expansion."
 
   requirements_strong:
     model: "gpt-5.5"
     reasoning_effort: "medium"
     codex_model_hint: "gpt-5.5"
     use_for:
-      - "正式需求文档"
-      - "需求边界收敛"
-      - "验收标准"
-      - "测试要求"
-      - "回滚方式"
-    notes: "Requirements agent 默认档位；requirement.md 至少使用 gpt-5.5 + medium reasoning。"
+      - "formal requirement artifacts"
+      - "requirement boundary consolidation"
+      - "acceptance criteria"
+      - "test requirements"
+      - "rollback strategy"
+    notes: "Requirements agent must use at least gpt-5.5 + medium reasoning."
 
   standard_analysis:
     model: "gpt-5.4"
     reasoning_effort: "low"
     codex_model_hint: "gpt-5.4"
     use_for:
-      - "需求分析"
-      - "方案拆解"
-      - "影响范围判断"
-      - "DevOps 常规方案"
-    notes: "适合需求确认、常规架构边界和非编码分析。"
+      - "normal analysis"
+      - "impact scope decisions"
+      - "DevOps routine planning"
+    notes: "Use for normal non-coding analysis."
 
   architecture_strong:
     model: "gpt-5.5"
     reasoning_effort: "medium"
     codex_model_hint: "gpt-5.5"
     use_for:
-      - "架构方案"
-      - "技术选型"
-      - "目录结构设计"
-      - "模块边界"
-      - "实施阶段拆分"
-    notes: "Architect agent 默认档位；architecture.md 和 implementation-plan.md 至少使用 gpt-5.5 + medium reasoning。"
+      - "architecture design"
+      - "technical selection"
+      - "directory structure"
+      - "module boundaries"
+      - "implementation phase breakdown"
+    notes: "Architect agent must use at least gpt-5.5 + medium reasoning."
 
   coding_strong:
     model: "gpt-5.4"
     reasoning_effort: "high"
     codex_model_hint: "gpt-5.3-codex"
     use_for:
-      - "代码实现"
-      - "跨文件修改"
-      - "测试修复"
-    notes: "API orchestrator 默认使用通用强模型；在 Codex 内部委派时可优先使用 codex_model_hint。"
+      - "code implementation"
+      - "cross-file edits"
+      - "test fixes"
+    notes: "Use for implementation agents."
 
   tester_standard:
     model: "gpt-5.4"
     reasoning_effort: "medium"
     codex_model_hint: "gpt-5.4"
     use_for:
-      - "测试执行"
-      - "测试报告"
-      - "常规回归验证"
-    notes: "测试 agent 默认使用中等推理；只有在修测试或复杂自动化时才升级。"
+      - "test execution"
+      - "test reports"
+      - "regression verification"
+    notes: "Use medium reasoning for actual verification."
 
   review_strong:
     model: "gpt-5.4"
     reasoning_effort: "high"
     codex_model_hint: "gpt-5.4"
     use_for:
-      - "代码审查"
-      - "架构风险检查"
-      - "安全和回归风险判断"
-    notes: "适合代码审查、架构风险和回归风险判断。"
+      - "code review"
+      - "architecture risk review"
+      - "security and regression risk review"
+    notes: "Use high reasoning for reviewer."
 
   critical_review:
     model: "gpt-5.5"
     reasoning_effort: "high"
     codex_model_hint: "gpt-5.5"
     use_for:
-      - "数据库迁移"
-      - "安全"
-      - "生产部署"
-      - "权限模型"
-      - "高风险回滚"
-    notes: "仅在数据库、安全、生产或不可逆风险明确时使用。"
+      - "database migration"
+      - "security"
+      - "production deployment"
+      - "permission model"
+      - "high-risk rollback"
+    notes: "Use only for explicit high-risk areas."
 
 agent_model_policy:
   main:
     profile: "low_cost"
     fallback_profile: "standard_analysis"
-
   pm:
     profile: "low_cost"
-
   requirements-plan:
     profile: "requirements_planning"
-
   requirements:
     profile: "requirements_strong"
-
   architect:
     profile: "architecture_strong"
-
   frontend:
     profile: "coding_strong"
-
   docs:
     profile: "coding_strong"
-
   backend:
     profile: "coding_strong"
-
   database:
     profile: "critical_review"
-
   devops:
     profile: "standard_analysis"
-
   tester:
     profile: "tester_standard"
-
   reviewer:
     profile: "review_strong"
-
   release:
     profile: "low_cost"
 
 rules:
-  - "main agent 默认使用 low_cost profile 做路由和状态整理。"
-  - "需求扩写优先使用 requirements_planning profile，以 plan-only 模式产出 requirement-plan.md。"
-  - "Requirements agent 负责 requirement.md，必须至少使用 requirements_strong profile。"
-  - "Architect agent 负责 architecture.md 和 implementation-plan.md，必须至少使用 architecture_strong profile。"
-  - "一旦任务需要写代码、改测试或跨文件修改，就切换到 coding_strong profile。"
-  - "涉及数据库迁移、安全、生产部署、权限模型时，必须使用 critical_review profile 或人工确认。"
-  - "模型不可用时，main agent 应说明降级，并记录到 run 日志或最终汇总。"
-  - "不要为了省成本跳过 tester 和 reviewer。"
+  - "The main agent uses low_cost for routing and state bookkeeping."
+  - "requirements-plan drafts requirement-plan.md only."
+  - "requirements owns requirement.md and must use requirements_strong."
+  - "architect owns architecture.md and implementation-plan.md and must use architecture_strong."
+  - "Code-writing agents use coding_strong."
+  - "Database, security, production, and permission-model risks use critical_review or require explicit human confirmation."
+  - "Do not skip tester or reviewer to save cost in a strict CrewUp run."

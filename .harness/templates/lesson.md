@@ -1,17 +1,17 @@
-# 经验沉淀
+# Lesson
 
-- 日期：
-- 来源 run：
-- 触发原因：
-- 经验：
-- 晋级目标：rule / script / dev-map / local .ai/rules.md / docs
-- 负责人：
-- 状态：open / promoted / rejected
+- date:
+- source run:
+- trigger:
+- lesson:
+- promotion target: rule / script / dev-map / local rule / docs
+- owner:
+- status: open / promoted / rejected
 
-## 证据
+## Evidence
 
-描述重复错误、遗漏门禁或工作流摩擦点。
+- Describe repeated errors, missed gates, or workflow friction.
 
-## 晋级计划
+## Promotion Plan
 
-说明这条经验应该落到哪里，避免未来 agent 依赖聊天记忆。
+- Explain where this lesson should be encoded so future agents do not depend on chat memory.

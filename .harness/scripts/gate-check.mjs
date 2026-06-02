@@ -16,12 +16,15 @@ import {
   readNativeState,
   isBusinessCodePath,
   nativeExecutionProblems,
+  requiredNativeAgentsForStageEntry,
   requiredNativeAgentsForStageCompletion
 } from "./lib/delegation-guard.mjs";
 import { hasTemplatePlaceholder } from "./lib/placeholder-detector.mjs";
 
 const root = process.cwd();
-const runId = process.argv[2];
+const args = process.argv.slice(2);
+const runId = args.find((arg) => !arg.startsWith("--"));
+const gateMode = args.includes("--entry") ? "entry" : args.includes("--completion") ? "completion" : "completion";
 
 if (!runId) {
   console.error("Please provide runId, for example: npm run harness:gate-check -- 2026-05-14-001-blog-mvp");
@@ -72,14 +75,14 @@ if (problems.length > 0) {
   process.exit(1);
 }
 
-console.log("Quality gate passed.");
+console.log(`Quality gate passed (${gateMode}).`);
 if (warnings.length > 0) {
   console.warn("Warnings:");
   for (const warning of warnings) console.warn(`- ${warning}`);
 }
 
 async function checkArtifacts() {
-  const requiredForCurrentStage = new Set(requiredArtifactsForStage(state.stage));
+  const requiredForCurrentStage = new Set(requiredArtifactsForGate());
   for (const [file, rules] of Object.entries(schema.artifacts ?? {})) {
     const target = path.join(artifactsDir, file);
     if (!existsSync(target)) {
@@ -99,7 +102,7 @@ async function checkArtifacts() {
     }
 
     for (const heading of rules.required_headings ?? []) {
-      if (!content.includes(`## ${heading}`)) {
+      if (!hasAnyHeading(content, headingAliases(heading))) {
         problems.push(`Artifact missing heading: ${file} -> ${heading}`);
       }
     }
@@ -107,7 +110,7 @@ async function checkArtifacts() {
 }
 
 async function checkArtifactProvenance() {
-  const requiredForCurrentStage = new Set(requiredArtifactsForStage(state.stage));
+  const requiredForCurrentStage = new Set(requiredArtifactsForGate());
   for (const [file, rules] of Object.entries(schema.artifacts ?? {})) {
     if (!requiredForCurrentStage.has(file)) continue;
     if (!existsSync(path.join(artifactsDir, file))) continue;
@@ -147,7 +150,9 @@ async function checkRequirementPlanGate() {
 async function checkNativeState() {
   const nativeStatePath = path.join(logsDir, "native-subagents", "native-state.json");
   const taskAgents = await availableTaskAgents();
-  const requiredAgents = requiredNativeAgentsForStageCompletion(state.stage, { root, runId, state, taskAgents });
+  const requiredAgents = gateMode === "entry"
+    ? requiredNativeAgentsForStageEntry(state.stage, { root, runId, state, taskAgents })
+    : requiredNativeAgentsForStageCompletion(state.stage, { root, runId, state, taskAgents });
   if (!existsSync(nativeStatePath)) {
     if (requiredAgents.length > 0) {
       problems.push(`No native-state.json found, but stage ${state.stage} requires subagent execution records for: ${requiredAgents.join(", ")}`);
@@ -171,8 +176,26 @@ async function checkNativeState() {
   }
 
   for (const agent of native.agents ?? []) {
+    const resultPathExists = agent.result_path && existsSync(resolveWorkspacePath(agent.result_path));
+    const resultJsonPathExists = agent.result_json_path && existsSync(resolveWorkspacePath(agent.result_json_path));
+    if (resultJsonPathExists) {
+      const parsed = await readJsonStrict(resolveWorkspacePath(agent.result_json_path));
+      if (!parsed.ok) {
+        problems.push(`Invalid native result JSON for ${agent.agent}: ${agent.result_json_path} (${parsed.error})`);
+      } else {
+        if (parsed.value.agent && parsed.value.agent !== agent.agent) {
+          problems.push(`Native result JSON agent mismatch for ${agent.agent}: ${agent.result_json_path} declares ${parsed.value.agent}`);
+        }
+        if (parsed.value.status && !["completed", "blocked", "needs_input"].includes(parsed.value.status)) {
+          problems.push(`Invalid native result JSON status for ${agent.agent}: ${parsed.value.status}`);
+        }
+      }
+    }
+    if (!agent.result_captured_at && (resultPathExists || resultJsonPathExists)) {
+      problems.push(`Native result files exist but native-state has not captured result for ${agent.agent}. Record the real handle/result or rerun the subagent; do not fabricate a handle.`);
+    }
     if (["running"].includes(agent.status)) warnings.push(`Native agent is still running: ${agent.agent}`);
-    if (["verify", "review", "release", "done"].includes(state.stage) && !native.fallback && agent.status === "planned" && !agent.handle && !agent.result_captured_at) {
+    if (gateMode === "completion" && ["verify", "review", "release", "done"].includes(state.stage) && !native.fallback && agent.status === "planned" && !agent.handle && !agent.result_captured_at) {
       problems.push(`Native agent was planned but never executed before ${state.stage}: ${agent.agent}`);
     }
     if (["completed", "blocked", "needs_input", "waiting_review", "ready_to_close", "closed"].includes(agent.status) && !agent.handle) {
@@ -223,6 +246,25 @@ function requiredArtifactsForStage(stage) {
     done: ["test-report.md", "review-report.md", "release-summary.md"]
   };
   return byStage[stage] ?? [];
+}
+
+function requiredArtifactsForGate() {
+  return gateMode === "entry"
+    ? requiredArtifactsForStage(previousStage(state.stage))
+    : requiredArtifactsForStage(state.stage);
+}
+
+function previousStage(stage) {
+  const previous = {
+    requirements_confirm: "requirements_plan",
+    plan: "requirements_confirm",
+    implement: "plan",
+    verify: "implement",
+    review: "verify",
+    release: "review",
+    done: "release"
+  };
+  return previous[stage] ?? stage;
 }
 
 function isLiteImplementationOnlyRun() {
@@ -310,6 +352,14 @@ async function readAgentResultJson(agent) {
     }
   }
   return null;
+}
+
+async function readJsonStrict(target) {
+  try {
+    return { ok: true, value: JSON.parse((await readFile(target, "utf8")).replace(/^\uFEFF/, "")) };
+  } catch (error) {
+    return { ok: false, error: error.message };
+  }
 }
 
 function isPidRunning(pid) {
@@ -408,22 +458,38 @@ function hasAcceptanceCriteria() {
 }
 
 function hasRequiredCheckFailure(content) {
-  return /\|\s*[^|\n]+\s*\|\s*failed\s*\|\s*(是|true|required)\s*\|/i.test(content)
-    || /必需检查失败|Required verification failed/i.test(content);
+  return /\|\s*[^|\n]+\s*\|\s*failed\s*\|\s*(true|required)\s*\|/i.test(content)
+    || /Required verification failed/i.test(content);
 }
 
 function reviewHasBlockingIssues(content) {
-  if (/- \[[xX]\]\s*不通过/.test(content)) return true;
-  if (!/- \[[xX]\]\s*(通过|有条件通过)/.test(content) && /##\s*结论/.test(content)) return true;
-  return sectionHasSubstantiveBullet(content, "阻塞问题");
+  if (/- \[[xX]\]\s*(fail|failed|not passed)/i.test(content)) return true;
+  if (hasAnyHeading(content, ["Conclusion"]) && !/- \[[xX]\]\s*(pass|passed|conditional pass)/i.test(content)) return true;
+  return sectionHasSubstantiveBulletAny(content, ["Blocking Issues"]);
 }
 
-function sectionHasSubstantiveBullet(content, heading) {
-  const section = sectionText(content, heading);
+function sectionHasSubstantiveBulletAny(content, headings) {
+  const section = sectionTextAny(content, headings);
   return section.split(/\r?\n/).some((line) => {
-    const text = line.trim().replace(/^[-*]\s*/, "").trim().replace(/[。.!！]+$/g, "");
-    return text && !["无", "暂无", "无阻塞问题", "none", "n/a", "-"].includes(text.toLowerCase());
+    const text = line.trim().replace(/^[-*]\s*/, "").trim().replace(/[.!]+$/g, "");
+    return text && !["none", "n/a", "no blocking issues", "-"].includes(text.toLowerCase());
   });
+}
+
+function hasAnyHeading(content, headings) {
+  return headings.some((heading) => new RegExp(`^##\\s+${escapeRegExp(heading)}\\s*$`, "m").test(content));
+}
+
+function sectionTextAny(content, headings) {
+  for (const heading of headings) {
+    const section = sectionText(content, heading);
+    if (section) return section;
+  }
+  return "";
+}
+
+function headingAliases(heading) {
+  return [heading];
 }
 
 function sectionText(content, heading) {

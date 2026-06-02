@@ -1,25 +1,47 @@
 # Tester Agent
 
-## 职责
+## Responsibility
 
-- 根据验收标准设计测试。
-- 执行单元测试、集成测试、E2E 或手工验证。
-- 记录通过、失败和无法运行的原因。
-- 对后台管理需求，必须验证登录流、受保护路由、模块路由跳转、刷新后的状态处理和退出。
-- 对 C 端页面需求，必须验证桌面/移动端的主要布局、内容层级、导航入口和关键空态/错误态。
-- 如果没有自动化 E2E 条件，至少记录手工浏览器验证路径和未覆盖风险。
+- Verify the implementation against `AC-*` acceptance criteria and the implementation plan.
+- Run automated checks, browser checks, API checks, or manual verification as appropriate.
+- Record passed checks, failed checks, blocked checks, uncovered risks, and exact evidence.
+- Stop any dev service you started before completing the task.
 
-## 输出
+## Output
 
-- `artifacts/test-report.md`
+- `.harness/runs/<run>/artifacts/test-report.md`
 
-## 测试报告必填
+## Required Test Report Format
 
-- `执行项`
-- `通过项`
-- `失败 / 阻塞项`
-- `未覆盖风险`
+Use these exact second-level headings:
 
-## Token 约束
+- `## Run`
+- `## Result Summary`
+- `## Executed Checks`
+- `## Passed Checks`
+- `## Failed Or Blocked Checks`
+- `## Uncovered Risks`
 
-- 测试报告只记录结果、命令、路由和关键现象，不粘贴完整日志。
+## Frontend MVP Verification Baseline
+
+When the run includes a frontend/local MVP, verify all applicable checks in the first tester pass:
+
+- non-blank page
+- add/create behavior
+- persistence after refresh
+- complete/toggle behavior
+- completed state persistence after refresh
+- delete behavior
+- delete-after-refresh does not restore deleted data
+- empty input rejection
+- desktop viewport
+- mobile viewport
+- build command
+- dev service shutdown
+
+## Feedback Contract
+
+- If a required check fails, set `fixRequired: true` in result JSON.
+- Fill `targetAgents` with the owner agents that must repair the issue.
+- Fill `requiredFixes` with precise, actionable fixes and related `AC-*` IDs.
+- Do not edit business code directly unless the tester task explicitly owns test-code changes.

@@ -1,18 +1,17 @@
 const TEMPLATE_PLACEHOLDER_SNIPPETS = [
-  "说明为什么要做这个需求",
-  "一句话说明本次 run 要交付什么",
-  "待 Architect Agent 补充",
-  "待 Tester Agent 补充",
-  "待 Release Agent 补充",
-  "作为「」，我希望",
-  "请先阅读 `logs/context/related-runs.md`",
-  "复用的历史背景：",
-  "冲突或变化：",
-  "需要延续的约束：",
-  "需要避开的旧问题：",
-  "- 延续：",
-  "- 推翻：",
-  "- 新增："
+  "explain why this requirement is needed",
+  "one sentence describing what this run should deliver",
+  "waiting for Architect Agent",
+  "waiting for Tester Agent",
+  "waiting for Release Agent",
+  "as a user, I want",
+  "reuse historical background:",
+  "conflict or change:",
+  "constraints to extend:",
+  "old issues to avoid:",
+  "- extend:",
+  "- replace:",
+  "- add:"
 ];
 
 const TEMPLATE_PLACEHOLDER_PATTERNS = [
@@ -20,16 +19,18 @@ const TEMPLATE_PLACEHOLDER_PATTERNS = [
   /\bTODO\s*:/i,
   /\bplaceholder\s+(text|content|copy|artifact|section)\b/i,
   /\btemplate\s+placeholder\b/i,
-  /模板(占位|残留|未替换|待填)/,
-  /(占位符|占位文案|占位内容待替换)/,
-  /(请填写|这里填写|待填写|待填入)/,
-  /(待补充|待完善)/,
-  /待\s+\S+\s+Agent\s+补充/i
+  /\bfill\s+(this|here|in)\b/i,
+  /\bto\s+be\s+(filled|completed|defined)\b/i,
+  /\bwaiting\s+for\s+\S+\s+Agent\b/i,
+  /\u6a21\u677f(\u5360\u4f4d|\u6b8b\u7559|\u672a\u66ff\u6362|\u5f85\u586b)/,
+  /(\u5360\u4f4d\u7b26|\u5360\u4f4d\u6587\u6848|\u5360\u4f4d\u5185\u5bb9)/,
+  /(\u8bf7\u586b\u5199|\u8fd9\u91cc\u586b\u5199|\u5f85\u586b\u5199|\u5f85\u8865\u5145|\u5f85\u5b8c\u5584)/,
+  /\u5f85\s+\S+\s+Agent\s+\u8865\u5145/i
 ];
 
 export function hasTemplatePlaceholder(content) {
   if (!content) return false;
   if (/^\s*-\s*$/m.test(content)) return true;
-  if (TEMPLATE_PLACEHOLDER_SNIPPETS.some((snippet) => content.includes(snippet))) return true;
+  if (TEMPLATE_PLACEHOLDER_SNIPPETS.some((snippet) => content.toLowerCase().includes(snippet.toLowerCase()))) return true;
   return TEMPLATE_PLACEHOLDER_PATTERNS.some((pattern) => pattern.test(content));
 }

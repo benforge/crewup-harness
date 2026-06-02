@@ -12,7 +12,7 @@ const runId = args.find((arg) => !arg.startsWith("--"));
 const requestedProfile = valueOf("--profile=") ?? "auto";
 
 if (!runId) {
-  console.error("请提供 runId，例如：npm run harness:prepare-run -- 2026-05-14-001-blog-mvp");
+  console.error("Please provide runId, for example: npm run harness:prepare-run -- 2026-05-14-001-blog-mvp");
   process.exit(1);
 }
 
@@ -21,7 +21,7 @@ const inputPath = path.join(runDir, "input.md");
 const tasksDir = path.join(runDir, "tasks");
 
 if (!existsSync(runDir) || !existsSync(inputPath)) {
-  console.error(`未找到 run 或 input.md：${path.relative(root, runDir)}`);
+  console.error(`Run or input.md not found: ${path.relative(root, runDir)}`);
   process.exit(1);
 }
 
@@ -58,7 +58,7 @@ await writeFile(path.join(runDir, "logs", "workload-analysis.json"), `${JSON.str
 await writeFile(path.join(runDir, "logs", "workload-analysis.md"), renderWorkloadAnalysisMarkdown(workloadAnalysis), "utf8");
 await updateRunState({ workflowProfile, workloadAnalysis });
 
-console.log(`已生成 ${selectedAgents.length} 个 agent 任务：${path.relative(root, tasksDir)}`);
+console.log(`Generated ${selectedAgents.length} agent tasks: ${path.relative(root, tasksDir)}`);
 console.log(`workflow_profile: ${workflowProfile}`);
 console.log(`run_type: ${workloadAnalysis.runType}`);
 console.log(`complexity: ${workloadAnalysis.complexityScore}/5 (${workloadAnalysis.complexityLevel})`);
@@ -123,22 +123,22 @@ function selectAgents(inputText, agents, impactScopeConfig, profile, runProfile,
 }
 
 function needsDedicatedTester(inputText) {
-  return /(测试|回归|bug|修复|接口|API|后端|数据库|状态|表单|权限|登录|性能|兼容|验收|端到端|e2e)/i.test(inputText);
+  return /(\u6d4b\u8bd5|\u56de\u5f52|bug|\u4fee\u590d|\u63a5\u53e3|API|\u540e\u7aef|\u6570\u636e\u5e93|\u72b6\u6001|\u8868\u5355|\u6743\u9650|\u767b\u5f55|\u6027\u80fd|\u517c\u5bb9|\u9a8c\u6536|\u7aef\u5230\u7aef|e2e)/i.test(inputText);
 }
 
 function needsReleaseAgent(inputText) {
-  return /(发布|上线|部署|release|changelog|版本|生产|回滚|交付)/i.test(inputText);
+  return /(\u53d1\u5e03|\u4e0a\u7ebf|\u90e8\u7f72|release|changelog|\u7248\u672c|\u751f\u4ea7|\u56de\u6eda|\u4ea4\u4ed8)/i.test(inputText);
 }
 
 function needsDocsAgent(inputText) {
-  return /(文档|说明|README|readme|docs?|markdown|\.md|使用说明|接入说明|健康检查说明|开发指南|安装说明|配置说明|教程|手册|指南|公开\s*API|public\s*api|配置方式|启动命令|部署步骤|迁移说明|用户可见)/i.test(inputText);
+  return /(\u6587\u6863|\u8bf4\u660e|README|readme|docs?|markdown|\.md|\u4f7f\u7528\u8bf4\u660e|\u63a5\u5165\u8bf4\u660e|\u5065\u5eb7\u68c0\u67e5\u8bf4\u660e|\u5f00\u53d1\u6307\u5357|\u5b89\u88c5\u8bf4\u660e|\u914d\u7f6e\u8bf4\u660e|\u6559\u7a0b|\u624b\u518c|\u6307\u5357|\u516c\u5f00\s*API|public\s*api|\u914d\u7f6e\u65b9\u5f0f|\u542f\u52a8\u547d\u4ee4|\u90e8\u7f72\u6b65\u9aa4|\u8fc1\u79fb\u8bf4\u660e|\u7528\u6237\u53ef\u89c1)/i.test(inputText);
 }
 
 function isDocsOnlyRequest(inputText) {
   if (!needsDocsAgent(inputText)) return false;
   const text = String(inputText ?? "");
-  const positiveCodeSignals = /(前端|后端|数据库|接口|API|源码|代码|业务代码|页面|组件|服务|路由|迁移|测试|登录|权限|部署|发布|回归|性能)/i;
-  const negatedCodeSignals = /(不要|不用|无须|无需|不改|别改|不要修改|不要动|不要涉及).{0,8}(前端|后端|数据库|接口|API|源码|代码|业务代码|页面|组件|服务|路由|迁移|测试|登录|权限|部署|发布|回归|性能)/i;
+  const positiveCodeSignals = /(\u524d\u7aef|\u540e\u7aef|\u6570\u636e\u5e93|\u63a5\u53e3|API|\u6e90\u7801|\u4ee3\u7801|\u4e1a\u52a1\u4ee3\u7801|\u9875\u9762|\u7ec4\u4ef6|\u670d\u52a1|\u8def\u7531|\u8fc1\u79fb|\u6d4b\u8bd5|\u767b\u5f55|\u6743\u9650|\u90e8\u7f72|\u53d1\u5e03|\u56de\u5f52|\u6027\u80fd)/i;
+  const negatedCodeSignals = /(\u4e0d\u8981|\u4e0d\u7528|\u65e0\u987b|\u65e0\u9700|\u4e0d\u6539|\u522b\u6539|\u4e0d\u8981\u4fee\u6539|\u4e0d\u8981\u52a8|\u4e0d\u8981\u6d89\u53ca).{0,8}(\u524d\u7aef|\u540e\u7aef|\u6570\u636e\u5e93|\u63a5\u53e3|API|\u6e90\u7801|\u4ee3\u7801|\u4e1a\u52a1\u4ee3\u7801|\u9875\u9762|\u7ec4\u4ef6|\u670d\u52a1|\u8def\u7531|\u8fc1\u79fb|\u6d4b\u8bd5|\u767b\u5f55|\u6743\u9650|\u90e8\u7f72|\u53d1\u5e03|\u56de\u5f52|\u6027\u80fd)/i;
   if (!positiveCodeSignals.test(text)) return true;
   return negatedCodeSignals.test(text);
 }
@@ -149,23 +149,23 @@ function hasImpact(inputText, flag) {
   if (checked.test(inputText) || mentioned.test(inputText)) return true;
   const aliases = {
     web: [
-      /C\s*端/i,
-      /c\s*端/i,
-      /前端|页面|网页|网站|站点|首页|相册|照片墙|瀑布流|布局|样式|文案|中文化|导航|空态|错误态|移动端|响应式/
+      /C\s*\u7aef/i,
+      /c\s*\u7aef/i,
+      /\u524d\u7aef|\u9875\u9762|\u7f51\u9875|\u7f51\u7ad9|\u7ad9\u70b9|\u9996\u9875|\u76f8\u518c|\u7167\u7247\u5899|\u7011\u5e03\u6d41|\u5e03\u5c40|\u6837\u5f0f|\u6587\u6848|\u4e2d\u6587\u5316|\u5bfc\u822a|\u7a7a\u6001|\u9519\u8bef\u6001|\u79fb\u52a8\u7aef|\u54cd\u5e94\u5f0f/
     ],
     frontend: [
-      /C\s*端/i,
-      /c\s*端/i,
-      /前端|页面|网页|网站|站点|首页|相册|照片墙|瀑布流|布局|样式|文案|中文化|导航|空态|错误态|移动端|响应式/
+      /C\s*\u7aef/i,
+      /c\s*\u7aef/i,
+      /\u524d\u7aef|\u9875\u9762|\u7f51\u9875|\u7f51\u7ad9|\u7ad9\u70b9|\u9996\u9875|\u76f8\u518c|\u7167\u7247\u5899|\u7011\u5e03\u6d41|\u5e03\u5c40|\u6837\u5f0f|\u6587\u6848|\u4e2d\u6587\u5316|\u5bfc\u822a|\u7a7a\u6001|\u9519\u8bef\u6001|\u79fb\u52a8\u7aef|\u54cd\u5e94\u5f0f/
     ],
-    docs: [/文档|说明|README|readme|docs?|markdown|\.md|使用说明|接入说明|开发指南|安装说明|配置说明|教程|手册|指南/i],
-    admin: [/后台|管理端|管理后台|运营后台|admin/i],
-    api: [/接口|后端|服务端|API/i],
-    backend: [/接口|后端|服务端|API/i],
-    db: [/数据库|数据表|迁移|schema|索引/i],
-    database: [/数据库|数据表|迁移|schema|索引/i],
-    infra: [/部署|CI|CD|Docker|环境变量|流水线/i],
-    devops: [/部署|CI|CD|Docker|环境变量|流水线/i]
+    docs: [/\u6587\u6863|\u8bf4\u660e|README|readme|docs?|markdown|\.md|\u4f7f\u7528\u8bf4\u660e|\u63a5\u5165\u8bf4\u660e|\u5f00\u53d1\u6307\u5357|\u5b89\u88c5\u8bf4\u660e|\u914d\u7f6e\u8bf4\u660e|\u6559\u7a0b|\u624b\u518c|\u6307\u5357/i],
+    admin: [/\u540e\u53f0|\u7ba1\u7406\u7aef|\u7ba1\u7406\u540e\u53f0|\u8fd0\u8425\u540e\u53f0|admin/i],
+    api: [/\u63a5\u53e3|\u540e\u7aef|\u670d\u52a1\u7aef|API/i],
+    backend: [/\u63a5\u53e3|\u540e\u7aef|\u670d\u52a1\u7aef|API/i],
+    db: [/\u6570\u636e\u5e93|\u6570\u636e\u8868|\u8fc1\u79fb|schema|\u7d22\u5f15/i],
+    database: [/\u6570\u636e\u5e93|\u6570\u636e\u8868|\u8fc1\u79fb|schema|\u7d22\u5f15/i],
+    infra: [/\u90e8\u7f72|CI|CD|Docker|\u73af\u5883\u53d8\u91cf|\u6d41\u6c34\u7ebf/i],
+    devops: [/\u90e8\u7f72|CI|CD|Docker|\u73af\u5883\u53d8\u91cf|\u6d41\u6c34\u7ebf/i]
   };
   return (aliases[flag] ?? []).some((pattern) => pattern.test(inputText));
 }
@@ -195,9 +195,9 @@ function buildAgentTask(agentId, agent, inputText, profile, impactScopes) {
     ...projectRuleFiles
   ].filter(Boolean);
 
-  return `# Agent 任务：${agentId}
+  return `# Agent Task: ${agentId}
 
-## Run 信息
+## Run
 
 - runId: ${runId}
 - agent: ${agentId}
@@ -205,37 +205,37 @@ function buildAgentTask(agentId, agent, inputText, profile, impactScopes) {
 - category: ${agent.category}
 - impact_scopes: ${impactScopes.length ? impactScopes.join(", ") : "(none)"}
 
-## 推荐模型
+## Recommended Model
 
 - profile: ${model.profile}
 - model: ${model.model}
 - reasoning_effort: ${model.reasoning_effort}
 
-## 输入
+## Inputs
 
 ${inputs.map((item) => `- ${item}`).join("\n")}
 
-## 项目 Overlay
+## Project Overlay
 
 ${overlaySummary(projectOverlay)}
 
-## 职责范围
+## Responsibility
 
 ${(agent.scope ?? []).map((item) => `- ${item}`).join("\n")}
 
-## 允许修改范围
+## Allowed Write Scope
 
-${allowed.length ? allowed.map((item) => `- ${item}`).join("\n") : "- 无"}
+${allowed.length ? allowed.map((item) => `- ${item}`).join("\n") : "- none"}
 
-## 禁止事项
+## Forbidden
 
-- 无关业务代码
-- 其他活跃 agent 负责的文件
-- 未经 release 确认前的产品长期文档目录
-- 密钥、token、生产环境文件
-- tester/reviewer 发现问题时，不要让主 agent 修改业务代码；必须把 requiredFixes 回派给对应实现 agent。
+- unrelated business code
+- files owned by other active agents
+- long-lived product documentation before release confirmation
+- secrets, tokens, production environment files
+- asking the main agent to fix tester/reviewer findings directly; use targetAgents and requiredFixes instead
 
-## 必须产出
+## Required Outputs
 
 ${requiredOutputsFor(agentId).map((item) => `- ${item}`).join("\n")}
 
@@ -243,16 +243,20 @@ ${requiredOutputsFor(agentId).map((item) => `- ${item}`).join("\n")}
 
 ${artifactSchemaForAgent(agentId)}
 
-## 当前 run 输入快照
+## Output Contract
 
-${limitText(inputText.trim(), 2500) || "（空）"}
+${outputContractFor(agentId)}
 
-## 完成检查清单
+## Current Run Input Snapshot
 
-- [ ] 已阅读 run 输入和相关 artifacts
-- [ ] 已保持在职责范围和允许修改范围内
-- [ ] 已记录测试，或说明无法运行测试的原因
-- [ ] 已更新对应 artifact 或结果摘要
+${limitText(inputText.trim(), 2500) || "(empty)"}
+
+## Completion Checklist
+
+- [ ] Read the run input and relevant artifacts.
+- [ ] Stayed inside the responsibility and allowed write scope.
+- [ ] Recorded tests, or explained why tests could not run.
+- [ ] Updated the owned artifact or result summary.
 `;
 }
 
@@ -273,7 +277,11 @@ function allowedPathsFor(agentId, impactScopeConfig, impactScopes) {
     "requirements-plan": [".harness/runs/<run>/artifacts/requirement-plan.md"],
     requirements: [".harness/runs/<run>/artifacts/requirement.md"],
     architect: [".harness/runs/<run>/artifacts/architecture.md", ".harness/runs/<run>/artifacts/implementation-plan.md"],
+    frontend: ["src/**", "package.json", "index.html", "public/**", "vite.config.*"],
     docs: ["README.md", "docs/**", "*.md", ".harness/runs/<run>/artifacts/test-report.md"],
+    backend: ["server/**", "api/**", "src/**", "package.json"],
+    database: ["prisma/**", "migrations/**", "db/**", ".harness/runs/<run>/artifacts/db-migration.md"],
+    devops: ["Dockerfile", "docker-compose*.yml", ".github/**", "scripts/**", ".harness/runs/<run>/artifacts/release-summary.md"],
     tester: [".harness/runs/<run>/artifacts/test-report.md"],
     reviewer: [".harness/runs/<run>/artifacts/review-report.md"],
     release: [".harness/runs/<run>/artifacts/release-summary.md"]
@@ -324,6 +332,51 @@ function artifactSchemaForAgent(agentId) {
     : "- No dedicated artifact schema for this agent.";
 }
 
+function outputContractFor(agentId) {
+  const common = [
+    "- Write the owned result files yourself:",
+    `  - .harness/runs/${runId}/logs/native-subagents/${agentId}.result.md`,
+    `  - .harness/runs/${runId}/logs/native-subagents/${agentId}.result.json`,
+    "- JSON must use `artifactUpdates` and `artifactsUpdated`; do not use `artifacts` as a substitute.",
+    "- Every updated artifact listed in JSON must already exist on disk and be owned by this agent."
+  ];
+
+  const byAgent = {
+    "requirements-plan": [
+      "- `requirement-plan.md` must use the exact headings from Artifact Schema.",
+      "- `Acceptance Criteria Draft` must contain numbered entries such as `AC-01`, `AC-02`."
+    ],
+    requirements: [
+      "- `requirement.md` must use the exact headings from Artifact Schema.",
+      "- `Acceptance Criteria` must contain concrete numbered entries such as `AC-01`, `AC-02`.",
+      "- Each acceptance criterion must be testable by tester."
+    ],
+    architect: [
+      "- `architecture.md` and `implementation-plan.md` must use the exact headings from Artifact Schema.",
+      "- Do not leave placeholder text such as TBD, TODO, waiting for another agent, or template placeholder.",
+      "- The implementation plan must map files/modules to implementation agents."
+    ],
+    tester: [
+      "- `test-report.md` must use the exact headings from Artifact Schema.",
+      "- Reference `AC-*` IDs from `requirement.md` whenever they exist.",
+      "- For frontend/local MVP work, verify non-blank page, add, persistence after refresh, complete, complete-state persistence after refresh, delete, delete-after-refresh, empty input rejection, desktop viewport, mobile viewport, build command, and service shutdown.",
+      "- If any required check fails, set `fixRequired: true`, fill `targetAgents`, and put precise `requiredFixes` entries in result JSON."
+    ],
+    reviewer: [
+      "- `review-report.md` must use the exact headings from Artifact Schema.",
+      "- Under `Conclusion`, use exactly one checkbox line: `- [x] pass`, `- [x] conditional pass`, or `- [x] fail`.",
+      "- Under `Blocking Issues`, write `- none` when there are no blocking issues.",
+      "- If fixes are required, set `fixRequired: true`, fill `targetAgents`, and put precise `requiredFixes` entries in result JSON."
+    ],
+    release: [
+      "- `release-summary.md` must use the exact headings from Artifact Schema.",
+      "- Include verification status, known risks, user-facing run/build command, and rollback strategy."
+    ]
+  };
+
+  return [...common, ...(byAgent[agentId] ?? [])].join("\n");
+}
+
 function resolveModel(agentId, agent) {
   const profileName = modelPolicy.agent_model_policy?.[agentId]?.profile
     ?? agent.model_profile
@@ -338,35 +391,35 @@ function resolveModel(agentId, agent) {
 
 function buildMainSummary(selectedAgents, workflowProfile, impactScopes) {
   const main = resolveModel("main", { model_profile: "low_cost" });
-  return `# 主 agent 汇总
+  return `# Main Agent Summary
 
-## Run 信息
+## Run
 
 - runId: ${runId}
 - workflow_profile: ${workflowProfile}
 - run_type: ${workloadAnalysis.runType}
 - impact_scopes: ${impactScopes.length ? impactScopes.join(", ") : "(none)"}
 
-## 主 agent 模型
+## Main Agent Model
 
 - profile: ${main.profile}
 - model: ${main.model}
 - reasoning_effort: ${main.reasoning_effort}
 
-## 已生成任务
+## Generated Tasks
 
 ${selectedAgents.map((agent) => `- tasks/${agent}.task.md`).join("\n")}
 
-## 执行说明
+## Execution Rules
 
-- 创建或选择 run 前先使用 intake 判断。
-- 需求仍粗糙时，先运行 requirements-plan，再进入实现。
-- 当生命周期工具可用时，使用 native subagents。
-- 用户确认前，规划产物必须保留在 run artifacts 内。
-- 产品文档同步只能在 release 后，并且获得明确确认后执行。
-- discovery/plan_only run 只允许规划和评审，不允许业务代码变更。
-- tester/reviewer 反馈需要代码修复时，主 agent 只负责转派给 frontend/backend/database/devops/docs 等 owner agent，不直接编辑业务文件。
-- 主窗口只保留子 agent 结果摘要、阻塞和下一步，不粘贴长日志或完整上下文包。
+- Use intake before creating or selecting a run.
+- Keep the strict harness flow when the user explicitly requests CrewUp/full-loop workflow.
+- Use native subagents when lifecycle tools are available.
+- Formal artifacts must be written by their owner agents, not by the main agent.
+- Product documentation sync is allowed only after release and explicit approval.
+- discovery/plan_only runs allow planning and review only; no business code changes.
+- When tester/reviewer feedback requires code changes, the main agent only delegates repairs to owner agents.
+- Keep only concise subagent summaries, blockers, and next steps in the main window.
 `;
 }
 
@@ -403,7 +456,7 @@ function valueOf(prefix) {
 }
 
 function limitText(text, maxChars) {
-  return text.length > maxChars ? `${text.slice(0, maxChars)}\n\n...(已截断)` : text;
+  return text.length > maxChars ? `${text.slice(0, maxChars)}\n\n...(truncated)` : text;
 }
 
 async function updateRunState({ workflowProfile, workloadAnalysis }) {

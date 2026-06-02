@@ -21,6 +21,7 @@ native_subagents:
     after_result:
       - "Collect the final result."
       - "Require the subagent to write `.harness/runs/<run>/logs/native-subagents/<agent>.result.md` and `.result.json`; the main agent only registers existing result files."
+      - "Run `native-state` mutations serially; never run `mark-spawned`, `mark-result`, or close-state commands in parallel for the same run."
       - "Review changed files before integration."
       - "Do not close a subagent only because it returned a result."
       - "Keep completed subagents in `waiting_review` for follow-up until user acceptance, explicit release by the main agent, or run done/archive cleanup."

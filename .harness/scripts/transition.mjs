@@ -174,7 +174,7 @@ async function requireArtifactContent(name, options = {}) {
   const target = requireArtifact(name);
   const content = await readFile(target, "utf8");
   for (const heading of artifactSchema[name]?.required_headings ?? []) {
-    if (!content.includes(`## ${heading}`)) fail(`Artifact ${name} missing required heading: ${heading}`);
+    if (!hasAnyHeading(content, headingAliases(heading))) fail(`Artifact ${name} missing required heading: ${heading}`);
   }
   if (options.noPlaceholders && hasPlaceholder(content)) fail(`Artifact ${name} still contains template placeholders.`);
   if (options.requireImpactScope && availableImpactScopes().length > 0 && !hasMarkedImpactScope(content)) {
@@ -334,27 +334,43 @@ function availableImpactScopes() {
 }
 
 function hasAcceptanceCriteria(content) {
-  const section = sectionText(content, "验收标准");
+  const section = sectionTextAny(content, ["Acceptance Criteria", "Acceptance Criteria Draft"]);
   return /AC-\d+/i.test(section) || (/- \[[ xX]\]\s+\S+/.test(section) && !/- \[[ xX]\]\s*$/.test(section.trim()));
 }
 
 function hasRequiredCheckFailure(content) {
-  return /\|\s*[^|\n]+\s*\|\s*failed\s*\|\s*(是|true|required)\s*\|/i.test(content)
-    || /必需检查失败|Required verification failed/i.test(content);
+  return /\|\s*[^|\n]+\s*\|\s*failed\s*\|\s*(true|required)\s*\|/i.test(content)
+    || /Required verification failed/i.test(content);
 }
 
 function reviewHasBlockingIssues(content) {
-  if (/- \[[xX]\]\s*不通过/.test(content)) return true;
-  if (!/- \[[xX]\]\s*(通过|有条件通过)/.test(content) && /##\s*结论/.test(content)) return true;
-  return sectionHasSubstantiveBullet(content, "阻塞问题");
+  if (/- \[[xX]\]\s*(fail|failed|not passed)/i.test(content)) return true;
+  if (hasAnyHeading(content, ["Conclusion"]) && !/- \[[xX]\]\s*(pass|passed|conditional pass)/i.test(content)) return true;
+  return sectionHasSubstantiveBulletAny(content, ["Blocking Issues"]);
 }
 
-function sectionHasSubstantiveBullet(content, heading) {
-  const section = sectionText(content, heading);
+function sectionHasSubstantiveBulletAny(content, headings) {
+  const section = sectionTextAny(content, headings);
   return section.split(/\r?\n/).some((line) => {
-    const text = line.trim().replace(/^[-*]\s*/, "").trim().replace(/[。.!！]+$/g, "");
-    return text && !["无", "暂无", "无阻塞问题", "none", "n/a", "-"].includes(text.toLowerCase());
+    const text = line.trim().replace(/^[-*]\s*/, "").trim().replace(/[.!]+$/g, "");
+    return text && !["none", "n/a", "no blocking issues", "-"].includes(text.toLowerCase());
   });
+}
+
+function hasAnyHeading(content, headings) {
+  return headings.some((heading) => new RegExp(`^##\\s+${escapeRegExp(heading)}\\s*$`, "m").test(content));
+}
+
+function sectionTextAny(content, headings) {
+  for (const heading of headings) {
+    const section = sectionText(content, heading);
+    if (section) return section;
+  }
+  return "";
+}
+
+function headingAliases(heading) {
+  return [heading];
 }
 
 function sectionText(content, heading) {
@@ -405,35 +421,35 @@ async function writeArchiveReminder() {
   const reminderPath = path.join(root, reminderRel);
   const gitStatus = gitStatusShort();
   const content = [
-    "# 归档提醒",
+    "# Archive Reminder",
     "",
     `- runId: ${runId}`,
     `- from: ${from}`,
     `- to: ${to}`,
     `- archivedAt: ${new Date().toISOString()}`,
     "",
-    "## 归档前必须确认",
+    "## Required Checks Before Archive",
     "",
-    "- [x] run 已进入 done 阶段。",
-    "- [x] 测试报告、评审报告和发布摘要已通过门禁。",
-    "- [x] close_required 的 native subagents 已关闭并记录。",
-    "- [ ] 本次业务代码和产品文档变更已写入 changed-files manifest。",
-    "- [ ] 如果工作区混有其它迭代，请不要使用 --allow-all-workspace-changes。",
+    "- [x] run has reached done stage.",
+    "- [x] test report, review report, and release summary passed gates.",
+    "- [x] close_required native subagents are closed and recorded.",
+    "- [ ] business code and product documentation changes for this run are recorded in changed-files manifest.",
+    "- [ ] if the workspace contains unrelated changes, do not use --allow-all-workspace-changes.",
     "",
-    "## 自动 Git 提交策略",
+    "## Automatic Git Commit Policy",
     "",
     `- enabled: ${archivePolicy.git?.enabled ? "true" : "false"}`,
     `- auto_commit_after_done: ${archivePolicy.git?.auto_commit_after_done ? "true" : "false"}`,
     `- stage_mode: ${archivePolicy.git?.stage_mode ?? "all_workspace_changes"}`,
     `- commit_message: ${(archivePolicy.git?.commit_message_template ?? "chore(harness): archive <run>").replaceAll("<run>", runId)}`,
     "",
-    "## 当前 Git 工作区",
+    "## Current Git Worktree",
     "",
-    gitStatus.length ? gitStatus.map((line) => `- ${line}`).join("\n") : "- 无变更",
+    gitStatus.length ? gitStatus.map((line) => `- ${line}`).join("\n") : "- no changes",
     "",
-    "## 提醒",
+    "## Reminder",
     "",
-    "归档完成后，harness 会自动执行归档提交。若提交因未记录文件而失败，请先运行 `harness:changed-files` 记录本次变更，再重跑：",
+    "After done, harness runs the archive commit automatically. If the commit is blocked by unrecorded files, record this run's changes with `harness:changed-files`, then rerun:",
     "",
     "```bash",
     `npm run harness:archive-commit -- ${runId}`,
@@ -442,8 +458,8 @@ async function writeArchiveReminder() {
   ].join("\n");
   await mkdir(path.dirname(reminderPath), { recursive: true });
   await writeFile(reminderPath, content, "utf8");
-  console.log(`归档提醒已生成：${path.relative(root, reminderPath).replaceAll("\\", "/")}`);
-  console.log("归档提醒：请确认当前 git 工作区只包含本次迭代相关变更；done 后将按策略自动提交。");
+  console.log(`Archive reminder written: ${path.relative(root, reminderPath).replaceAll("\\", "/")}`);
+  console.log("Archive reminder: confirm the git worktree contains only this run's relevant changes before automatic commit.");
 }
 
 function runArchiveCommit() {
@@ -458,7 +474,7 @@ function runArchiveCommit() {
   });
 
   if (result.status !== 0) {
-    console.error("Run 已进入 done，但归档 git 提交失败。修复后请运行：");
+    console.error("Run reached done, but archive git commit failed. After fixing the issue, run:");
     console.error(`npm run harness:archive-commit -- ${runId}`);
     process.exit(result.status ?? 1);
   }
@@ -488,7 +504,7 @@ function gitStatusShort() {
     cwd: root,
     encoding: "utf8"
   });
-  if (result.status !== 0) return [`无法读取 git status：${result.stderr?.trim() || result.stdout?.trim() || "unknown error"}`];
+  if (result.status !== 0) return [`Failed to read git status: ${result.stderr?.trim() || result.stdout?.trim() || "unknown error"}`];
   return result.stdout.trim().split(/\r?\n/).filter(Boolean);
 }
 

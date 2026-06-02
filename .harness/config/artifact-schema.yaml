@@ -3,88 +3,88 @@ artifacts:
     owner: "requirements-plan"
     required: false
     required_headings:
-      - "状态"
-      - "当前理解"
-      - "本轮问题"
-      - "已回答问题"
-      - "收敛判断"
+      - "Status"
+      - "Current Understanding"
+      - "Questions"
+      - "Answered Questions"
+      - "Convergence Decision"
 
   requirement-plan.md:
     owner: "requirements-plan"
     required_headings:
-      - "原始需求摘要"
-      - "过往背景"
-      - "目标"
-      - "非目标"
-      - "验收标准"
-      - "影响范围候选"
-      - "待确认问题"
+      - "Original Request Summary"
+      - "Historical Context"
+      - "Goals"
+      - "Non-Goals"
+      - "Acceptance Criteria Draft"
+      - "Impact Scope Candidates"
+      - "Open Questions"
 
   requirement.md:
     owner: "requirements"
     required_headings:
-      - "背景"
-      - "过往背景"
-      - "复用的历史决策"
-      - "与历史方案的冲突或变化"
-      - "目标"
-      - "非目标"
-      - "验收标准"
-      - "影响范围"
-      - "测试要求"
-      - "回滚方式"
+      - "Background"
+      - "Historical Context"
+      - "Reused Historical Decisions"
+      - "Conflicts Or Changes From History"
+      - "Goals"
+      - "Non-Goals"
+      - "Acceptance Criteria"
+      - "Impact Scope"
+      - "Test Requirements"
+      - "Rollback Strategy"
 
   architecture.md:
     owner: "architect"
     required_headings:
-      - "影响范围"
-      - "历史架构约束"
-      - "方案"
-      - "本次延续 / 推翻 / 新增的决策"
-      - "风险"
+      - "Impact Scope"
+      - "Historical Architecture Constraints"
+      - "Design"
+      - "Decisions Extended Replaced Or Added"
+      - "Risks"
 
   implementation-plan.md:
     owner: "architect"
     required_headings:
-      - "任务摘要"
-      - "文件和模块"
-      - "步骤"
-      - "测试计划"
-      - "完成检查"
+      - "Task Summary"
+      - "Files And Modules"
+      - "Steps"
+      - "Test Plan"
+      - "Completion Checklist"
 
   api-change.md:
     owner: "backend"
     required_headings:
-      - "是否涉及 API"
+      - "API Impact"
 
   db-migration.md:
     owner: "database"
     required_headings:
-      - "是否涉及数据库"
+      - "Database Impact"
 
   test-report.md:
     owner: "tester"
     required_headings:
       - "Run"
-      - "结果汇总"
-      - "执行项"
-      - "通过项"
-      - "失败 / 阻塞项"
-      - "未覆盖风险"
+      - "Result Summary"
+      - "Executed Checks"
+      - "Passed Checks"
+      - "Failed Or Blocked Checks"
+      - "Uncovered Risks"
 
   review-report.md:
     owner: "reviewer"
     required_headings:
-      - "结论"
-      - "阻塞问题"
-      - "非阻塞建议"
-      - "风险"
-      - "测试缺口"
-      - "是否满足完成定义"
+      - "Conclusion"
+      - "Blocking Issues"
+      - "Non-Blocking Suggestions"
+      - "Risks"
+      - "Test Gaps"
+      - "Definition Of Done"
 
   release-summary.md:
     owner: "release"
     required_headings:
-      - "变更内容"
-      - "部署步骤"
-      - "回滚方式"
+      - "Changes"
+      - "Deployment Steps"
+      - "Rollback Strategy"

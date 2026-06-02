@@ -23,7 +23,7 @@ const selectedAgents = selectedAgentsArg
   : null;
 
 if (!runId) {
-  console.error("请提供 runId，例如：npm run harness:native-plan -- 2026-05-14-001-blog-mvp");
+  console.error("Please provide runId, for example: npm run harness:native-plan -- 2026-05-14-001-blog-mvp");
   process.exit(1);
 }
 
@@ -33,7 +33,7 @@ const logsDir = path.join(runDir, "logs", "native-subagents");
 const bridgeDir = path.join(runDir, "logs", "agent-bridge");
 
 if (!existsSync(tasksDir)) {
-  console.error(`缺少 tasks/。请先运行：npm run harness:prepare-run -- ${runId}`);
+  console.error(`Missing tasks/. Run first: npm run harness:prepare-run -- ${runId}`);
   process.exit(1);
 }
 
@@ -180,7 +180,7 @@ if (!isNativeAgentEnvironment(agentEnvironment)) {
     }))
   }, null, 2)}\n`, "utf8");
 
-  console.log(`桥接任务清单已写入：${path.relative(root, bridgeDir)}`);
+  console.log(`Bridge task manifest written: ${path.relative(root, bridgeDir)}`);
   console.log(`- selected agent: ${agentEnvironment.id}`);
   for (const task of manifest.tasks) console.log(`- ${task.agent}: ${task.handoff_path}`);
   process.exit(0);
@@ -209,7 +209,7 @@ await writeFile(path.join(logsDir, "native-subagent-plan.json"), `${JSON.stringi
 await writeFile(path.join(logsDir, "native-subagent-plan.md"), renderPlanMarkdown(plan), "utf8");
 await writeFile(path.join(logsDir, "native-state.json"), `${JSON.stringify(await mergeNativeState(plan), null, 2)}\n`, "utf8");
 
-console.log(`原生子 agent 计划已写入：${path.relative(root, logsDir)}`);
+console.log(`Native subagent plan written: ${path.relative(root, logsDir)}`);
 for (const task of orderedTasks) console.log(`- ${task.agent}: ${task.agent_type}, ${task.context_mode}, ${task.prompt_path}`);
 
 function buildGroups(tasks, config) {
@@ -290,10 +290,10 @@ function renderSpawnPrompt({ agentId, agentType, profile, prerequisites = [], ta
   const artifactText = limitText(artifactIndex, budgets.artifact_index_chars ?? 900);
   const contextText = limitText(contextPack, budgets.context_pack_chars ?? 900);
   const overlayText = contextPack
-    ? "已包含在上下文包中；如需要更细规则，请读取任务输入列出的 overlay/rule 文件。"
-    : limitText(projectOverlayContext || "未找到项目 Overlay。", budgets.native_overlay_chars ?? budgets.project_overlay_chars ?? 800);
+    ? "Already included in the context pack; read the overlay/rule files listed in task inputs only if more detail is needed."
+    : limitText(projectOverlayContext || "No project overlay found.", budgets.native_overlay_chars ?? budgets.project_overlay_chars ?? 800);
   const lines = [
-    `# 原生子 agent 任务：${agentId}`,
+    `# Native Subagent Task: ${agentId}`,
     "",
     `- runId: ${runId}`,
     `- agent: ${agentId}`,
@@ -304,52 +304,53 @@ function renderSpawnPrompt({ agentId, agentType, profile, prerequisites = [], ta
     `- context_reasons: ${contextDecision.reasons.join("; ")}`,
     `- requires_completed_agents: ${prerequisites.length ? prerequisites.join(", ") : "(none)"}`,
     "",
-    "## 运行规则",
+    "## Runtime Rules",
     "",
-    "- 如果 requires_completed_agents 不是 `(none)`，主 agent 必须先确认这些 agent 已完成并通过 `native-state mark-result` 捕获结果后，才应该启动你。",
-    "- 你不是唯一在代码库中工作的 agent，其他 agent 或主 agent 可能并行推进。",
-    "- 不要回滚或覆盖他人已经完成的修改。",
-    "- 只能在自己的职责范围和下方允许修改范围内工作。",
-    "- 你负责的正式 artifact 必须由你自己写入允许范围内的 artifact 文件；不要只把 artifact 正文返回给主 agent 代写。",
-    "- 如果你无法写入自己负责的 artifact，请返回 `blocked` 或 `needs_input`，不要要求主 agent 代写。",
+    "- If requires_completed_agents is not `(none)`, the main agent must confirm those agents are completed and captured with `native-state mark-result` before starting you.",
+    "- You are not the only agent working in this repository; other agents or the main agent may be progressing orchestration metadata in parallel.",
+    "- Do not revert or overwrite changes made by other agents or the user.",
+    "- Work only inside your responsibility and allowed write scope.",
+    "- Formal artifacts owned by you must be written by you to the allowed artifact files; do not return artifact body text for the main agent to copy.",
+    "- If you cannot write your owned artifact, return `blocked` or `needs_input`; do not ask the main agent to write it for you.",
     "- Result files are subagent-owned audit outputs; write them yourself. The main agent may only register them with `native-state mark-result` after they already exist.",
     "- Do not ask the main agent to create, summarize, or copy your `<agent>.result.md` / `<agent>.result.json` files.",
-    "- JSON 里的 `artifactUpdates` / `artifactsUpdated` 只能列出你已经实际写入或更新的 artifact。",
-    "- 如果你是 tester/reviewer，反馈需要代码修复时只写清 targetAgents 和 requiredFixes，不要直接修改业务代码。",
-    "- 如果你是实现类 agent，收到 tester/reviewer 反馈后只修复自己职责范围内的问题，并在结果中引用反馈来源。",
-    "- 如果上下文不足，请返回 `needs_input`，并明确需要哪个文件或决策。",
-    "- 最终结果必须简洁，并遵守输出契约。",
+    "- JSON must use `artifactUpdates` and `artifactsUpdated`; do not use `artifacts` as a substitute.",
+    "- `artifactUpdates` and `artifactsUpdated` may list only artifacts you actually wrote or updated.",
+    "- If you are tester/reviewer and feedback requires code changes, write clear `targetAgents` and `requiredFixes`; do not edit business code directly.",
+    "- If you are an implementation agent handling tester/reviewer feedback, fix only issues inside your own scope and cite the feedback source.",
+    "- If context is insufficient, return `needs_input` and name the exact missing file or decision.",
+    "- Keep the final result concise and follow the output contract.",
     "",
-    "## 允许修改范围",
+    "## Allowed Write Scope",
     "",
-    ...(allowedPatterns.length ? allowedPatterns.map((item) => `- ${item}`) : ["- 无"]),
+    ...(allowedPatterns.length ? allowedPatterns.map((item) => `- ${item}`) : ["- none"]),
     "",
-    "## 当前任务",
+    "## Current Task",
     "",
-    "### 需求冻结摘要",
+    "### Spec Freeze Summary",
     "",
-    frozenText || "尚未生成需求冻结摘要；如果需要，请先运行 spec-freeze。",
+    frozenText || "No spec freeze has been generated yet; ask the main agent to run spec-freeze if needed.",
     "",
-    "### 原始任务",
+    "### Original Task",
     "",
     taskText,
     "",
-    "## 项目 Overlay 摘要",
+    "## Project Overlay Summary",
     "",
     overlayText,
     "",
-    "## 产物索引",
+    "## Artifact Index",
     "",
-    artifactText || "尚未生成产物索引；如有需要，请让主 agent 运行 context-pack。",
+    artifactText || "No artifact index has been generated yet; ask the main agent to run context-pack if needed.",
     "",
-    "## 上下文包",
+    "## Context Pack",
     "",
-    contextText || "尚未生成上下文包；如有需要，只能读取允许范围内的文件。",
+    contextText || "No context pack has been generated yet; read only files inside the allowed scope when needed.",
     "",
-    "## 输出契约",
+    "## Output Contract",
     "",
-    `请同时写入 Markdown 结果文件：${resultPathFor(agentId, "md")}`,
-    `请同时写入 JSON 结果文件：${resultPathFor(agentId, "json")}`,
+    `Write the Markdown result file: ${resultPathFor(agentId, "md")}`,
+    `Write the JSON result file: ${resultPathFor(agentId, "json")}`,
     "",
     "```text",
     `Agent: ${agentId}`,
@@ -366,7 +367,7 @@ function renderSpawnPrompt({ agentId, agentType, profile, prerequisites = [], ta
     JSON.stringify({
       agent: agentId,
       status: "completed",
-      summary: "一句话总结结果",
+      summary: "one sentence result summary",
       filesChanged: [],
       artifactUpdates: [{ path: "artifacts/<owned-artifact>.md" }],
       artifactsUpdated: ["artifacts/<owned-artifact>.md"],
@@ -376,7 +377,7 @@ function renderSpawnPrompt({ agentId, agentType, profile, prerequisites = [], ta
       requiredFixes: [],
       blockingIssues: [],
       blockers: [],
-      handoff: "下一步交接"
+      handoff: "next handoff"
     }, null, 2),
     "```",
     ""
@@ -444,19 +445,19 @@ function renderBridgeHandoff({ task, bridgeTask, agentEnvironment }) {
 function limitText(text, maxChars) {
   const value = String(text ?? "");
   if (!maxChars || value.length <= maxChars) return value;
-  return `${value.slice(0, maxChars).trim()}\n\n...(已按 native prompt 预算截断；需要细节时读取上方列出的源文件)`;
+  return `${value.slice(0, maxChars).trim()}\n\n...(truncated by native prompt budget; read the source files listed above if details are needed)`;
 }
 
 function renderPlanMarkdown(plan) {
   const lines = [
-    `# 原生子 agent 计划：${plan.runId}`,
+    `# Native Subagent Plan: ${plan.runId}`,
     "",
     `- mode: ${plan.mode}`,
     `- max_parallel_subagents: ${plan.max_parallel_subagents}`,
     "- critical verification order: tester -> reviewer -> release",
     "- do not spawn reviewer before tester completes; do not spawn release before reviewer completes",
     "",
-    "## 执行组",
+    "## Execution Groups",
     ""
   ];
 
@@ -466,7 +467,7 @@ function renderPlanMarkdown(plan) {
     lines.push("");
   }
 
-  lines.push("## 启动任务", "");
+  lines.push("## Spawn Tasks", "");
   for (const task of plan.tasks) {
     lines.push(`### ${task.agent}`);
     lines.push(`- spawn_name: ${task.spawn_name}`);
@@ -484,16 +485,16 @@ function renderPlanMarkdown(plan) {
     lines.push("");
   }
 
-  lines.push("## 生命周期检查清单", "");
-  lines.push("- 只启动可以和主 agent 工作并行的非阻塞任务。");
-  lines.push("- 不要启动 `requires_completed_agents` 尚未完成并捕获结果的任务。");
-  lines.push("- 当下一步关键路径需要结果时再等待对应 agent。");
-  lines.push("- 子 agent 必须自己写入 `logs/native-subagents/<agent>.result.md/json`；主 agent 只登记已存在的 result。");
-  lines.push("- 正式 artifact 必须由 owner agent 写入；主 agent 只捕获 result，不代写 owner artifact。");
-  lines.push("- agent 完成后先保留在 `waiting_review`，同时遵守保留容量限制。");
-  lines.push("- 当可用名额紧张时，先运行 `harness:native-state -- <run-id> recommend-close` 再启动更多 agent。");
-  lines.push("- 对已保留的 agent，优先使用 `send_input`/`resume_agent`，不要直接重复启动替代 agent。");
-  lines.push("- 只有在结果已捕获且状态为 `ready_to_close` 后，才关闭 agent。");
+  lines.push("## Lifecycle Checklist", "");
+  lines.push("- Spawn only tasks that can run without blocking the main agent's current coordination work.");
+  lines.push("- Do not start a task while its `requires_completed_agents` are incomplete or uncaptured.");
+  lines.push("- Wait only when the next critical path step needs that agent's result.");
+  lines.push("- Subagents must write `logs/native-subagents/<agent>.result.md/json` themselves; the main agent only registers existing results.");
+  lines.push("- Formal artifacts must be written by their owner agents; the main agent captures results but does not author owner artifacts.");
+  lines.push("- Keep completed agents in `waiting_review` until they are no longer needed, while respecting retention capacity.");
+  lines.push("- If retention capacity is tight, run `harness:native-state -- <run-id> recommend-close` before starting more agents.");
+  lines.push("- Prefer resuming retained agents with `send_input`/`resume_agent` instead of spawning replacements.");
+  lines.push("- Close an agent only after its result is captured and status is `ready_to_close`.");
   lines.push("");
   return `${lines.join("\n")}\n`;
 }
@@ -519,7 +520,7 @@ function extractAllowedPatterns(task) {
   const patterns = [];
   let inAllowed = false;
   for (const line of lines) {
-    if (line.startsWith("## ") && /允许修改|Allowed Write Scope|Allowed/i.test(line)) {
+    if (line.startsWith("## ") && /Allowed Write Scope|Allowed/i.test(line)) {
       inAllowed = true;
       continue;
     }

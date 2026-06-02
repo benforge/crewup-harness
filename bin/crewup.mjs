@@ -36,6 +36,7 @@ const scriptByCommand = {
   "native-plan": "native-plan.mjs",
   "native-state": "native-state.mjs",
   "repair-artifacts": "repair-artifacts.mjs",
+  "repair-plan": "repair-plan.mjs",
   "repair-state": "repair-state.mjs",
   "spec-freeze": "spec-freeze.mjs",
   transition: "transition.mjs",

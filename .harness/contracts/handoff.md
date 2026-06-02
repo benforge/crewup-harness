@@ -1,26 +1,25 @@
-# 交接模板
+# Handoff Template
 
-## 当前阶段
+## Current Stage
 
-- 
+- stage:
 
-## 已完成
+## Completed
 
-- 
+- none
 
-## 下一个 agent
+## Next Agent
 
-- 
+- agent:
 
-## 输入文件
+## Input Files
 
-- 
+- none
 
-## 必须注意
+## Important Notes
 
-- 
+- none
 
-## 未决问题
+## Open Questions
 
-- 
-
+- none

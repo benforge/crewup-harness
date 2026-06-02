@@ -1,40 +1,33 @@
 # CrewUp
 
-中文 | [English](./README.en.md)
+English | [README.en.md](./README.en.md)
 
 ![CrewUp workflow](assets/crewup-hero.svg)
 
-CrewUp 是一套面向大型、正式工程项目的 AI harness。它不负责替代某个 agent 写代码，而是把“什么时候进入流程、谁生成什么产物、谁执行实现、哪些门禁必须通过、最终如何归档”变成一套可复用、可检查、可追踪的工作流。
+CrewUp is an AI harness for large, formal engineering projects. It keeps the main agent in an orchestration role and delegates formal requirements, architecture, implementation, testing, review, documentation, and release artifacts to owner agents.
 
-它的产品定位是“AI 团队协作控制层”：主 agent 不再无限扩张成万能执行者，而是像交付负责人一样创建 run、拆分任务、分配上下文、等待子 agent 结果、检查产物归属和质量门禁。真正的需求、架构、实现、测试、审查、文档和发布摘要，由对应角色 agent 或外部执行者完成。
+CrewUp is intentionally strict:
 
-CrewUp 的默认理念很明确：
+- It is explicit opt-in. Normal chats do not enter the harness unless the user asks for CrewUp/harness behavior or runs `crewup run`.
+- Once a run exists, the main agent coordinates, delegates, checks gates, and summarizes.
+- Owner artifacts must be written by their owner agents.
+- Tester/reviewer feedback must be routed back to implementation owner agents instead of being fixed directly by the main agent.
+- Explicit strict/full-loop requests stay on the full workflow; CrewUp reduces waste by improving contracts and gates, not by bypassing roles.
 
-- 没有明确说 `CrewUp`、`harness`、`crewup run` 或类似触发词时，聊天窗仍然是普通助手对话。
-- 一旦明确进入 CrewUp，主 agent 只负责调度、委派、门禁和汇总，不直接承担正式业务实现或主要产物撰写。
-- requirements、architect、builder、tester、reviewer、docs、release 等产物由对应子 agent 或外部执行者负责。
-- CrewUp 面向大型项目和严谨流程；小修小补、临时问答、一次性脚本通常不需要启用它。
+## Highlights
 
-## 适用场景
+- Explicit CrewUp activation and strict main-agent boundary
+- Native subagent planning with `native-plan`, `spawn_agent`, `wait_agent`, and `close_agent`
+- English/ASCII core contracts to avoid mojibake in scripts and Markdown agreements
+- Schema-first artifact tasks with required headings
+- Stable implementation write scopes, including frontend defaults such as `src/**` and `package.json`
+- Tester baseline checks for frontend/local MVP runs
+- Reviewer pass format standardized as `## Conclusion` + `- [x] pass`
+- Native diagnostics with `crewup native-state <run-id> diagnose`
+- Repair task generation with `crewup repair-plan <run-id>`
+- Safe `install --force` upgrades that preserve runs, knowledge, project adapters, reports, dashboard, and backlog state
 
-- 需要把 AI 开发流程标准化的团队或个人
-- 需要在 Codex、Claude、Cursor、Trae 或人工执行之间保持一致交付协议的项目
-- 需要把需求、架构、实现、验证、审查、发布准备和归档串成闭环的真实仓库
-- 希望主 agent 不失控、不越权，只做 orchestration 的大型 AI 工程流程
-
-## 核心能力
-
-- 显式 opt-in：只有明确请求 CrewUp/harness 流程时才进入严格工作流
-- 项目适配：`init` 生成 `.harness/project/` 适配层；已有或复杂仓库可先用 `inspect` 增强结构识别
-- 严格委派：主 agent 负责 route/delegate/gate/summarize，产物由对应角色生成
-- 语义化 runId：从需求中提取动作和对象，避免长句截断式目录名
-- Schema 前置：子 agent 任务会列出 owner artifact 的必填章节，减少门禁后返工
-- 模型分层：正式 `requirement.md` 和 `architecture.md` 默认使用 `gpt-5.5 + medium`
-- 阶段门禁：stage entry gate、artifact provenance、no-code profile gate 防止越权和漏产物
-- 多执行环境：Codex native 优先，Claude/Cursor/Trae 通过 Universal Agent Bridge 写回结果，manual 作为高级兜底
-- 发布自测：提供本地检查、临时项目 pack-install 测试和 release preflight
-
-## 快速开始
+## Quick Start
 
 ```bash
 npm install -D crewup-harness
@@ -43,231 +36,86 @@ npx crewup init --agent codex --yes
 npx crewup check
 ```
 
-全新空项目通常不需要先跑 `inspect --no-ai`；`init` 会做基础文件系统检测。已有项目、monorepo 或结构较复杂的仓库，可以在 `init` 前补充：
+For existing or complex repositories, inspect first:
 
 ```bash
 npx crewup inspect --no-ai
+npx crewup init --agent codex --yes
 ```
 
-升级已安装过 CrewUp 的项目时，使用安全升级：
+To safely upgrade an existing installation:
 
 ```bash
 npx crewup install --force
 ```
 
-`--force` 会更新可复用 harness 核心，但保留 `.harness/runs/`、`.harness/knowledge/`、`.harness/project/`、`.harness/reports/`、`.harness/dashboard/` 和 backlog 运行态数据。只有确实要清空旧 harness 时才使用 `npx crewup install --reset`。
+Use `--reset` only when you explicitly want to remove old harness runtime state and reinstall from scratch.
 
-如果已经配置模型环境，并希望基于真实项目证据进一步修正适配层，可以运行：
+## Usage
 
-```bash
-npx crewup inspect --ai
-```
-
-## 使用方式
-
-命令行显式启动：
+CLI:
 
 ```bash
-npx crewup run "使用 CrewUp 规划支付系统重构，先输出需求边界、架构方案和分阶段计划"
+npx crewup run "Use CrewUp to plan and implement a formal feature with requirements, architecture, implementation, tester verification, reviewer review, and release summary."
 ```
 
-聊天窗显式启动：
+Chat:
 
 ```text
-用 CrewUp 做：为这个大型项目设计模块边界、迁移计划和验收门禁，先不要写业务代码。
+Use CrewUp to do this large project work. Keep the full workflow: requirements, architecture, implementation, tester, reviewer, release.
 ```
 
-非显式请求仍按普通助手对话处理，不应自动进入 CrewUp 流程。
+Non-explicit requests remain normal assistant work.
 
-## 工作流
+## Workflow
 
 ```text
-doctor -> install -> init -> check -> run -> spec-freeze
-  -> agent-plan -> orchestrate -> gate-check -> report -> finish
+doctor -> install -> inspect -> init -> check -> run -> spec-freeze
+  -> agent-plan -> native subagents / bridge -> gate-check -> report -> finish
 ```
 
-一次正式 run 会被拆成三层：
+Formal stage order:
 
-| 层级 | 负责什么 | 不负责什么 |
-| --- | --- | --- |
-| 主 agent | 判断是否进入 CrewUp、选择 profile、创建 run、分配任务、检查 gate、汇总状态 | 不直接写正式业务实现，不替 requirements/architect/tester/reviewer/docs/release 生成主要产物 |
-| 子 agent / 外部执行者 | 按角色生成产物、实现变更、测试验证、审查风险、写回结果 | 不绕过 run 状态、产物归属和写入范围 |
-| Harness 门禁 | 校验显式 opt-in、阶段流转、artifact provenance、反馈修复、服务关闭和归档条件 | 不替代项目自己的测试、构建、CI/CD 或业务规范 |
+```text
+intake -> requirements_plan -> requirements_confirm -> plan
+  -> implement -> verify -> review -> release -> done
+```
 
-常用命令：
+## Common Commands
 
-| 命令 | 作用 |
+| Command | Purpose |
 | --- | --- |
-| `npx crewup doctor` | 检查运行环境和前置条件 |
-| `npx crewup install` | 把 CrewUp 模板安装到目标项目 |
-| `npx crewup install --force` | 安全升级 harness 核心，保留已有 run、knowledge、project 适配层和运行态数据 |
-| `npx crewup install --reset` | 清空并重装 `.harness/`，会删除旧运行态数据，仅在明确需要重置时使用 |
-| `npx crewup inspect --no-ai` | 可选：基于文件系统识别已有或复杂项目结构 |
-| `npx crewup init --agent codex --yes` | 生成项目适配层和执行环境配置 |
-| `npx crewup check` | 校验核心配置、脚本和模板 |
-| `npx crewup run "..."` | 创建并准备一次正式 run |
-| `npx crewup run --dry-run "..."` | 只查看分流结果，不创建 run |
-| `npx crewup agent-plan <run-id>` | 生成 native 子 agent 计划或 bridge handoff |
-| `npx crewup gate-check <run-id>` | 检查质量门禁、产物归属和越权风险 |
-| `npx crewup report <run-id>` | 生成结构化交付报告 |
-| `npx crewup finish <run-id>` | 关闭 run 并按策略归档 |
-| `npx crewup dashboard` | 生成或刷新 `.harness/dashboard/index.html` |
-| `npx crewup skills` | 查看已安装 skill、角色标签和外部候选 |
-| `npx crewup dev-service <run-id> start` | 为当前 run 启动项目 dev/preview 服务并记录 pid |
-| `npx crewup dev-service <run-id> stop` | 停止当前 run 启动的服务，避免归档后残留进程 |
+| `npx crewup doctor` | Check runtime environment and prerequisites |
+| `npx crewup install` | Install the reusable harness core |
+| `npx crewup install --force` | Upgrade harness core while preserving runtime state |
+| `npx crewup inspect --no-ai` | Inspect project structure without AI |
+| `npx crewup init --agent codex --yes` | Generate project adapter and runtime config |
+| `npx crewup check` | Validate harness config, scripts, and templates |
+| `npx crewup run "..."` | Create and prepare a formal run |
+| `npx crewup run --dry-run "..."` | Preview routing/profile decisions |
+| `npx crewup agent-plan <run-id>` | Generate native subagent plan or bridge handoff |
+| `npx crewup native-state <run-id> diagnose` | Diagnose native subagent state/results |
+| `npx crewup repair-plan <run-id>` | Generate owner repair tasks from tester/reviewer fixes |
+| `npx crewup gate-check <run-id>` | Check gates, provenance, and overreach risks |
+| `npx crewup report <run-id>` | Generate a structured run report |
+| `npx crewup finish <run-id>` | Close the run and archive by policy |
+| `npx crewup dev-service <run-id> start` | Start a run-scoped dev/preview service |
+| `npx crewup dev-service <run-id> stop` | Stop the run-scoped service |
 
-## 工作流类型
+## Workflow Profiles
 
-| Profile | 适用场景 | 约束 |
+| Profile | Trigger | Rule |
 | --- | --- | --- |
-| `discovery` | 新项目摸底、模块边界、技术路线探索 | 以发现和规划为主，不直接进入实现 |
-| `plan_only` | 用户明确要求只规划、不写代码 | no-code gate 生效，禁止业务代码变更 |
-| `lite` | 范围很窄但仍需正式流程的小型工程任务 | 不是 quick mode，仍保留委派和门禁 |
-| `standard` | 常规跨文件工程任务 | 完整任务、上下文、执行和验证闭环 |
-| `full` | 高风险、大范围、多阶段项目工作 | 更强 requirements/architect/test/review/release 门禁 |
+| `discovery` | Project discovery, module boundaries, technical direction | Plan only |
+| `plan_only` | User explicitly asks for planning/no code | Business code is blocked |
+| `lite` | Narrow formal engineering work | Still delegated and gated |
+| `standard` | Normal implementation or multi-file work | Full loop |
+| `full` | High-risk, broad, multi-stage, or explicit strict/full-loop work | Strong requirements, architecture, tester, reviewer, release gates |
 
-## 命名和模型策略
-
-CrewUp 会为 run 生成更短、更语义化的 ID。例如“规划一个全栈博客系统”会生成类似：
-
-```text
-2026-06-02-001-plan-fullstack-blog-system
-```
-
-正式规划产物的默认模型档位：
-
-| 角色 | 产物 | 默认档位 |
-| --- | --- | --- |
-| `requirements-plan` | `requirement-plan.md` | `gpt-5.4-mini` / medium |
-| `requirements` | `requirement.md` | `gpt-5.5` / medium |
-| `architect` | `architecture.md`、`implementation-plan.md` | `gpt-5.5` / medium |
-
-生成子 agent task 时，CrewUp 会把对应 artifact schema 写进去，例如 `required_headings` 和 owner 信息。这样子 agent 在写作前就知道门禁要求，不需要等 gate 逐项打回。
-
-## 规划型 Run 的正常顺序
-
-当你说“使用 CrewUp 规划一个系统，但当前阶段不写业务代码”时，CrewUp 应进入 `plan_only` 或 `discovery`，并按顺序推进：
-
-1. 主 agent 创建 run、冻结输入、生成任务和 native plan。
-2. `requirements-plan` 子 agent 写入 `.harness/runs/<run-id>/artifacts/requirement-plan.md`。
-3. `requirements` 子 agent 在前置结果完成后写入 `.harness/runs/<run-id>/artifacts/requirement.md`。
-4. `architect` 子 agent 在需求确认后写入 `.harness/runs/<run-id>/artifacts/architecture.md` 和 `implementation-plan.md`。
-5. `reviewer` 检查规划产物、风险和验收标准。
-
-主 agent 可以调度、检查前置依赖、收集结果、要求返修和汇总状态，但不应把子 agent 返回的正文复制进这些正式产物。若子 agent 无法写入自己的产物，应标记 `blocked` 或 `needs_input`，而不是让主 agent 代写。
-
-## 执行环境
-
-| 环境 | 模式 | 说明 |
-| --- | --- | --- |
-| `codex` | native | 生成 Codex 原生子 agent 任务和计划，是当前稳定主路径 |
-| `claude` | bridge | 生成 handoff，由 Claude 执行并写回 `result.json` |
-| `cursor` | bridge | 生成 handoff，由 Cursor 执行并写回 `result.json` |
-| `trae` | bridge | 生成 handoff，由 Trae 执行并写回 `result.json` |
-| `manual` | manual/bridge | 人或脚本按契约写回结果 |
-
-Bridge 的目标是稳定交接和结果回写，不宣称所有外部工具都有相同的原生多 agent API。
-
-## 关键目录
-
-```text
-.harness/
-  AGENTS.md                # 正式项目工作入口
-  orchestrator/            # 主 agent、路由和桥接协议
-  config/                  # scope、workflow、model、gate、delegation、write policy
-  project/                 # 目标项目适配层，由 init 生成
-  runs/                    # 每次 run 的输入、任务、产物和日志
-  reports/                 # 运行态报告
-  knowledge/               # 可选知识层和经验沉淀
-```
-
-## 发布前验证
+## Local Validation
 
 ```bash
-npm run harness:check
-npm test
-npm run test:pack-install
 npm run release:preflight
 ```
 
-`test:pack-install` 会把当前包打成 tarball，在临时空项目里安装后执行 `crewup install -> inspect -> init -> check -> run --dry-run -> run -> report`，用于验证真实开发者安装路径。
-
-## Skill 增强
-
-安装到目标项目后，使用 CLI 命令管理可选 skill：
-
-```bash
-npx crewup skills
-npx crewup skills:install
-npx crewup skills:resolve
-npx crewup skills:install-exact
-```
-
-`skills.yaml` 是角色 skill 标签和外部候选目录，不代表 skill 已安装。普通用户通常只需要 `npx crewup skills` 查看报告，再按需执行 `npx crewup skills:install`。
-
-## 反馈与预览服务
-
-Tester 或 reviewer 发现问题时，主 agent 只负责把反馈转派给对应实现 agent，不直接修改业务代码。反馈结果会通过 `fixRequired`、`targetAgents` 和 `requiredFixes` 字段进入后续修复循环。
-
-需要给用户查看运行效果时，可以按 run 启动服务：
-
-```bash
-npx crewup dev-service <run-id> start
-npx crewup dev-service <run-id> status
-npx crewup dev-service <run-id> stop
-```
-
-`finish` / `done` 前如果服务仍在运行，门禁会阻止归档，避免遗留进程。
-
-## Dashboard 什么时候生成
-
-`.harness/dashboard/` 目录默认存在，是为了保留运行态 dashboard 的位置。真正的页面文件是：
-
-```text
-.harness/dashboard/index.html
-```
-
-它会在这些时候生成或刷新：
-
-- 运行 `npx crewup dashboard`
-- `orchestrate` 写入运行态状态时自动刷新
-- `finish <run-id>` 推进到 `done` 时自动刷新
-
-如果你只创建了 run，但没有执行 `orchestrate`，也还没有 `finish` 到 done，那么 dashboard 目录里可能只有 `.gitkeep`，这是正常的。
-
-## Docs Agent 什么时候启动
-
-`docs` 不是每个 run 都固定启动的 agent。它只在“文档是交付物”或“实现改变了用户需要知道的东西”时启动。
-
-这些请求会触发 `docs`：
-
-```bash
-npx crewup run "更新 README，补充安装和启动说明，不改源码"
-npx crewup run "实现登录功能，并同步更新接入说明和配置说明"
-npx crewup run "新增公开 API，补充接口文档和迁移说明"
-npx crewup run "调整启动命令和部署步骤，需要更新开发指南"
-```
-
-通常触发信号包括：
-
-- README、docs、文档、使用说明、接入说明、配置说明、开发指南、安装说明
-- 公开 API、配置方式、启动命令、部署步骤、迁移说明
-- 用户可见行为变化，需要给使用者或维护者留下说明
-
-如果只是内部实现修复，没有文档影响，`docs` 可以不启动；这时由 `release` agent 在 `release-summary.md` 里记录“无文档变更”。`release` 负责发布摘要，`docs` 负责 README/docs 等项目文档，它们不是同一个角色。
-
-## 更多文档
-
-| 文档 | 内容 |
-| --- | --- |
-| [工作流](./docs/harness-workflow.md) | 命令流程、profile 和 run 生命周期 |
-| [Universal Agent Bridge](./docs/universal-agent-bridge.md) | 外部 agent handoff 和 result JSON 契约 |
-| [Agent 选择](./docs/harness-agent-selection.md) | 初始化时的 agent 选择和适配层生成 |
-| [Agent 能力矩阵](./docs/harness-agent-capabilities.md) | 支持等级、能力边界和声明规则 |
-| [核心边界](./docs/harness-core-boundary.md) | 可复用核心、项目适配层和运行态目录边界 |
-| [迭代记录](./docs/harness-workflow-iteration-plan.md) | 本轮严格工作流优化的设计和变更记录 |
-| [扩展指南](./docs/harness-extension-guide.md) | skills、policies、rules、templates 扩展方式 |
-
-## 边界
-
-CrewUp 不替代你的构建系统、测试框架、CI/CD、业务架构或团队规范。它提供的是 AI 协作和交付闭环协议。真实项目仍应保留自己的 README、测试命令、发布流程和代码规范；CrewUp 会在初始化和运行过程中读取并引用这些信息。
+This runs harness checks, example tests, pack-install flow tests, and `npm pack --dry-run`.

@@ -1,29 +1,34 @@
-# 主代理汇总
+# Main Agent Summary
 
-## 需求
-- 概述本次 run 的目标、范围和非目标。
+## Requirement
 
-## 调度结果
+- Summarize goals, scope, and non-goals for this run.
 
-| Agent | 状态 | 关键输出 | 文件/产物 | 测试/检查 | 阻塞 | Handoff |
+## Delegation Result
+
+| Agent | Status | Key Output | Files/Artifacts | Tests/Checks | Blockers | Handoff |
 | --- | --- | --- | --- | --- | --- | --- |
 
-## 代码变更
-- 无
+## Code Changes
 
-## 检查结果
-- 尚未执行。
+- none
 
-## 归档提交
+## Check Results
 
-| 项目 | 值 |
+- not run yet
+
+## Archive Commit
+
+| Item | Value |
 | --- | --- |
-| archive status | 待补充 |
-| commit | 待补充 |
-| 修复命令 | 无 |
+| archive status | pending |
+| commit | pending |
+| repair command | none |
 
-## 需要人工确认
-- 无
+## Human Confirmation Needed
 
-## 下一步
-- 按 `crewup next` 的建议推进。
+- none
+
+## Next Step
+
+- Follow `crewup next`.

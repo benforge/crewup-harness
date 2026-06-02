@@ -1,13 +1,12 @@
-# API 设计规则
+# API Rules
 
-## 基本原则
+## Principles
 
-- API 命名、错误结构、分页、过滤、排序要保持一致。
-- 输入输出类型必须明确。
-- 破坏性接口变化必须记录兼容性影响。
+- Keep API naming, error shape, pagination, filtering, and sorting consistent.
+- Make input and output types explicit.
+- Record compatibility impact for breaking API changes.
 
-## 输出要求
+## Output
 
-- 新增、修改、删除接口都写入 `artifacts/api-change.md`。
-- 涉及前端调用时同步共享类型或 SDK。
-
+- Added, changed, or removed endpoints must be recorded in `artifacts/api-change.md`.
+- If frontend calls are affected, update shared types or SDKs when they exist.

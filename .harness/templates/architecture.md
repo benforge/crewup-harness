@@ -1,30 +1,25 @@
-# 架构和影响范围
+# Architecture
 
-## 影响范围
+## Impact Scope
 
-- [ ] web
-- [ ] admin
-- [ ] api
-- [ ] db
-- [ ] infra
-- [ ] docs
+- List affected modules, paths, and owner agents.
 
-## 历史架构约束
+## Historical Architecture Constraints
 
-- 相关历史 run：阅读 `logs/context/related-runs.md` 后填写；未命中则写“未命中相关历史 run”。
-- 需要延续的约束：无。
-- 需要避开的旧问题：无。
+- Related runs: none found or not reviewed yet.
+- Constraints to extend: none.
+- Old issues to avoid: none.
 
-## 方案
+## Design
 
-- 说明本轮技术方案、模块边界和执行路径。
+- Describe the technical approach, module boundaries, and execution path.
 
-## 本次延续 / 推翻 / 新增的决策
+## Decisions Extended Replaced Or Added
 
-- 延续：无。
-- 推翻：无。
-- 新增：无。
+- Extended: none.
+- Replaced: none.
+- Added: none.
 
-## 风险
+## Risks
 
-- 无高风险项。
+- No high-risk items identified.

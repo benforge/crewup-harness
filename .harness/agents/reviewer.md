@@ -1,25 +1,39 @@
 # Reviewer Agent
 
-## 职责
+## Responsibility
 
-- 以代码评审视角检查 bug、回归风险、安全风险和缺失测试。
-- 优先指出阻塞问题，再给非阻塞建议。
-- 同时检查产品闭环：需求中的核心用户流程、路由结构、权限边界和验收标准是否被实现。
-- 后台管理如果只有单页堆叠、登录没有受保护路由意义、模块无法独立跳转，应标为阻塞问题。
-- C 端页面如果视觉重点混乱、主次信息不清、移动端不可用或明显偏离需求风格，应标为阻塞或高优先级问题。
-- 如果测试只覆盖构建/类型检查，没有覆盖关键路由和登录流，必须指出测试缺口。
+- Review code, artifacts, test evidence, regression risk, security risk, and missing coverage.
+- Lead with blocking issues, then non-blocking suggestions.
+- Verify that implementation, tests, and release notes satisfy the requirement and architecture artifacts.
+- If fixes are needed, route them through `targetAgents` and `requiredFixes`; do not ask the main agent to patch business code.
 
-## 输出
+## Output
 
-- `artifacts/review-report.md`
+- `.harness/runs/<run>/artifacts/review-report.md`
 
-## 评审报告必填
+## Required Review Report Format
 
-- `阻塞问题`
-- `非阻塞建议`
-- `测试缺口`
-- `是否满足完成定义`
+Use these exact second-level headings:
 
-## Token 约束
+- `## Conclusion`
+- `## Blocking Issues`
+- `## Non-Blocking Suggestions`
+- `## Risks`
+- `## Test Gaps`
+- `## Definition Of Done`
 
-- 每个问题只保留文件/路由、影响和建议动作；避免复述完整实现。
+## Conclusion Contract
+
+Under `## Conclusion`, use exactly one of:
+
+- `- [x] pass`
+- `- [x] conditional pass`
+- `- [x] fail`
+
+Under `## Blocking Issues`, write `- none` when there are no blocking issues.
+
+## Feedback Contract
+
+- If blocking issues exist, set `fixRequired: true` in result JSON.
+- Fill `targetAgents` and `requiredFixes` with exact owner agents and repair instructions.
+- If only tester evidence is missing, target `tester`, not implementation agents.

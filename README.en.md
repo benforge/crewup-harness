@@ -29,6 +29,10 @@ The operating model is intentionally strict:
 - Strict delegation: the main agent routes, delegates, gates, and summarizes; role agents own artifacts
 - Semantic run IDs: extracts action and object terms instead of truncating long user text
 - Schema-first tasks: subagent tasks include owner artifact headings to reduce gate-time rework
+- English/ASCII core contracts: core scripts, role files, templates, rules, and contracts avoid mojibake-prone Chinese source text while still detecting Chinese user intent where needed
+- Strict full-loop preservation: explicit strict/full-loop requests stay on the `full` workflow; CrewUp reduces waste through clearer contracts instead of bypassing roles
+- Repair loop support: `native-state diagnose` detects result/state gaps and `repair-plan` groups tester/reviewer fixes by owner agent
+- Frontend MVP verification baseline: tester tasks include non-blank page, add, refresh persistence, complete-state persistence, delete-after-refresh, empty input rejection, desktop/mobile viewport, build, and service shutdown checks
 - Model tiers: formal `requirement.md` and `architecture.md` use `gpt-5.5 + medium` by default
 - Stage gates: stage entry gates, artifact provenance, and no-code profile gates reduce drift and overreach
 - Multiple execution environments: Codex native first, Claude/Cursor/Trae writeback through the Universal Agent Bridge, and manual as an advanced fallback
@@ -108,6 +112,8 @@ Common commands:
 | `npx crewup run "..."` | Create and prepare a formal run |
 | `npx crewup run --dry-run "..."` | Show routing/profile decisions without creating a run |
 | `npx crewup agent-plan <run-id>` | Generate a native subagent plan or bridge handoff |
+| `npx crewup native-state <run-id> diagnose` | Diagnose missing handles, uncaptured results, invalid result JSON, and state/result gaps |
+| `npx crewup repair-plan <run-id>` | Generate owner repair tasks from tester/reviewer `requiredFixes` |
 | `npx crewup gate-check <run-id>` | Check quality gates, artifact ownership, and overreach risks |
 | `npx crewup report <run-id>` | Generate a structured delivery report |
 | `npx crewup finish <run-id>` | Close the run and archive by policy |

@@ -1,7 +1,7 @@
-# Docs Rules
+# Documentation Rules
 
-- 文档必须以目标项目的真实文件、脚本和配置为准。
-- 示例命令要能在当前项目语境中解释清楚；无法验证时必须标注原因。
-- 面向用户的说明默认使用中文，保留命令、路径、包名和 API 名称原文。
-- 避免把内部 harness 操作细节暴露成业务项目使用说明，除非文档主题就是 harness。
-- 更新文档后，在结果里列出修改文件、验证方式和剩余风险。
+- Documentation must be based on real files, scripts, and configuration in the target project.
+- Example commands must make sense in the current project context.
+- If a command cannot be verified, explain why.
+- Avoid exposing internal harness operations as product usage instructions unless the document is about the harness itself.
+- After documentation changes, list changed files, validation method, and remaining risks.

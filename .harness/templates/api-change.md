@@ -1,27 +1,21 @@
-# API 变化记录
+# API Change Record
 
-## 是否涉及 API
+## API Impact
 
-- [ ] 是
-- [x] 否
+- [ ] yes
+- [x] no
 
-本轮默认不涉及 API 变化；如涉及，请勾选“是”并补充下列接口表。
+## Added Endpoints
 
-## 新增接口
-
-| 方法 | 路径 | 说明 | 权限 |
+| Method | Path | Description | Permission |
 | --- | --- | --- | --- |
 
-## 修改接口
+## Changed Endpoints
 
-| 方法 | 路径 | 修改点 | 兼容性 |
+| Method | Path | Change | Compatibility |
 | --- | --- | --- | --- |
 
-## 删除接口
+## Removed Endpoints
 
-| 方法 | 路径 | 替代方案 |
+| Method | Path | Replacement |
 | --- | --- | --- |
-
-## OpenAPI 或 SDK 更新
-
-- 无。

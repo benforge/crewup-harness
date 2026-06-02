@@ -1,15 +1,16 @@
-# 完成定义
+# Definition Of Done
 
-一个任务只有同时满足以下条件，才算完成。
+A formal run is complete only when all applicable conditions are satisfied.
 
-- [ ] 需求目标和非目标清晰。
-- [ ] 验收标准逐条通过。
-- [ ] 影响范围内的代码、配置和文档都已处理。
-- [ ] 测试已运行，或无法运行的原因已写明。
-- [ ] 评审没有阻塞问题。
-- [ ] API、数据库、环境变量、部署变化已记录。
-- [ ] 发布摘要和回滚方式已写明。
-- [ ] run 状态已更新。
-- [ ] native subagent 结果已收集，每个已标记 result 的 agent 都存在 `logs/native-subagents/<agent>.result.md`，所有 close_required agent 已在归档前关闭并记录 closed。
-- [ ] 归档提醒已生成，并确认 git 工作区只包含本次迭代相关变更。
-- [ ] 归档完成后已自动执行 git commit；如无变更或提交失败，原因已写入归档日志。
+- [ ] Goals and non-goals are clear.
+- [ ] Acceptance criteria are verified one by one.
+- [ ] Code, configuration, and documentation changes inside impact scope are handled.
+- [ ] Tests have run, or limitations are documented.
+- [ ] Review has no blocking issues.
+- [ ] API, database, environment, deployment, and rollback changes are recorded when applicable.
+- [ ] Release summary and rollback strategy are written.
+- [ ] Run state is updated.
+- [ ] Native subagent results are captured; every result-marked agent has `logs/native-subagents/<agent>.result.md`.
+- [ ] All close_required agents are closed before archive.
+- [ ] Archive reminder is generated and the git worktree is checked for unrelated changes.
+- [ ] Archive commit is created when policy allows it, or skip/failure reason is logged.

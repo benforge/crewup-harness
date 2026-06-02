@@ -1,18 +1,17 @@
-# 安全规则
+# Security Rules
 
-## 高风险主题
+## High-Risk Topics
 
-- 认证和授权。
-- 密钥、Token、Cookie、Session。
-- 文件上传。
-- SQL 或查询构造。
-- XSS、CSRF、SSRF。
-- 生产环境部署。
+- Authentication and authorization.
+- Secrets, tokens, cookies, and sessions.
+- File uploads.
+- SQL or query construction.
+- XSS, CSRF, SSRF.
+- Production deployment.
 
-## 要求
+## Requirements
 
-- 不在代码中硬编码秘密。
-- 不把内部错误直接暴露给用户。
-- 输入必须校验。
-- 权限检查必须在服务端完成。
-
+- Do not hardcode secrets.
+- Do not expose internal errors directly to users.
+- Validate input.
+- Enforce permission checks on the server side when applicable.

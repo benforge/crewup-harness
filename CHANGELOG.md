@@ -1,6 +1,17 @@
 # Changelog
 
-## Unreleased
+## 0.3.6
+
+- Kept explicit strict/full-loop requests on the full workflow while tightening task contracts to reduce repeated artifact/test/review repair loops.
+- Converted core agent role files, artifact schema, model policy, workload analysis, native task prompts, gate checks, and strict-flow tests to English/ASCII source text to avoid Chinese mojibake in scripts and Markdown agreements.
+- Added stable fallback write scopes for implementation agents, especially frontend (`src/**`, `package.json`, `index.html`, `public/**`, `vite.config.*`), so changed-files ownership does not require manual run-task repair.
+- Added explicit tester baseline checks for frontend/local MVP runs: non-blank page, add, refresh persistence, complete-state persistence, delete-after-refresh, empty input rejection, desktop/mobile viewport, build, and service shutdown.
+- Standardized reviewer pass format around `## Conclusion` with `- [x] pass|conditional pass|fail` and `## Blocking Issues` with `- none` to avoid release gate false positives.
+- Strengthened native result contracts to require `artifactUpdates` / `artifactsUpdated` and reject `artifacts` as a substitute.
+- Added `native-state diagnose` to report missing handles, uncaptured result files, invalid result JSON, and recommended recovery actions.
+- Added `repair-plan` to turn tester/reviewer `requiredFixes` into grouped repair tasks under `tasks/repairs/`.
+- Added `gate-check --entry` / `--completion` so stage entry checks can be distinguished from stage completion checks.
+- Added native-state locking and serial mutation guidance to reduce `mark-spawned` / `mark-result` race conditions.
 
 ## 0.3.5
 

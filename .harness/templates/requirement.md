@@ -1,55 +1,45 @@
-# 需求说明
+# Requirement
 
-## 背景
+## Background
 
-- 说明为什么要做这个需求；如果背景未知，写“用户未补充额外业务背景”。
+- Explain why this run is needed.
 
-## 过往背景
+## Historical Context
 
-- 相关历史 run：阅读 `logs/context/related-runs.md` 后填写；未命中则写“未命中相关历史 run”。
-- 可复用背景：无。
+- Related runs: none found or not reviewed yet.
 
-## 复用的历史决策
+## Reused Historical Decisions
 
-- 无。
+- none
 
-## 与历史方案的冲突或变化
+## Conflicts Or Changes From History
 
-- 无。
+- none
 
-## 目标
+## Goals
 
-- 写成可执行、可验收的目标列表。
+- Write executable and reviewable goals.
 
-## 非目标
+## Non-Goals
 
-- 写清本轮不做什么；如果没有额外限制，写“无额外非目标”。
+- State what is intentionally out of scope.
 
-## 用户故事
+## Acceptance Criteria
 
-- 作为「」，我希望「」，以便「」。
+- [ ] AC-01: Add a concrete, testable acceptance criterion.
 
-## 验收标准
+## Impact Scope
 
-- [ ] AC-1：补充可检查的验收标准。
-
-## 影响范围
-
-- [ ] web
-- [ ] admin
-- [ ] api
-- [ ] db
-- [ ] infra
+- [ ] frontend
+- [ ] backend
+- [ ] database
+- [ ] devops
 - [ ] docs
 
-## 测试要求
+## Test Requirements
 
-- Tester Agent 需覆盖验收标准，并在 `artifacts/test-report.md` 记录验证结果。
+- Tester must verify each applicable `AC-*` criterion and record evidence in `artifacts/test-report.md`.
 
-## 回滚方式
+## Rollback Strategy
 
-- 回滚本 run 产生的代码、配置和文档变更；涉及数据库、生产配置或迁移时由对应 agent 补充专门回滚步骤。
-
-## 待确认问题
-
-- 无。
+- Revert this run's code, configuration, and documentation changes. Dedicated agents must add database, production, or migration rollback steps when relevant.

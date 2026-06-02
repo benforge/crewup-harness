@@ -1,15 +1,14 @@
-# 数据库规则
+# Database Rules
 
-## 基本原则
+## Principles
 
-- 先读需求、架构方案和后端规则，再设计数据结构。
-- 所有破坏性迁移必须标记为高风险，并要求人工确认。
-- 表结构要考虑唯一性、索引、外键、软删除、审计字段和回滚。
+- Read requirements, architecture, and backend rules before schema work.
+- Treat destructive migrations as high risk and require explicit confirmation.
+- Consider uniqueness, indexes, foreign keys, soft deletes, audit fields, and rollback.
 
-## 迁移要求
+## Migration Requirements
 
-- 说明 up/down 或等价回滚方式。
-- 说明是否需要数据迁移。
-- 说明是否影响现有数据兼容性。
-- 更新 `artifacts/db-migration.md`。
-
+- Explain up/down or equivalent rollback behavior.
+- Explain whether data migration is required.
+- Explain compatibility impact on existing data.
+- Update `artifacts/db-migration.md`.

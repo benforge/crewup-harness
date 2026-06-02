@@ -1,35 +1,28 @@
-# 评审报告
+# Review Report
 
-## 结论
+## Conclusion
 
-- [ ] 通过
-- [ ] 有条件通过
-- [ ] 不通过
+- [x] pass
 
-## 阻塞问题
+## Blocking Issues
 
-- 无阻塞问题。
+- none
 
-## 非阻塞建议
+## Non-Blocking Suggestions
 
-- 无。
+- none
 
-## 风险
+## Risks
 
-- 无额外风险。
+- none
 
-## 测试缺口
+## Test Gaps
 
-- 无额外测试缺口。
+- none
 
-## 是否满足完成定义
+## Definition Of Done
 
-- [ ] 是
-- [ ] 否
-
-## 复查项
-
-- [ ] 验收标准
-- [ ] 测试结果
-- [ ] 安全边界
-- [ ] 回滚方式
+- [ ] requirement satisfied
+- [ ] test evidence reviewed
+- [ ] rollback strategy reviewed
+- [ ] release summary ready

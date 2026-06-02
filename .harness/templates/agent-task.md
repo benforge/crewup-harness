@@ -1,37 +1,34 @@
-# Agent 子任务
+# Agent Task
 
 ## Run
 
-- runId: <run>
-- agent: <agent>
-- stage: <stage>
+- runId:
+- agent:
+- stage:
 
-## 输入
+## Inputs
 
-- `input.md`
-- `artifacts/requirement.md`
-- `artifacts/architecture.md`
-- `artifacts/implementation-plan.md`
+- `.harness/runs/<run>/input.md`
 
-## 职责范围
+## Responsibility
 
-- 按当前 agent 角色职责填写。
+- Fill according to the current agent role.
 
-## 允许修改
+## Allowed Write Scope
 
-- 无。
+- none
 
-## 禁止修改
+## Forbidden
 
-- 无关业务代码、密钥、生产环境文件和其它 agent 负责的文件。
+- unrelated business code, secrets, production files, and files owned by other agents
 
-## 必须产出
+## Required Outputs
 
-- 当前 agent 对应 artifact 或结果摘要。
+- owned artifact or result summary
 
-## 完成检查
+## Completion Checklist
 
-- [ ] 已阅读 run 输入和相关 artifacts
-- [ ] 只处理职责范围内的内容
-- [ ] 已记录测试或无法测试的原因
-- [ ] 已更新对应 artifact
+- [ ] read run input and relevant artifacts
+- [ ] stayed inside responsibility
+- [ ] recorded tests or why tests could not run
+- [ ] updated owned artifact or result

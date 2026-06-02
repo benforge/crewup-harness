@@ -175,7 +175,7 @@ async function inspectArtifacts() {
       continue;
     }
     const content = await readFile(target, "utf8");
-    const missingHeadings = (artifactSchema[file]?.required_headings ?? []).filter((heading) => !content.includes(`## ${heading}`));
+    const missingHeadings = (artifactSchema[file]?.required_headings ?? []).filter((heading) => !hasAnyHeading(content, headingAliases(heading)));
     if (missingHeadings.length > 0) {
       result.blockers.push(`${file} missing headings: ${missingHeadings.join(", ")}`);
       continue;
@@ -259,7 +259,7 @@ function inferChangedFilesPreview() {
       inExcluded = true;
       continue;
     }
-    if (!inExcluded && line.startsWith("- ") && !line.includes("无候选业务变更")) {
+    if (!inExcluded && line.startsWith("- ") && !line.includes("\u65e0\u5019\u9009\u4e1a\u52a1\u53d8\u66f4")) {
       candidates.push(line);
     }
   }
@@ -314,6 +314,18 @@ function requiredArtifactsForStage(stage) {
 
 function hasPlaceholder(content) {
   return hasTemplatePlaceholder(content);
+}
+
+function hasAnyHeading(content, headings) {
+  return headings.some((heading) => new RegExp(`^##\\s+${escapeRegExp(heading)}\\s*$`, "m").test(content));
+}
+
+function headingAliases(heading) {
+  return [heading];
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function stageNotes(stage, agents) {

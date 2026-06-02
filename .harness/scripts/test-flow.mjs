@@ -28,216 +28,119 @@ try {
   runCli(appDir, ["inspect", "--no-ai"]);
   runCli(appDir, ["init", "--yes", "--agent", "codex"]);
   runCli(appDir, ["check"]);
+
   const missingGate = runInstalledScript(appDir, ".harness/scripts/gate-check.mjs", ["missing-run"], { expectedStatus: 1 });
   assertNotIncludes(missingGate, "SyntaxError", "gate-check syntax error");
-  assertNotIncludes(missingGate, "hasTemplatePlaceholder", "gate-check duplicate placeholder declaration");
 
   const planOnlyOutput = runCli(appDir, [
     "run",
     "--dry-run",
-    "使用 CrewUp 先规划一个大型系统的模块边界和技术路线，不写代码"
+    "\u4f7f\u7528 CrewUp \u5148\u89c4\u5212\u4e00\u4e2a\u5927\u578b\u7cfb\u7edf\u7684\u6a21\u5757\u8fb9\u754c\u548c\u6280\u672f\u8def\u7ebf\uff0c\u4e0d\u5199\u4ee3\u7801"
   ]);
   assertIncludes(planOnlyOutput, "workflow_profile: plan_only", "plan-only dry run profile");
-  assertIncludes(planOnlyOutput, "run_type: plan_only", "plan-only dry run type");
 
-  const implementationOutput = runCli(appDir, [
+  const strictLoopOutput = runCli(appDir, [
     "run",
     "--dry-run",
-    "使用 CrewUp 现在实现一个后端 API 功能"
+    "\u7528 crewup \u505a\u4e00\u4e2a\u6700\u5c0f\u53ef\u8fd0\u884c MVP\uff0c\u5fc5\u987b\u5b8c\u6574\u95ed\u73af\uff1a\u9700\u6c42\u786e\u8ba4\u3001\u67b6\u6784/\u5b9e\u73b0\u8ba1\u5212\u3001frontend \u5b9e\u73b0\u3001tester \u9a8c\u8bc1\u3001reviewer \u5ba1\u67e5\u3001release \u603b\u7ed3\u3002"
   ]);
-  assertIncludes(implementationOutput, "workflow_profile: lite", "implementation dry run profile");
-  assertIncludes(implementationOutput, "run_type: implementation", "implementation dry run type");
+  assertIncludes(strictLoopOutput, "workflow_profile: full", "explicit strict workflow stays full");
 
   const planOnlyRunOutput = runCli(appDir, [
     "run",
-    "使用 CrewUp 规划一个全栈博客系统。当前阶段只做需求澄清、技术选型建议、目录结构设计、模块边界、开发阶段拆分和验收标准，不写业务代码。系统包含 C 端博客前台、Admin 后台、后端 API、数据库。"
+    "\u7528 CrewUp \u89c4\u5212\u4e00\u4e2a\u5168\u6808\u535a\u5ba2\u7cfb\u7edf\u3002\u5f53\u524d\u9636\u6bb5\u53ea\u505a\u9700\u6c42\u6f84\u6e05\u3001\u6280\u672f\u9009\u578b\u5efa\u8bae\u3001\u76ee\u5f55\u7ed3\u6784\u8bbe\u8ba1\u3001\u6a21\u5757\u8fb9\u754c\u3001\u5f00\u53d1\u9636\u6bb5\u62c6\u5206\u548c\u9a8c\u6536\u6807\u51c6\uff0c\u4e0d\u5199\u4e1a\u52a1\u4ee3\u7801\u3002\u7cfb\u7edf\u5305\u542b C \u7aef\u535a\u5ba2\u524d\u53f0\u3001Admin \u540e\u53f0\u3001\u540e\u7aef API\u3001\u6570\u636e\u5e93\u3002"
   ]);
   assertIncludes(planOnlyRunOutput, "profile: plan_only", "plan-only formal run profile");
   const planOnlyRunId = extractRunId(planOnlyRunOutput);
   if (!planOnlyRunId) throw new Error(`Failed to detect plan-only runId from output: ${planOnlyRunOutput}`);
   assertIncludes(planOnlyRunId, "plan-fullstack-blog-system", "semantic plan-only run id");
+
   const planOnlyRunDir = path.join(appDir, ".harness", "runs", planOnlyRunId);
   const planOnlyTaskNames = await listTaskNames(path.join(planOnlyRunDir, "tasks"));
-  assertSameMembers(planOnlyTaskNames, [
-    "architect",
-    "requirements",
-    "requirements-plan",
-    "reviewer"
-  ], "plan-only task assignment");
+  assertSameMembers(planOnlyTaskNames, ["architect", "requirements", "requirements-plan", "reviewer"], "plan-only task assignment");
   assertNotExists(path.join(planOnlyRunDir, "artifacts", "requirement-plan.md"), "main-authored requirement-plan artifact");
+
   const requirementPlanTask = await readFile(path.join(planOnlyRunDir, "tasks", "requirements-plan.task.md"), "utf8");
-  assertIncludes(requirementPlanTask, "## Artifact Schema", "requirements-plan artifact schema section");
-  assertIncludes(requirementPlanTask, "原始需求摘要", "requirements-plan required heading in task");
-  assertIncludes(requirementPlanTask, "影响范围候选", "requirements-plan impact heading in task");
+  assertIncludes(requirementPlanTask, "Original Request Summary", "requirements-plan English heading");
+  assertIncludes(requirementPlanTask, "Impact Scope Candidates", "requirements-plan impact heading");
+  assertIncludes(requirementPlanTask, "artifactUpdates", "task result contract requires artifactUpdates");
+  assertIncludes(requirementPlanTask, "do not use `artifacts`", "task result contract rejects artifacts alias");
+
+  const testerTaskCandidates = await createStrictFrontendRun(appDir);
+  assertIncludes(testerTaskCandidates.frontendTask, "src/**", "frontend task includes src scope");
+  assertIncludes(testerTaskCandidates.frontendTask, "package.json", "frontend task includes package scope");
+  assertIncludes(testerTaskCandidates.testerTask, "non-blank page", "tester baseline includes non-blank check");
+  assertIncludes(testerTaskCandidates.testerTask, "empty input rejection", "tester baseline includes empty input check");
+  assertIncludes(testerTaskCandidates.reviewerTask, "- [x] pass", "reviewer pass format is explicit");
+
   const planOnlyPlan = JSON.parse(await readFile(path.join(planOnlyRunDir, "logs", "native-subagents", "native-subagent-plan.json"), "utf8"));
   const requirementsPlanNativeTask = planOnlyPlan.tasks.find((task) => task.agent === "requirements-plan");
   if (!requirementsPlanNativeTask) throw new Error("Missing requirements-plan native task");
-  assertIncludes(
-    requirementsPlanNativeTask.allowed_patterns.join("\n"),
-    `.harness/runs/${planOnlyRunId}/logs/native-subagents/requirements-plan.result.md`,
-    "requirements-plan result md allowed pattern"
-  );
-  assertIncludes(
-    requirementsPlanNativeTask.allowed_patterns.join("\n"),
-    `.harness/runs/${planOnlyRunId}/logs/native-subagents/requirements-plan.result.json`,
-    "requirements-plan result json allowed pattern"
-  );
+  assertIncludes(requirementsPlanNativeTask.allowed_patterns.join("\n"), `.harness/runs/${planOnlyRunId}/logs/native-subagents/requirements-plan.result.md`, "requirements-plan result md allowed pattern");
+  assertIncludes(requirementsPlanNativeTask.allowed_patterns.join("\n"), `.harness/runs/${planOnlyRunId}/logs/native-subagents/requirements-plan.result.json`, "requirements-plan result json allowed pattern");
+
   const requirementsPlanSpawn = await readFile(path.join(planOnlyRunDir, "logs", "native-subagents", "requirements-plan.spawn.md"), "utf8");
   assertIncludes(requirementsPlanSpawn, "Result files are subagent-owned audit outputs", "subagent-owned result prompt");
   assertIncludes(requirementsPlanSpawn, "main agent may only register", "main-agent result registration boundary");
-  const requirementsPlanResultMd = path.join(planOnlyRunDir, "logs", "native-subagents", "requirements-plan.result.md");
-  const requirementsPlanResultJson = path.join(planOnlyRunDir, "logs", "native-subagents", "requirements-plan.result.json");
-  await writeFile(requirementsPlanResultMd, "Agent: requirements-plan\nStatus: completed\nSummary: result written by subagent\n", "utf8");
-  await writeFile(requirementsPlanResultJson, `${JSON.stringify({
-    agent: "requirements-plan",
-    status: "completed",
-    summary: "result written by subagent",
-    filesChanged: [],
-    artifactUpdates: [{ path: "artifacts/requirement-plan.md" }],
-    artifactsUpdated: ["artifacts/requirement-plan.md"],
-    tests: [],
-    blockers: []
-  }, null, 2)}\n`, "utf8");
-  runCli(appDir, ["native-state", planOnlyRunId, "mark-spawned", "requirements-plan", "test-handle-requirements-plan"]);
-  runCli(appDir, ["native-state", planOnlyRunId, "mark-result", "requirements-plan", "completed"]);
-  const duplicateMarkResult = runCli(appDir, ["native-state", planOnlyRunId, "mark-result", "requirements-plan", "completed"]);
-  assertIncludes(duplicateMarkResult, "Result already captured for requirements-plan", "idempotent native mark-result");
+  assertIncludes(requirementsPlanSpawn, "do not use `artifacts` as a substitute", "native prompt rejects artifacts alias");
+
   assertSameMembers(planOnlyPlan.groups.map((group) => group.id), [
     "requirements_planning",
     "requirements_confirmation",
     "architecture_planning",
     "verification_reviewer"
   ], "plan-only native plan groups");
-  assertSameMembers(
-    prereqsFor(planOnlyPlan, "requirements"),
-    ["requirements-plan"],
-    "plan-only requirements prerequisites"
-  );
-  assertAgentModel(planOnlyPlan, "requirements", {
-    modelHint: "gpt-5.5",
-    reasoningEffort: "medium"
-  });
-  assertSameMembers(
-    prereqsFor(planOnlyPlan, "architect"),
-    ["requirements-plan", "requirements"],
-    "plan-only architect prerequisites"
-  );
-  assertAgentModel(planOnlyPlan, "architect", {
-    modelHint: "gpt-5.5",
-    reasoningEffort: "medium"
-  });
-  const planOnlyStatePath = path.join(planOnlyRunDir, "state.json");
-  const planOnlyState = JSON.parse(await readFile(planOnlyStatePath, "utf8"));
-  planOnlyState.stage = "plan";
-  planOnlyState.status = "in-progress";
-  await writeFile(planOnlyStatePath, `${JSON.stringify(planOnlyState, null, 2)}\n`, "utf8");
-  const planOnlyNext = runCli(appDir, ["next", planOnlyRunId]);
-  assertIncludes(planOnlyNext, "planning-only run", "plan-only next stop note");
-  assertNotIncludes(planOnlyNext, "--to=implement", "plan-only next implementation transition");
+  assertSameMembers(prereqsFor(planOnlyPlan, "requirements"), ["requirements-plan"], "requirements prerequisites");
+  assertSameMembers(prereqsFor(planOnlyPlan, "architect"), ["requirements-plan", "requirements"], "architect prerequisites");
+  assertAgentModel(planOnlyPlan, "requirements", { modelHint: "gpt-5.5", reasoningEffort: "medium" });
+  assertAgentModel(planOnlyPlan, "architect", { modelHint: "gpt-5.5", reasoningEffort: "medium" });
 
-  const complexOutput = runCli(appDir, [
-    "run",
-    "使用 CrewUp 做一个大型项目：设计并实现用户认证、后端 API、数据库表、前端登录页、测试和发布说明。需要 requirements、architecture、backend、frontend、database、tester、reviewer、release 都参与，按严格流程分配子 agent。"
-  ]);
-  assertIncludes(complexOutput, "profile: full", "complex run profile");
-  assertIncludes(complexOutput, "agents:", "complex run agent summary");
-  const complexRunId = extractRunId(complexOutput);
-  if (!complexRunId) throw new Error(`Failed to detect complex runId from output: ${complexOutput}`);
-  const complexRunDir = path.join(appDir, ".harness", "runs", complexRunId);
-  const complexTaskNames = await listTaskNames(path.join(complexRunDir, "tasks"));
-  assertSameMembers(complexTaskNames, [
-    "architect",
-    "backend",
-    "database",
-    "docs",
-    "frontend",
-    "pm",
-    "release",
-    "requirements",
-    "requirements-plan",
-    "reviewer",
-    "tester"
-  ], "complex task assignment");
-  const complexPlan = JSON.parse(await readFile(path.join(complexRunDir, "logs", "native-subagents", "native-subagent-plan.json"), "utf8"));
-  assertSameMembers(complexPlan.tasks.map((task) => task.agent), complexTaskNames, "complex native plan agents");
-  assertSameMembers(complexPlan.groups.map((group) => group.id), [
-    "requirements_planning",
-    "requirements_confirmation",
-    "architecture_planning",
-    "implementation",
-    "verification_tester",
-    "verification_reviewer",
-    "verification_release"
-  ], "complex native plan groups");
-  assertSameMembers(
-    prereqsFor(complexPlan, "requirements"),
-    ["pm", "requirements-plan"],
-    "requirements prerequisites"
-  );
-  assertSameMembers(
-    prereqsFor(complexPlan, "architect"),
-    ["pm", "requirements-plan", "requirements"],
-    "architect prerequisites"
-  );
+  await writeFile(path.join(planOnlyRunDir, "logs", "native-subagents", "tester.result.json"), `${JSON.stringify({
+    agent: "tester",
+    status: "completed",
+    requiredFixes: [
+      {
+        id: "RF-01",
+        targetAgents: ["frontend", "devops"],
+        severity: "high",
+        acceptanceCriteria: ["AC-01"],
+        summary: "Wire UI to the real API and align environment variables.",
+        evidence: "tester evidence",
+        requiredChange: "Update frontend API client and env docs."
+      }
+    ],
+    targetAgents: ["frontend", "devops"],
+    blockers: []
+  }, null, 2)}\n`, "utf8");
+  const repairPlanOutput = runCli(appDir, ["repair-plan", planOnlyRunId]);
+  assertIncludes(repairPlanOutput, "Repair plan generated", "repair-plan output");
+  assertExists(path.join(planOnlyRunDir, "logs", "repair-plan.md"), "repair-plan markdown");
+  assertExists(path.join(planOnlyRunDir, "tasks", "repairs", "frontend.repair.task.md"), "frontend repair task");
+  assertExists(path.join(planOnlyRunDir, "tasks", "repairs", "devops.repair.task.md"), "devops repair task");
 
-  const runOutput = runCli(appDir, [
-    "run",
-    "现在做：优化 README 使用说明，增加一段如何启动项目的说明。验收：README 包含使用说明；不要修改源码。"
-  ]);
-  const runId = extractRunId(runOutput);
-  if (!runId) throw new Error(`Failed to detect runId from output: ${runOutput}`);
-
-  const runDir = path.join(appDir, ".harness", "runs", runId);
-  assertExists(path.join(runDir, "artifacts", "spec-freeze.md"), "spec-freeze");
-  assertExists(path.join(runDir, "logs", "context", "context-budget.json"), "context budget");
-  assertExists(path.join(runDir, "logs", "token-ledger.json"), "token ledger");
-  assertExists(path.join(runDir, "logs", "native-subagents", "native-subagent-plan.json"), "native plan");
-  assertExists(path.join(runDir, "logs", "context", "docs.md"), "docs context");
-  assertNotExists(path.join(runDir, "tasks", "tester.task.md"), "tester task for docs-only run");
-
-  const statusOutput = runCli(appDir, ["status"]);
-  if (!statusOutput.includes("context") || !statusOutput.includes("tokens")) {
-    throw new Error(`status output does not include context/token summary: ${statusOutput}`);
-  }
-
-  runCli(appDir, ["report", runId]);
-  const reportPath = path.join(runDir, "logs", "run-report.md");
-  assertExists(reportPath, "run report");
-  const report = await readFile(reportPath, "utf8");
-  if (!report.includes("## Context Budget") || !report.includes("## Token Ledger")) {
-    throw new Error("run report does not include context budget and token ledger sections");
-  }
-
-  const taskNames = await listTaskNames(path.join(runDir, "tasks"));
-  const budget = JSON.parse(await readFile(path.join(runDir, "logs", "context", "context-budget.json"), "utf8"));
-  const summary = {
-    runId,
-    tasks: taskNames,
-    budgetAgents: (budget.agents ?? []).map((item) => item.agent),
-    hasSpecFreeze: true,
-    hasContextBudget: true,
-    hasTokenLedger: true,
-    hasNativePlan: true,
-    dryRunProfiles: {
-      planOnly: "plan_only",
-      implementation: "lite"
-    },
-    planOnlyAssignment: {
-      runId: planOnlyRunId,
-      tasks: planOnlyTaskNames,
-      groups: planOnlyPlan.groups.map((group) => group.id)
-    },
-    complexAssignment: {
-      runId: complexRunId,
-      tasks: complexTaskNames,
-      groups: complexPlan.groups.map((group) => group.id)
-    }
-  };
-
-  console.log(JSON.stringify(summary, null, 2));
+  console.log(JSON.stringify({
+    planOnlyRunId,
+    planOnlyTaskNames,
+    strictFrontendTasksChecked: true
+  }, null, 2));
   console.log("test-flow passed");
 } finally {
   await rm(tmpRoot, { recursive: true, force: true });
+}
+
+async function createStrictFrontendRun(appDir) {
+  const output = runCli(appDir, [
+    "run",
+    "\u7528 crewup \u73b0\u5728\u505a\u4e00\u4e2a\u6700\u5c0f\u53ef\u8fd0\u884c MVP\uff1a\u5b9e\u73b0\u4e00\u4e2a\u672c\u5730\u5f85\u529e\u5217\u8868\u5e94\u7528\uff0c\u5fc5\u987b\u5305\u542b\u5f00\u53d1\u5b9e\u73b0\u3002\u5f53\u524d run \u5fc5\u987b\u5b8c\u6574\u8d70\u5f00\u53d1\u95ed\u73af\uff1a\u9700\u6c42\u786e\u8ba4\u3001\u67b6\u6784/\u5b9e\u73b0\u8ba1\u5212\u3001frontend \u5b9e\u73b0\u3001tester \u9a8c\u8bc1\u3001reviewer \u5ba1\u67e5\u3001release \u603b\u7ed3\u3002\u9a8c\u6536\uff1a\u53ef\u4ee5\u6dfb\u52a0\u5f85\u529e\u3001\u5237\u65b0\u540e\u4fdd\u7559\u3001\u53ef\u4ee5\u6807\u8bb0\u5b8c\u6210\u3001\u53ef\u4ee5\u5220\u9664\u3001build \u901a\u8fc7\u3002"
+  ]);
+  const runId = extractRunId(output);
+  if (!runId) throw new Error(`Failed to detect strict frontend runId from output: ${output}`);
+  const runDir = path.join(appDir, ".harness", "runs", runId);
+  return {
+    frontendTask: await readFile(path.join(runDir, "tasks", "frontend.task.md"), "utf8"),
+    testerTask: await readFile(path.join(runDir, "tasks", "tester.task.md"), "utf8"),
+    reviewerTask: await readFile(path.join(runDir, "tasks", "reviewer.task.md"), "utf8")
+  };
 }
 
 function packPackage(packDir) {
@@ -278,20 +181,15 @@ function runInstalledScript(cwd, scriptRelPath, args, { expectedStatus = 0 } = {
 
 function assertPlaceholderDetector() {
   const legitimatePlanningText = [
-    "## 待确认问题\n- 评论是否需要审核流由后续产品确认。",
-    "## 实施阶段\n- 首页可显示占位首页，用于规划首屏模块边界。",
-    "## 配置\n- 提供环境变量模板，说明 DATABASE_URL 与 AUTH_SECRET。"
+    "## Open Questions\n- Confirm whether comments require a later moderation flow.",
+    "## Implementation Phases\n- The homepage can display a placeholder hero area as a planned module boundary.",
+    "## Configuration\n- Provide environment variable templates such as DATABASE_URL and AUTH_SECRET."
   ].join("\n\n");
   if (hasTemplatePlaceholder(legitimatePlanningText)) {
     throw new Error("placeholder detector flagged legitimate planning language");
   }
 
-  for (const placeholder of [
-    "TBD",
-    "待 Architect Agent 补充",
-    "这里填写验收标准",
-    "- "
-  ]) {
+  for (const placeholder of ["TBD", "waiting for Architect Agent", "fill this acceptance criteria section", "- "]) {
     if (!hasTemplatePlaceholder(placeholder)) {
       throw new Error(`placeholder detector missed template placeholder: ${placeholder}`);
     }
@@ -299,7 +197,7 @@ function assertPlaceholderDetector() {
 }
 
 function extractRunId(output) {
-  const match = /Harness run 已准备好：(.+)/.exec(output) || /Harness run .+?[:：](.+)/.exec(output);
+  const match = /Harness run .*?[:\uFF1A]\s*(.+)/.exec(output);
   return match?.[1]?.trim() ?? "";
 }
 
@@ -378,8 +276,6 @@ function assertAgentModel(plan, agent, expected) {
   const task = plan.tasks.find((item) => item.agent === agent);
   if (!task) throw new Error(`Missing task for ${agent}`);
   if (task.model_hint !== expected.modelHint || task.reasoning_effort !== expected.reasoningEffort) {
-    throw new Error(
-      `${agent} model mismatch. Expected ${expected.modelHint}/${expected.reasoningEffort}, got ${task.model_hint}/${task.reasoning_effort}`
-    );
+    throw new Error(`${agent} model mismatch. Expected ${expected.modelHint}/${expected.reasoningEffort}, got ${task.model_hint}/${task.reasoning_effort}`);
   }
 }

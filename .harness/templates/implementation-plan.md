@@ -1,28 +1,24 @@
-# 实施计划
+# Implementation Plan
 
-## 任务摘要
+## Task Summary
 
-- 一句话说明本次 run 要交付什么。
+- State what this run will deliver.
 
-## 文件和模块
+## Files And Modules
 
-- 由 Architect Agent 按影响范围列出。
+- Architect must list files/modules by impact scope and owner agent.
 
-## 步骤
+## Steps
 
-1. 按需求、方案、实现、验证、评审、发布顺序执行。
+1. Execute requirements, architecture, implementation, verification, review, and release in order.
 
-## 风险
+## Test Plan
 
-- 无高风险项。
+- Tester must cover `AC-*` criteria from `artifacts/requirement.md`.
 
-## 测试计划
+## Completion Checklist
 
-- Tester Agent 需覆盖 `artifacts/requirement.md` 中的 AC-* 验收标准。
-
-## 完成检查
-
-- [ ] 需求验收标准通过
-- [ ] 测试通过或已有合理说明
-- [ ] 评审通过
-- [ ] 发布摘要已更新
+- [ ] acceptance criteria are satisfied
+- [ ] tests passed or limitations are documented
+- [ ] review passed
+- [ ] release summary is updated

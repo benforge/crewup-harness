@@ -1,13 +1,12 @@
-# DevOps 规则
+# DevOps Rules
 
-## 基本原则
+## Principles
 
-- CI/CD、部署、环境变量和基础设施变更都属于高风险区域。
-- 修改 `.github/workflows/**`、`infra/**` 前必须说明影响范围。
-- 不把密钥、Token、账号写入仓库。
+- CI/CD, deployment, environment variables, and infrastructure changes are high-risk areas.
+- Explain impact before changing `.github/workflows/**`, `infra/**`, or deployment files.
+- Never write secrets, tokens, or account credentials into the repository.
 
-## 输出要求
+## Output
 
-- 更新部署步骤、验证步骤和回滚方式。
-- 涉及环境变量时，只写变量名和用途，不写真实值。
-
+- Record deployment steps, verification steps, and rollback method.
+- For environment variables, record only variable names and purpose, never real values.

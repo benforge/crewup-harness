@@ -1,21 +1,27 @@
-# 测试报告
+# Test Report
 
 ## Run
 
-- runId: <run>
-- generatedAt: 由 Tester Agent 填写执行时间。
+- runId:
+- tester:
+- generatedAt:
 
-## 结果汇总
-- 概述本轮验证结论，并引用 AC-* 验收标准覆盖情况。
+## Result Summary
 
-## 执行项
-- 记录实际运行的命令、浏览器检查、人工验证或无法运行的原因。
+- Summarize verification result and `AC-*` coverage.
 
-## 通过项
-- 无。
+## Executed Checks
 
-## 失败 / 阻塞项
-- 无阻塞问题。
+- Record actual commands, browser checks, API checks, manual checks, or reasons checks could not run.
 
-## 未覆盖风险
-- 无额外未覆盖风险。
+## Passed Checks
+
+- none
+
+## Failed Or Blocked Checks
+
+- none
+
+## Uncovered Risks
+
+- none

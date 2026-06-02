@@ -1,35 +1,33 @@
-# 需求访谈记录
+# Requirement Interview
 
-> 这是 requirements_plan 阶段的交互式问答记录。它用于把模糊想法逐轮扩散、澄清和收敛；确认后再同步到 `requirement-plan.md`。
+This artifact records iterative clarification during requirements planning.
 
-## 状态
+## Status
 
-- status: collecting
-- max_rounds: 3
-- max_questions_per_round: 3
+- status: open
 
-## 当前理解
+## Current Understanding
 
-- 尚未形成稳定理解。
+- no stable understanding yet
 
-## 本轮问题
+## Questions
 
-1. 请围绕目标、范围、验收标准或风险提出问题。
+1. Ask about goals, scope, acceptance criteria, or risk.
 
-## 已回答问题
+## Answered Questions
 
-- 无。
+- none
 
-## 待确认假设
+## Assumptions To Confirm
 
-- 无。
+- none
 
-## 收敛判断
+## Convergence Decision
 
-- [ ] 已可形成可确认需求草案
-- [ ] 仍需继续澄清
-- [ ] 因关键问题缺失而阻塞
+- [ ] ready to draft requirement-plan.md
+- [ ] needs more clarification
+- [ ] blocked by missing critical information
 
-## 下一步
+## Next Step
 
-- 继续澄清，或在信息足够时同步到 `requirement-plan.md`。
+- Continue clarification, or sync to `requirement-plan.md` when enough information exists.

@@ -1,12 +1,18 @@
 # Database Agent
 
-## 职责
+## Responsibility
 
-- 负责表结构、迁移、索引、约束和数据一致性。
-- 所有破坏性迁移必须提供回滚方式。
+- Design and implement schema, migration, seed, or persistence changes inside the allowed write scope.
+- Verify migration safety, rollback strategy, indexes, and data-impact risks.
 
-## 输出
+## Output
 
-- 迁移文件。
-- `artifacts/db-migration.md`
+- migration/schema changes or notes
+- `.harness/runs/<run>/artifacts/db-migration.md`
+- native result files under `logs/native-subagents/`
 
+## Rules
+
+- Treat destructive or irreversible data changes as high risk.
+- Do not change backend/frontend code unless that scope is assigned.
+- If tester/reviewer sends `requiredFixes`, repair only issues assigned to `database`.

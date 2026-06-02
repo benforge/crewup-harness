@@ -1,15 +1,13 @@
-# 评审规则
+# Reviewer Rules
 
-## 基本原则
+## Principles
 
-- 优先找 bug、回归风险、安全风险和缺失测试。
-- 评审必须引用具体文件或变更点。
-- 阻塞问题要明确写出为什么阻塞。
+- Prioritize bugs, regression risks, security risks, and missing tests.
+- Reference concrete files or changed behavior.
+- Explain why a blocking issue blocks release.
 
-## 输出要求
+## Output
 
-- 结论：通过 / 有条件通过 / 不通过。
-- 阻塞问题。
-- 非阻塞建议。
-- 剩余风险。
-
+- Use `## Conclusion` with `- [x] pass`, `- [x] conditional pass`, or `- [x] fail`.
+- Use `## Blocking Issues` with `- none` when there are no blockers.
+- Record non-blocking suggestions, risks, and test gaps separately.

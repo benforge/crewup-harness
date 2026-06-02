@@ -1,5 +1,5 @@
-import { readFile, writeFile } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { open, readFile, stat, unlink, writeFile } from "node:fs/promises";
+import { existsSync, unlinkSync } from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
@@ -17,11 +17,23 @@ if (!existsSync(statePath)) {
   process.exit(1);
 }
 
+const releaseLock = await acquireNativeStateLock();
+process.on("exit", () => {
+  try {
+    releaseLock.sync();
+  } catch {
+    // Best-effort cleanup; stale locks are recovered on the next command.
+  }
+});
+
 const state = JSON.parse(stripBom(await readFile(statePath, "utf8")));
 
 switch (command) {
   case "status":
     printStatus(state);
+    break;
+  case "diagnose":
+    await printDiagnostics(state);
     break;
   case "recommend-close":
     printStatus(state, { includeRecommendations: false });
@@ -158,6 +170,56 @@ function printStatus(current, { includeRecommendations = true } = {}) {
   if (includeRecommendations) printCloseRecommendations(current);
 }
 
+async function printDiagnostics(current) {
+  console.log(`Native diagnostics: ${runId}`);
+  if (current.fallback) console.log(`Fallback: ${current.fallback.reason}`);
+  const issues = [];
+  const suggestions = [];
+  for (const agent of current.agents ?? []) {
+    const resultPathExists = agent.result_path && existsSync(resolveWorkspacePath(agent.result_path));
+    const resultJsonPathExists = agent.result_json_path && existsSync(resolveWorkspacePath(agent.result_json_path));
+    const parsedJson = resultJsonPathExists ? await tryReadResultJson(agent.result_json_path) : { ok: true, value: null };
+
+    if (resultJsonPathExists && !parsedJson.ok) {
+      issues.push(`${agent.agent}: invalid result JSON at ${agent.result_json_path}: ${parsedJson.error}`);
+      suggestions.push(`${agent.agent}: ask the same subagent to rewrite valid JSON result, then rerun mark-result.`);
+    }
+    if (!agent.handle && (resultPathExists || resultJsonPathExists)) {
+      issues.push(`${agent.agent}: result file exists but native handle is missing.`);
+      suggestions.push(`${agent.agent}: rerun or resume the real subagent and record mark-spawned with the real handle; do not fabricate a handle.`);
+    }
+    if (agent.handle && !agent.result_captured_at && (resultPathExists || resultJsonPathExists)) {
+      issues.push(`${agent.agent}: result files exist but result is not captured in native-state.`);
+      suggestions.push(`${agent.agent}: run native-state mark-result ${agent.agent} <completed|blocked|needs_input>.`);
+    }
+    if (agent.result_captured_at && !resultPathExists) {
+      issues.push(`${agent.agent}: native-state captured result but Markdown result file is missing.`);
+      suggestions.push(`${agent.agent}: ask the subagent to recreate ${agent.result_path}, then rerun gate-check.`);
+    }
+    if (parsedJson.value?.agent && parsedJson.value.agent !== agent.agent) {
+      issues.push(`${agent.agent}: result JSON declares agent ${parsedJson.value.agent}.`);
+      suggestions.push(`${agent.agent}: correct the result JSON agent field through the owning subagent or explicit repair.`);
+    }
+    if (parsedJson.value?.status && !["completed", "blocked", "needs_input"].includes(parsedJson.value.status)) {
+      issues.push(`${agent.agent}: result JSON has invalid status ${parsedJson.value.status}.`);
+      suggestions.push(`${agent.agent}: rewrite status as completed, blocked, or needs_input.`);
+    }
+  }
+
+  if (issues.length === 0) {
+    console.log("Issues: none");
+  } else {
+    console.log("Issues:");
+    for (const issue of issues) console.log(`- ${issue}`);
+  }
+
+  const uniqueSuggestions = [...new Set(suggestions)];
+  if (uniqueSuggestions.length > 0) {
+    console.log("Suggested actions:");
+    for (const suggestion of uniqueSuggestions) console.log(`- ${suggestion}`);
+  }
+}
+
 function printCloseRecommendations(current, { force = false } = {}) {
   const recommendations = recommendClose(current);
   if (!recommendations.length && force) {
@@ -284,6 +346,16 @@ async function readResultJson(target) {
   }
 }
 
+async function tryReadResultJson(target) {
+  const absolute = resolveWorkspacePath(target);
+  if (!existsSync(absolute)) return { ok: true, value: null };
+  try {
+    return { ok: true, value: JSON.parse(stripBom(await readFile(absolute, "utf8"))) };
+  } catch (error) {
+    return { ok: false, error: error.message };
+  }
+}
+
 function resolveWorkspacePath(target) {
   return path.isAbsolute(target) ? target : path.join(root, target);
 }
@@ -296,15 +368,58 @@ function stripBom(text) {
   return String(text ?? "").replace(/^\uFEFF/, "");
 }
 
+async function acquireNativeStateLock() {
+  const lockPath = `${statePath}.lock`;
+  const startedAt = Date.now();
+  while (true) {
+    try {
+      const handle = await open(lockPath, "wx");
+      await handle.writeFile(`${process.pid}\n${new Date().toISOString()}\n`, "utf8");
+      await handle.close();
+      return {
+        async release() {
+          await unlink(lockPath).catch(() => {});
+        },
+        sync() {
+          if (existsSync(lockPath)) unlinkSync(lockPath);
+        }
+      };
+    } catch (error) {
+      if (error.code !== "EEXIST") throw error;
+      await removeStaleLock(lockPath);
+      if (Date.now() - startedAt > 30000) {
+        console.error(`Timed out waiting for native-state lock: ${path.relative(root, lockPath)}`);
+        process.exit(1);
+      }
+      await sleep(100);
+    }
+  }
+}
+
+async function removeStaleLock(lockPath) {
+  try {
+    const lockStat = await stat(lockPath);
+    if (Date.now() - lockStat.mtimeMs > 30000) await unlink(lockPath).catch(() => {});
+  } catch {
+    // Missing or unreadable lock; the next acquire attempt will decide.
+  }
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function save(current) {
   current.updatedAt = new Date().toISOString();
   await writeFile(statePath, `${JSON.stringify(current, null, 2)}\n`, "utf8");
+  await releaseLock.release();
   printStatus(current);
 }
 
 function usage() {
   console.error("Usage:");
   console.error("  npm run harness:native-state -- <run-id> status");
+  console.error("  npm run harness:native-state -- <run-id> diagnose");
   console.error("  npm run harness:native-state -- <run-id> recommend-close");
   console.error("  npm run harness:native-state -- <run-id> mark-spawned <agent> <handle>");
   console.error("  npm run harness:native-state -- <run-id> mark-result <agent> <completed|blocked|needs_input> [result-path]");

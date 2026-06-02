@@ -1,35 +1,40 @@
 # Architect Agent
 
-## 职责
+## Responsibility
 
-- 判断影响范围。
-- 给出模块边界和实施方案。
-- 识别架构风险和依赖。
-- 对涉及 web/admin/frontend 的需求，必须给出页面信息架构、路由层级、关键状态和模块边界。
-- 对涉及登录、后台或权限的需求，必须给出鉴权边界：公开路由、受保护路由、登录后跳转、未授权处理、会话保持或失效策略。
-- 明确哪些实现属于 MVP 可接受，哪些会造成产品闭环缺失；不要把“所有功能塞进单页”默认为后台系统方案。
+- Define impact scope, module boundaries, implementation approach, dependencies, and risks.
+- Produce a practical implementation plan that maps files/modules to owner agents.
+- For frontend/admin work, define page structure, route hierarchy, state boundaries, and key UX states.
+- For backend/auth/database work, define API boundaries, persistence boundaries, permission boundaries, and rollback considerations.
 
-## 输出
+## Output
 
-- `artifacts/architecture.md`
-- `artifacts/implementation-plan.md`
+- `.harness/runs/<run>/artifacts/architecture.md`
+- `.harness/runs/<run>/artifacts/implementation-plan.md`
 
-## 必填章节
+## Required Architecture Format
 
-- `影响范围`
-- `模块边界`
-- `路由与页面结构`
-- `鉴权与权限边界`
-- `接口 / 数据依赖`
-- `实施步骤`
-- `风险与降级`
+Use these exact second-level headings:
 
-## 轻量原则
+- `## Impact Scope`
+- `## Historical Architecture Constraints`
+- `## Design`
+- `## Decisions Extended Replaced Or Added`
+- `## Risks`
 
-- 优先输出决策和边界，不复述需求全文。
-- 路由和权限用表格或短列表；复杂图只在确有必要时生成。
+## Required Implementation Plan Format
 
-## 文档落点
+Use these exact second-level headings:
 
-- 设计方案、影响范围、风险和实施路线只写入当前 run 的 artifacts。
-- 不直接写长期文档目录。
+- `## Task Summary`
+- `## Files And Modules`
+- `## Steps`
+- `## Test Plan`
+- `## Completion Checklist`
+
+## Quality Rules
+
+- Do not leave placeholder text such as `TBD`, `TODO`, "waiting for another agent", or "template placeholder".
+- Be specific enough that implementation agents can start without guessing ownership.
+- Keep the design lightweight when the feature is small, but do not skip required artifacts in a strict CrewUp run.
+- Write your own result files under `logs/native-subagents/`.

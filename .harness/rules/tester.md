@@ -1,15 +1,14 @@
-# 测试规则
+# Tester Rules
 
-## 基本原则
+## Principles
 
-- 测试要对应验收标准，不只追求覆盖率数字。
-- 优先验证核心路径、错误路径和权限边界。
-- 无法运行测试时，必须写明原因和剩余风险。
+- Tests must map to acceptance criteria, not only coverage numbers.
+- Prioritize core paths, error paths, permission boundaries, and regression-prone behavior.
+- If tests cannot run, explain why and list remaining risks.
 
-## 输出要求
+## Output
 
-- 测试命令。
-- 运行结果。
-- 失败项。
-- 未覆盖风险。
-
+- Test commands.
+- Run results.
+- Failed or blocked checks.
+- Uncovered risks.
