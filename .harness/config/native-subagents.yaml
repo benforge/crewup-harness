@@ -106,12 +106,18 @@ native_subagents:
     release: "explorer"
 
   parallel_groups:
-    intake:
+    requirements_planning:
       parallel: false
       agents:
         - "pm"
         - "requirements-plan"
+    requirements_confirmation:
+      parallel: false
+      agents:
         - "requirements"
+    architecture_planning:
+      parallel: false
+      agents:
         - "architect"
     implementation:
       parallel: true

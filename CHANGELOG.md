@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## 0.3.2
+
+- Tightened planning-run orchestration so `requirements-plan`, `requirements`, and `architect` run sequentially with explicit prerequisites instead of being spawned together.
+- Stopped `crewup run` from writing `requirement-plan.md` by default; formal planning artifacts are now delegated to their owner subagents unless `--seed-requirements-plan` / `--seed-artifact` is explicitly used.
+- Added semantic run/backlog naming such as `plan-fullstack-blog-system`.
+- Added artifact schema sections to generated subagent tasks so required headings are visible before gate checks.
+- Raised `requirements` and `architect` to `gpt-5.5` / medium reasoning for formal planning artifacts.
+- Improved `crewup init` onboarding with optional inspect, five clear agent choices, radio-style selection, and color-aware terminal output.
+- Fixed run reports so reviewer-specific JSON fields are summarized correctly and zero-token context budgets are not shown as missing.
+- Added bilingual documentation for planning-run order, artifact ownership, semantic naming, model tiers, and schema-first task generation.
+
 ## 0.3.1
 
 - Changed `crewup install --force` into a safe upgrade path that preserves existing `.harness` runtime state, knowledge, backlog items, reports, dashboard output, and project adaptation.

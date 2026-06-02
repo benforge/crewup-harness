@@ -124,9 +124,11 @@ async function installHarness({ force, reset }) {
   console.log("");
   console.log("Next:");
   console.log("  crewup doctor");
-  console.log("  crewup inspect --no-ai");
-  console.log("  crewup init --force");
+  console.log("  crewup init --agent codex --yes");
   console.log("  crewup check");
+  console.log("");
+  console.log("Optional:");
+  console.log("  crewup inspect --no-ai");
 }
 
 async function copyHarness(source, target, options = {}) {
@@ -248,8 +250,8 @@ function printHelp() {
 Usage:
   crewup install [--force] [--reset]
   crewup doctor
+  crewup init [--force] [--agent <codex|claude|cursor|trae|manual>] [--yes]
   crewup inspect --no-ai
-  crewup init [--force] [--agent <name>] [--yes]
   crewup check
   crewup run "implement this now..."
   crewup finish <run-id>
@@ -258,8 +260,8 @@ Usage:
 Common commands:
   install          Copy or update .harness/ and AGENTS.md; --force preserves runtime state, --reset clears .harness first
   doctor           Check environment, capabilities, and preflight conditions
-  inspect          Generate project snapshot and adaptation plan
-  init             Generate .harness/project/ adaptation layer; prompts for agent by default
+  inspect          Optional: generate project snapshot and adaptation plan for existing or complex repositories
+  init             Generate .harness/project/ adaptation layer; prompts for Codex/Claude/Cursor/Trae/Manual by default
   check            Validate harness config and core scripts
   run              Create or prepare a work run
   agent-plan       Generate a Codex native plan or universal bridge handoff

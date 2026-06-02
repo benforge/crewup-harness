@@ -2,6 +2,7 @@ import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
+import { leadingSequence, semanticSlugFromText, stripLeadingSequence } from "./lib/naming.mjs";
 
 const root = process.cwd();
 const arg = process.argv[2];
@@ -22,10 +23,10 @@ if (!existsSync(readyFile)) {
 
 const today = new Date().toISOString().slice(0, 10);
 const baseName = path.basename(arg, path.extname(arg)).toLowerCase();
-const safeName = baseName
-  .replace(/[^a-z0-9\u4e00-\u9fa5-]+/gi, "-")
-  .replace(/-+/g, "-")
-  .replace(/^-|-$/g, "");
+const input = await readFile(readyFile, "utf8");
+const sequence = leadingSequence(baseName);
+const semanticName = semanticSlugFromText(input, stripLeadingSequence(baseName));
+const safeName = [sequence, semanticName].filter(Boolean).join("-");
 const runId = `${today}-${safeName}`;
 const runDir = path.join(root, ".harness", "runs", runId);
 const artifactsDir = path.join(runDir, "artifacts");
@@ -70,52 +71,8 @@ const state = {
 
 await writeFile(path.join(runDir, "state.json"), `${JSON.stringify(state, null, 2)}\n`, "utf8");
 
-const templates = [
-  "requirement-plan.md",
-  "requirement.md",
-  "architecture.md",
-  "implementation-plan.md",
-  "api-change.md",
-  "db-migration.md",
-  "review-report.md",
-  "release-summary.md"
-];
+await writeFile(path.join(artifactsDir, ".gitkeep"), "", "utf8");
 
-for (const name of templates) {
-  const source = path.join(root, ".harness", "templates", name);
-  const target = path.join(artifactsDir, name);
-  if (existsSync(source)) await copyFile(source, target);
-}
-
-const testReport = `# 测试报告
-
-## Run
-
-- runId: ${runId}
-
-## 结果汇总
-
-待 Tester Agent 补充。
-
-## 执行项
-
--
-
-## 通过项
-
--
-
-## 失败 / 阻塞项
-
--
-
-## 未覆盖风险
-
--
-`;
-await writeFile(path.join(artifactsDir, "test-report.md"), testReport, "utf8");
-
-const input = await readFile(readyFile, "utf8");
 await writeFile(
   path.join(logsDir, "created.md"),
   `# Run 创建记录

@@ -54,6 +54,44 @@ Use dry-run to inspect routing:
 npx crewup run --dry-run "Use CrewUp to plan module boundaries and technical direction for a large system. Do not write code."
 ```
 
+## Run Naming
+
+Run IDs use date + sequence + semantic slug. CrewUp first extracts action and object terms from the request, for example:
+
+```text
+plan-fullstack-blog-system
+improve-readme
+fix-auth
+```
+
+This avoids unreadable directory names made from truncated long prompts. If semantic detection fails, CrewUp falls back to a title slug.
+
+## Artifact Schema In Tasks
+
+Each subagent task includes the schema for the artifact it owns, such as owner, required headings, and forbidden terms. For `requirements-plan`, the task explicitly lists headings like:
+
+```text
+Original requirement summary
+Historical background
+Goals
+Non-goals
+Acceptance criteria
+Impact candidates
+Open questions
+```
+
+In generated Chinese artifacts, these are written as the configured Chinese headings. Putting schema into the task reduces repair loops after gate checks.
+
+## Model Policy
+
+Formal planning artifacts do not use the lowest tier:
+
+| Role | Artifacts | Default model |
+| --- | --- | --- |
+| `requirements-plan` | `requirement-plan.md` | `gpt-5.4-mini` / medium |
+| `requirements` | `requirement.md` | `gpt-5.5` / medium |
+| `architect` | `architecture.md`, `implementation-plan.md` | `gpt-5.5` / medium |
+
 ## When Subagents Activate
 
 | Subagent | Typical trigger | Artifact ownership |
@@ -69,6 +107,18 @@ npx crewup run --dry-run "Use CrewUp to plan module boundaries and technical dir
 | `release` | Release preparation, change summary, archive | release-summary |
 
 The main agent may prepare runs, create tasks, allocate context, check gates, and summarize state. It should not directly author primary requirements/architecture artifacts or complete business implementation when an implementation agent is available.
+
+## Planning Run Order And Artifact Ownership
+
+For requests like “plan a full-stack blog system; for this phase only clarify requirements, recommend technology choices, design directories and module boundaries, split development phases, and define acceptance criteria; do not write business code,” the normal flow is:
+
+1. `crewup run` only creates the run, freezes input, prepares tasks, and writes the native subagent plan.
+2. The main agent starts `requirements-plan` first and waits for it to write `artifacts/requirement-plan.md`.
+3. After the `requirements-plan` result is captured in `native-state`, the main agent may start `requirements`, which writes `artifacts/requirement.md`.
+4. After `requirements` completes, the main agent may start `architect`, which writes `artifacts/architecture.md` and `artifacts/implementation-plan.md`.
+5. `reviewer` checks the planning artifacts and acceptance criteria last.
+
+These formal artifacts must be written by their owner subagents. The main agent should not paste subagent-returned artifact bodies into artifact files. If the owner subagent cannot write successfully, ask it to repair the output or mark the run `blocked` / `needs_input`.
 
 ## Execution Paths
 

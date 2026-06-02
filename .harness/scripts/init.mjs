@@ -19,6 +19,7 @@ const agentPath = path.join(root, ".harness", "project", "agent.yaml");
 const agentAdapterPath = path.join(root, ".harness", "project", "agent-adapter.md");
 const inspectPath = path.join(root, ".harness", "project", "inspect.json");
 const rulesDir = path.join(root, ".harness", "project", "rules");
+const useColor = process.stdout.isTTY && process.env.NO_COLOR !== "1";
 const profile = await loadProjectProfileSpec();
 const selectedAgent = await resolveAgentSelection();
 const overlay = buildOverlay(profile);
@@ -357,12 +358,17 @@ function buildOverlay(profile) {
 }
 
 async function resolveAgentSelection() {
-  const candidates = getAgentCandidates();
+  const candidates = getAgentCandidates({ includeManual: true });
   if (agentArg) {
+    const normalizedAgentArg = agentArg === "calude"
+      ? "claude"
+      : agentArg === "manua"
+        ? "manual"
+        : agentArg;
     if (agentArg === "generic") {
       throw new Error("Agent `generic` was renamed to `manual`. Use `--agent manual`.");
     }
-    const selected = candidates.find((item) => item.id === agentArg);
+    const selected = candidates.find((item) => item.id === normalizedAgentArg);
     if (selected) return selected;
     throw new Error(`Unknown agent: ${agentArg}. Expected one of: ${candidates.map((item) => item.id).join(", ")}`);
   }
@@ -380,14 +386,15 @@ function shouldUseDefaultAgent() {
   return false;
 }
 
-function getAgentCandidates() {
-  return [
+function getAgentCandidates({ includeManual = true } = {}) {
+  const candidates = [
     {
       id: "codex",
       label: "Codex",
       support_level: "native",
       mode: "native",
       description: "OpenAI Codex-style native or CLI-backed workflow",
+      summary: "Recommended default. Native CrewUp planning, subagents, and result tracking.",
       capabilities: {
         subagents: true,
         parallel_subagents: true,
@@ -403,6 +410,7 @@ function getAgentCandidates() {
       support_level: "experimental",
       mode: "bridge",
       description: "Claude Code-style workflow bridge",
+      summary: "Bridge handoff for Claude Code with CrewUp tasks, artifacts, and result writeback.",
       capabilities: {
         subagents: false,
         parallel_subagents: false,
@@ -418,6 +426,7 @@ function getAgentCandidates() {
       support_level: "experimental",
       mode: "bridge",
       description: "Cursor-style project workflow bridge",
+      summary: "Bridge handoff for Cursor while CrewUp keeps the workflow contract and gates.",
       capabilities: {
         subagents: false,
         parallel_subagents: false,
@@ -433,6 +442,7 @@ function getAgentCandidates() {
       support_level: "experimental",
       mode: "bridge",
       description: "Trae-style project workflow bridge",
+      summary: "Bridge handoff for Trae while CrewUp keeps planning, reporting, and gates.",
       capabilities: {
         subagents: false,
         parallel_subagents: false,
@@ -448,6 +458,7 @@ function getAgentCandidates() {
       support_level: "fallback",
       mode: "manual",
       description: "Manual prompt handoff and shell-only fallback",
+      summary: "Fallback for humans or scripts that write CrewUp-compatible results manually.",
       capabilities: {
         subagents: false,
         parallel_subagents: false,
@@ -458,6 +469,7 @@ function getAgentCandidates() {
       }
     }
   ];
+  return includeManual ? candidates : candidates.filter((item) => item.id !== "manual");
 }
 
 async function promptForAgent(candidates) {
@@ -473,15 +485,22 @@ async function promptForAgent(candidates) {
   return await new Promise((resolve) => {
     const render = () => {
       process.stdout.write("\x1Bc");
-      console.log("Select the agent environment to generate for:");
+      console.log(bold("Select CrewUp agent environment:"));
+      console.log(`${dim("Default:")} ${blue("Codex")}`);
       console.log("");
       candidates.forEach((item, index) => {
-        const marker = index === selectedIndex ? ">" : " ";
-        console.log(`${marker} ${item.label} (${item.id}, ${item.support_level})`);
-        console.log(`  ${item.description}`);
+        const selected = index === selectedIndex;
+        const marker = selected ? blue("●") : dim("○");
+        const title = item.label.padEnd(20);
+        const meta = `${item.id} / ${item.mode}`;
+        console.log(`${marker} ${selected ? blue(bold(title)) : title} ${dim(meta)}`);
       });
+      const selected = candidates[selectedIndex];
       console.log("");
-      console.log("Use Up/Down and Enter. Press 1-" + candidates.length + " for quick selection. Press Ctrl+C to cancel.");
+      console.log(`${bold("Selected")} ${blue(selected.label)} ${dim(`(${selected.support_level})`)}`);
+      console.log(`  ${selected.summary}`);
+      console.log("");
+      console.log(dim("Use Up/Down and Enter. Press Ctrl+C to cancel."));
     };
 
     const cleanup = () => {
@@ -511,12 +530,6 @@ async function promptForAgent(candidates) {
         resolve(candidates[selectedIndex]);
         return;
       }
-      const quickIndex = Number.parseInt(_input, 10);
-      if (Number.isInteger(quickIndex) && quickIndex >= 1 && quickIndex <= candidates.length) {
-        cleanup();
-        console.log("");
-        resolve(candidates[quickIndex - 1]);
-      }
     };
 
     process.stdin.on("keypress", onKeypress);
@@ -526,7 +539,7 @@ async function promptForAgent(candidates) {
 
 async function promptForAgentLine(candidates) {
   printAgentChoices(candidates);
-  const input = await readLine("Select agent [1]: ");
+  const input = await readLine("Select agent [codex]: ");
   const value = input.trim().toLowerCase();
   if (!value) return candidates[0];
 
@@ -536,15 +549,18 @@ async function promptForAgentLine(candidates) {
   const selected = candidates.find((item) => item.id === value);
   if (selected) return selected;
 
-  throw new Error(`Unknown agent selection: ${input}. Expected 1-${candidates.length} or one of: ${candidates.map((item) => item.id).join(", ")}`);
+  throw new Error(`Unknown agent selection: ${input}. Expected one of: ${candidates.map((item) => item.id).join(", ")}`);
 }
 
 function printAgentChoices(candidates) {
-  console.log("Select the agent environment to generate for:");
+  console.log(bold("Select CrewUp agent environment:"));
+  console.log(`${dim("Default:")} ${blue("Codex")}`);
   console.log("");
   candidates.forEach((item, index) => {
-    console.log(`${index + 1}. ${item.label} (${item.id}, ${item.support_level})`);
-    console.log(`   ${item.description}`);
+    const marker = index === 0 ? "●" : "○";
+    const title = item.label.padEnd(20);
+    console.log(`${marker} ${title} ${dim(`${item.id} / ${item.mode}`)}`);
+    console.log(`   ${item.summary}`);
   });
   console.log("");
 }
@@ -694,11 +710,15 @@ ${commands}
 
 function domainRule(profile) {
   const modules = profile.modules.map((module) => `- ${module.id}: ${module.path} (${module.agents.join(", ")})`).join("\n") || "- No modules detected yet.";
+  const emptyProjectNote = profile.modules.length === 0
+    ? `\n## Empty Project Note\n\nThis is a target project with CrewUp installed, but no business source modules have been created yet. Do not describe the target project as the CrewUp harness template or as a harness workflow project. Describe it as an empty or early-stage product repository until real business modules exist.\n`
+    : "";
   return `# Domain Rules
 
 This file is generated by harness:init and serves as the starting point for project-specific rules. As the project matures, replace generic guidance with real product and domain rules.
 ## Detected Modules
 ${modules}
+${emptyProjectNote}
 `;
 }
 
@@ -847,4 +867,20 @@ function valueAfter(flag) {
 
 function rel(target) {
   return path.relative(root, target).replaceAll("\\", "/");
+}
+
+function color(code, value) {
+  return useColor ? `\x1b[${code}m${value}\x1b[0m` : value;
+}
+
+function blue(value) {
+  return color("34", value);
+}
+
+function bold(value) {
+  return color("1", value);
+}
+
+function dim(value) {
+  return color("2", value);
 }

@@ -1,12 +1,13 @@
 import { mkdir, readdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
+import { semanticSlugFromText, semanticTitleFromText } from "./lib/naming.mjs";
 
 const root = process.cwd();
 const args = process.argv.slice(2);
 const queue = valueOf("--queue=") ?? "new";
 const text = valueOf("--text=");
-const title = valueOf("--title=") ?? titleFromText(text) ?? "未命名任务";
+const title = valueOf("--title=") ?? semanticTitleFromText(text) ?? "未命名任务";
 const backlogRoot = path.join(root, ".harness", "backlog");
 const queues = ["new", "ready", "in-progress", "review", "done"];
 
@@ -23,7 +24,7 @@ if (!text?.trim()) {
 const dir = path.join(backlogRoot, queue);
 await mkdir(dir, { recursive: true });
 
-const slug = slugify(title);
+const slug = semanticSlugFromText(text, title);
 const sequence = await nextBacklogSequence();
 const fileName = uniqueName(dir, `${formatSequence(sequence)}-${slug}.md`);
 const target = path.join(dir, fileName);
@@ -46,25 +47,6 @@ console.log(path.relative(root, target).replaceAll("\\", "/"));
 function valueOf(prefix) {
   const arg = args.find((item) => item.startsWith(prefix));
   return arg ? arg.slice(prefix.length) : null;
-}
-
-function slugify(input) {
-  return input
-    .toLowerCase()
-    .replace(/[^a-z0-9\u4e00-\u9fa5-]+/gi, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 80) || "untitled-task";
-}
-
-function titleFromText(input) {
-  const firstLine = input?.trim().split(/\r?\n/).find(Boolean);
-  if (!firstLine) return null;
-  return firstLine
-    .replace(/^#+\s*/, "")
-    .replace(/^现在(直接)?(帮我)?(做|实现|处理)[:：]?\s*/, "")
-    .trim()
-    .slice(0, 40);
 }
 
 async function nextBacklogSequence() {

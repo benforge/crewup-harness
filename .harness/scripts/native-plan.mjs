@@ -6,6 +6,7 @@ import { loadProjectProfile } from "./lib/project-profile.mjs";
 import { decideContextMode } from "./lib/context-mode.mjs";
 import { loadProjectOverlay, renderOverlayContext } from "./lib/project-overlay.mjs";
 import { sortByExecutionOrder } from "./lib/execution-order.mjs";
+import { completedNativePrerequisitesForAgent } from "./lib/delegation-guard.mjs";
 import {
   buildBridgeTaskManifest,
   isNativeAgentEnvironment,
@@ -78,10 +79,12 @@ for (const taskFile of taskFiles) {
   const spawnName = `${runId}:${agentId}`;
   const resultPath = `.harness/runs/${runId}/logs/native-subagents/${agentId}.result.md`;
   const resultJsonPath = `.harness/runs/${runId}/logs/native-subagents/${agentId}.result.json`;
+  const prerequisites = completedNativePrerequisitesForAgent(agentId, { root, runId });
   const prompt = renderSpawnPrompt({
     agentId,
     agentType,
     profile,
+    prerequisites,
     task,
     specFreeze,
     allowedPatterns,
@@ -104,6 +107,7 @@ for (const taskFile of taskFiles) {
     result_json_path: resultJsonPath,
     handoff_path: `.harness/runs/${runId}/logs/agent-bridge/${agentId}.handoff.md`,
     state: "planned",
+    requires_completed_agents: prerequisites,
     wait_group: findGroupForAgent(agentId, nativeConfig),
     close_required: Boolean(nativeConfig.safety?.require_close_agent),
     retention: retentionForAgent(agentId, nativeConfig),
@@ -275,7 +279,7 @@ async function mergeNativeState(plan) {
   };
 }
 
-function renderSpawnPrompt({ agentId, agentType, profile, task, specFreeze, allowedPatterns, contextPack, projectOverlayContext, artifactIndex, contextDecision, budgets = {} }) {
+function renderSpawnPrompt({ agentId, agentType, profile, prerequisites = [], task, specFreeze, allowedPatterns, contextPack, projectOverlayContext, artifactIndex, contextDecision, budgets = {} }) {
   const taskText = limitText(task, budgets.task_chars ?? 1200);
   const frozenText = limitText(specFreeze, budgets.document_policy_chars ?? 1200);
   const artifactText = limitText(artifactIndex, budgets.artifact_index_chars ?? 900);
@@ -293,12 +297,17 @@ function renderSpawnPrompt({ agentId, agentType, profile, task, specFreeze, allo
     `- reasoning_effort: ${profile.reasoning_effort}`,
     `- context_mode: ${contextDecision.mode}`,
     `- context_reasons: ${contextDecision.reasons.join("; ")}`,
+    `- requires_completed_agents: ${prerequisites.length ? prerequisites.join(", ") : "(none)"}`,
     "",
     "## 运行规则",
     "",
+    "- 如果 requires_completed_agents 不是 `(none)`，主 agent 必须先确认这些 agent 已完成并通过 `native-state mark-result` 捕获结果后，才应该启动你。",
     "- 你不是唯一在代码库中工作的 agent，其他 agent 或主 agent 可能并行推进。",
     "- 不要回滚或覆盖他人已经完成的修改。",
     "- 只能在自己的职责范围和下方允许修改范围内工作。",
+    "- 你负责的正式 artifact 必须由你自己写入允许范围内的 artifact 文件；不要只把 artifact 正文返回给主 agent 代写。",
+    "- 如果你无法写入自己负责的 artifact，请返回 `blocked` 或 `needs_input`，不要要求主 agent 代写。",
+    "- JSON 里的 `artifactUpdates` / `artifactsUpdated` 只能列出你已经实际写入或更新的 artifact。",
     "- 如果你是 tester/reviewer，反馈需要代码修复时只写清 targetAgents 和 requiredFixes，不要直接修改业务代码。",
     "- 如果你是实现类 agent，收到 tester/reviewer 反馈后只修复自己职责范围内的问题，并在结果中引用反馈来源。",
     "- 如果上下文不足，请返回 `needs_input`，并明确需要哪个文件或决策。",
@@ -456,6 +465,7 @@ function renderPlanMarkdown(plan) {
     lines.push(`- spawn_name: ${task.spawn_name}`);
     lines.push(`- agent_type: ${task.agent_type}`);
     lines.push(`- wait_group: ${task.wait_group}`);
+    lines.push(`- requires_completed_agents: ${task.requires_completed_agents.length ? task.requires_completed_agents.join(", ") : "(none)"}`);
     lines.push(`- context_mode: ${task.context_mode}`);
     lines.push(`- reasons: ${task.context_reasons.join("; ")}`);
     lines.push(`- prompt: ${task.prompt_path}`);
@@ -469,8 +479,10 @@ function renderPlanMarkdown(plan) {
 
   lines.push("## 生命周期检查清单", "");
   lines.push("- 只启动可以和主 agent 工作并行的非阻塞任务。");
+  lines.push("- 不要启动 `requires_completed_agents` 尚未完成并捕获结果的任务。");
   lines.push("- 当下一步关键路径需要结果时再等待对应 agent。");
   lines.push("- 将结果保存或摘要到 `logs/native-subagents/`。");
+  lines.push("- 正式 artifact 必须由 owner agent 写入；主 agent 只捕获 result，不代写 owner artifact。");
   lines.push("- agent 完成后先保留在 `waiting_review`，同时遵守保留容量限制。");
   lines.push("- 当可用名额紧张时，先运行 `harness:native-state -- <run-id> recommend-close` 再启动更多 agent。");
   lines.push("- 对已保留的 agent，优先使用 `send_input`/`resume_agent`，不要直接重复启动替代 agent。");

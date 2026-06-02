@@ -19,15 +19,15 @@ Let users choose the execution environment during `crewup init`, then generate o
 ## Preferred UX
 
 1. Run `crewup init`
-2. Show an interactive list of supported agents
-3. Let the user select one with arrow keys
+2. Show a concise interactive list: Codex, Claude, Cursor, Trae, Manual
+3. Let the user select one with arrow keys; Codex is selected by default
 4. Generate the shared harness core plus the selected adapter layer
 
 ## Non-interactive Fallback
 
 `crewup init --agent <name>` bypasses the prompt and uses the selected agent directly.
 
-In CI or scripts, use `crewup init --yes` or `crewup init --no-interactive`; CrewUp defaults to `codex` and prints an explicit notice.
+In CI, scripts, or brand-new empty projects, prefer `crewup init --agent codex --yes`. If you only use `crewup init --yes` or `crewup init --no-interactive`, CrewUp defaults to `codex` and prints an explicit notice.
 
 ## Recommended Agent Names
 

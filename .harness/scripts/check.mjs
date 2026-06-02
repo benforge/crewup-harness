@@ -523,9 +523,24 @@ async function checkNativeSubagents() {
     errors.push(`${rel} retention.prefer_resume_before_respawn must be true`);
   }
 
-  const intakeAgents = new Set(config.parallel_groups?.intake?.agents ?? []);
-  if (!intakeAgents.has("requirements-plan")) {
-    errors.push(`${rel} parallel_groups.intake.agents must include requirements-plan so plan-only work is scheduled`);
+  const planningGroups = [
+    ["requirements_planning", ["requirements-plan"]],
+    ["requirements_confirmation", ["requirements"]],
+    ["architecture_planning", ["architect"]]
+  ];
+  for (const [groupId, requiredAgents] of planningGroups) {
+    const group = config.parallel_groups?.[groupId];
+    if (!group) {
+      errors.push(`${rel} parallel_groups.${groupId} is required`);
+      continue;
+    }
+    if (group.parallel !== false) {
+      errors.push(`${rel} parallel_groups.${groupId}.parallel must be false`);
+    }
+    const agents = new Set(group.agents ?? []);
+    for (const agent of requiredAgents) {
+      if (!agents.has(agent)) errors.push(`${rel} parallel_groups.${groupId}.agents must include ${agent}`);
+    }
   }
   const verificationGroups = [
     ["verification_tester", "tester"],

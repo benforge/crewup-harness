@@ -33,6 +33,8 @@ npm run harness:native-plan -- <run-id> --agents=<agent-list>
 ```
 
 4. Spawn only the agents that materially advance the current phase.
+   - Do not spawn an agent whose `requires_completed_agents` are not completed and captured in `native-state.json`.
+   - For planning runs, the normal order is `requirements-plan` -> `requirements` -> `architect` -> `reviewer`, unless the plan explicitly omits one of those roles.
 5. Use `worker` agents only for implementation/test/devops/database work with clear write ownership.
 6. Tell workers they are not alone in the codebase and must not revert edits made by others.
 7. Before spawning more agents, check capacity:
@@ -67,6 +69,8 @@ npm run harness:native-state -- <run-id> mark-result <agent> <completed|blocked|
 The JSON result is the preferred machine-readable contract for reports and gates. The Markdown result remains the human-readable fallback and should still be saved for auditability.
 
 The result file must exist before `mark-result`. A native handle without a saved `<agent>.result.md` is not enough for the main agent to produce a reliable final report.
+
+Owned artifacts must be written by the owner subagent, not authored in the main window. For example, `requirements-plan` writes `artifacts/requirement-plan.md`, `requirements` writes `artifacts/requirement.md`, and `architect` writes `artifacts/architecture.md` / `artifacts/implementation-plan.md`. The main agent may capture, summarize, gate, or request repair, but it must not become the artifact author when the owner agent exists.
 
 14. Do not close a subagent immediately after a completed result. Mark the result and keep the agent in `waiting_review` until user acceptance, explicit release by the main agent, retention capacity pressure, or run done/archive cleanup, so follow-up changes can use `send_input` or `resume_agent` without respawning.
 15. When the retained agent is no longer needed, mark it ready to close:

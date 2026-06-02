@@ -19,15 +19,15 @@ Codex 仍然是稳定主路径。Claude、Cursor、Trae 和人工流程通过 br
 ## 推荐交互
 
 1. 运行 `crewup init`
-2. 显示支持的 agent 列表
-3. 用户用上下键选择
+2. 显示精简的 agent 列表：Codex、Claude、Cursor、Trae、Manual
+3. 用户用上下键选择；默认选中 Codex
 4. 生成共享 harness 核心和对应适配层
 
 ## 非交互模式
 
 `crewup init --agent <name>` 会跳过交互选择，直接使用指定 agent。
 
-CI 或脚本中可以使用 `crewup init --yes` 或 `crewup init --no-interactive`，此时默认选择 `codex` 并打印明确提示。
+CI、脚本或全新空项目中推荐使用 `crewup init --agent codex --yes`。如果只使用 `crewup init --yes` 或 `crewup init --no-interactive`，CrewUp 默认选择 `codex` 并打印明确提示。
 
 ## 推荐 agent 名称
 

@@ -8,6 +8,7 @@ const args = process.argv.slice(2);
 const runId = args.find((arg) => !arg.startsWith("--"));
 const force = args.includes("--force");
 const promote = args.includes("--promote");
+const seedArtifact = args.includes("--seed-artifact");
 
 if (!runId) {
   console.error("请提供 runId，例如：npm run harness:requirements-plan -- 2026-05-14-001-blog-mvp");
@@ -54,7 +55,7 @@ const template = existsSync(templatePath)
   ? await readFile(templatePath, "utf8")
   : "# 需求扩写草案\n";
 
-if (!existsSync(planPath) || force) {
+if (seedArtifact && (!existsSync(planPath) || force)) {
   await writeFile(planPath, renderPlanArtifact(template, input), "utf8");
 }
 
@@ -62,12 +63,16 @@ const taskPath = path.join(tasksDir, `${config.agent_id}.task.md`);
 await writeFile(taskPath, renderTask({ config, input }), "utf8");
 await writeFile(
   path.join(logsDir, "created.md"),
-  `# 需求扩写任务已创建\n\n- runId: ${runId}\n- 任务：${rel(taskPath)}\n- artifact：${rel(planPath)}\n- 创建时间：${new Date().toISOString()}\n`,
+  `# 需求扩写任务已创建\n\n- runId: ${runId}\n- 任务：${rel(taskPath)}\n- artifact_owner：${config.agent_id}\n- artifact_target：${rel(planPath)}\n- seed_artifact：${seedArtifact ? "yes" : "no"}\n- 创建时间：${new Date().toISOString()}\n`,
   "utf8"
 );
 
 console.log(`需求扩写任务已写入：${rel(taskPath)}`);
-console.log(`草案 artifact 已写入：${rel(planPath)}`);
+if (seedArtifact) {
+  console.log(`草案 artifact 已写入：${rel(planPath)}`);
+} else {
+  console.log(`草案 artifact 未由主流程写入；应由 ${config.agent_id} 子 agent 写入：${rel(planPath)}`);
+}
 console.log(`下一步：npm run harness:native-plan -- ${runId} --agents=${config.agent_id}`);
 
 function renderPlanArtifact(template, input) {

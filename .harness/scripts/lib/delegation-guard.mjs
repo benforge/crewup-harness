@@ -218,7 +218,17 @@ export function completedNativePrerequisitesForAgent(agentId, { root = process.c
       ...[...implementationAgents]
     ].filter((agent) => tasks.has(agent));
   }
-  if (agentId === "reviewer") return ["tester"].filter((agent) => tasks.has(agent));
+  if (agentId === "reviewer") {
+    const testerPrerequisites = ["tester"].filter((agent) => tasks.has(agent));
+    if (testerPrerequisites.length > 0) return testerPrerequisites;
+    return [
+      "pm",
+      "requirements-plan",
+      "requirements",
+      "architect",
+      ...[...implementationAgents]
+    ].filter((agent) => tasks.has(agent));
+  }
   if (agentId === "release") return ["reviewer"].filter((agent) => tasks.has(agent));
   return [];
 }

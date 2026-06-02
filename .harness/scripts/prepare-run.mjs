@@ -30,6 +30,7 @@ await mkdir(tasksDir, { recursive: true });
 
 const agentsConfig = parseYaml(await readFile(path.join(root, ".harness", "config", "agents.yaml"), "utf8")).agents;
 const modelPolicy = parseYaml(await readFile(path.join(root, ".harness", "config", "model-policy.yaml"), "utf8"));
+const artifactSchema = parseYaml(await readFile(path.join(root, ".harness", "config", "artifact-schema.yaml"), "utf8"))?.artifacts ?? {};
 const { project_profile: projectProfile } = await loadProjectProfile(root);
 const projectOverlay = await loadProjectOverlay(root, projectProfile.ai_overlay?.profile, { projectProfile });
 const impactScopesConfig = resolveImpactScopes(projectProfile, projectOverlay.profile);
@@ -37,7 +38,7 @@ const impactScopesConfig = resolveImpactScopes(projectProfile, projectOverlay.pr
 const workloadAnalysis = analyzeWorkload(input, { requestedProfile });
 const workflowProfile = workloadAnalysis.workflowProfile;
 const impactScopes = detectImpactScopes(input, impactScopesConfig, projectOverlay.profile);
-const selectedAgents = selectAgents(input, agentsConfig, impactScopesConfig, projectProfile, workflowProfile, impactScopes);
+const selectedAgents = selectAgents(input, agentsConfig, impactScopesConfig, projectProfile, workflowProfile, impactScopes, workloadAnalysis);
 
 for (const entry of await readdir(tasksDir, { withFileTypes: true })) {
   if (entry.isFile() && (entry.name.endsWith(".task.md") || entry.name === "main-agent-summary.md")) {
@@ -64,7 +65,7 @@ console.log(`complexity: ${workloadAnalysis.complexityScore}/5 (${workloadAnalys
 console.log(`impact_scopes: ${impactScopes.length ? impactScopes.join(",") : "(none)"}`);
 for (const agentId of selectedAgents) console.log(`- ${agentId}`);
 
-function selectAgents(inputText, agents, impactScopeConfig, profile, runProfile, impactScopes) {
+function selectAgents(inputText, agents, impactScopeConfig, profile, runProfile, impactScopes, workloadAnalysis = {}) {
   if (isDocsOnlyRequest(inputText)) {
     return ["docs", "reviewer", "release"].filter((agentId) => agents[agentId]);
   }
@@ -75,6 +76,7 @@ function selectAgents(inputText, agents, impactScopeConfig, profile, runProfile,
 
   const selected = new Set();
   if (runProfile === "full") selected.add("pm");
+  if (workloadAnalysis.needsRequirementsPlan) selected.add("requirements-plan");
   if (["standard", "full"].includes(runProfile)) {
     selected.add("requirements");
     selected.add("architect");
@@ -237,6 +239,10 @@ ${allowed.length ? allowed.map((item) => `- ${item}`).join("\n") : "- 无"}
 
 ${requiredOutputsFor(agentId).map((item) => `- ${item}`).join("\n")}
 
+## Artifact Schema
+
+${artifactSchemaForAgent(agentId)}
+
 ## 当前 run 输入快照
 
 ${limitText(inputText.trim(), 2500) || "（空）"}
@@ -291,6 +297,31 @@ function requiredOutputsFor(agentId) {
     release: ["artifacts/release-summary.md"]
   };
   return outputs[agentId] ?? ["task result summary"];
+}
+
+function artifactSchemaForAgent(agentId) {
+  const outputs = requiredOutputsFor(agentId)
+    .map((item) => item.replace(/^artifacts\//, ""))
+    .filter((item) => item.endsWith(".md"));
+  const lines = [];
+  for (const output of outputs) {
+    const schema = artifactSchema[output];
+    if (!schema) continue;
+    lines.push(`### ${output}`);
+    if (schema.owner) lines.push(`- owner: ${schema.owner}`);
+    if (schema.required_headings?.length) {
+      lines.push("- required_headings:");
+      lines.push(...schema.required_headings.map((heading) => `  - ${heading}`));
+    }
+    if (schema.forbidden_terms?.length) {
+      lines.push("- forbidden_terms:");
+      lines.push(...schema.forbidden_terms.map((term) => `  - ${term}`));
+    }
+    lines.push("");
+  }
+  return lines.length
+    ? lines.join("\n").trim()
+    : "- No dedicated artifact schema for this agent.";
 }
 
 function resolveModel(agentId, agent) {

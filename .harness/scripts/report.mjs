@@ -205,16 +205,44 @@ function parseAgentResult(content) {
 }
 
 function parseAgentResultJson(value) {
+  const blockers = [
+    ...asArray(value.blockers),
+    ...asArray(value.blockingIssues)
+  ];
+  const handoff = value.handoff
+    ?? (asArray(value.nonBlockingSuggestions).length ? `Non-blocking suggestions:<br>${listText(value.nonBlockingSuggestions)}` : "");
   return {
     Agent: value.agent,
     Status: value.status,
-    Summary: value.summary,
+    Summary: value.summary ?? summaryFromStructuredResult(value),
     "Files changed": listText(value.filesChanged ?? value.fileChanges),
-    "Artifacts updated": listText(value.artifactsUpdated ?? value.artifactUpdates),
-    Tests: listText(value.tests),
-    Blockers: listText(value.blockers),
-    Handoff: value.handoff
+    "Artifacts updated": listText(value.artifactsUpdated ?? value.artifactUpdates ?? value.writtenArtifacts ?? value.reviewedArtifacts),
+    Tests: listText(value.tests ?? checksToList(value.checks)),
+    Blockers: listText(blockers),
+    Handoff: handoff
   };
+}
+
+function summaryFromStructuredResult(value) {
+  if (value.agent === "reviewer" && value.status === "completed") {
+    const blockingCount = asArray(value.blockingIssues).length;
+    const suggestionCount = asArray(value.nonBlockingSuggestions).length;
+    return blockingCount
+      ? `Review completed with ${blockingCount} blocking issue(s).`
+      : `Review completed with no blocking issues${suggestionCount ? ` and ${suggestionCount} non-blocking suggestion(s)` : ""}.`;
+  }
+  if (value.agent && value.status) return `${value.agent} result ${value.status}.`;
+  return "";
+}
+
+function checksToList(checks) {
+  if (!checks || typeof checks !== "object") return [];
+  return Object.entries(checks).map(([key, value]) => `${key}: ${value}`);
+}
+
+function asArray(value) {
+  if (!value) return [];
+  return Array.isArray(value) ? value : [value];
 }
 
 function listText(value) {
@@ -257,8 +285,9 @@ function buildTokenRows(ledger) {
 }
 
 function contextBudgetTotal(budget) {
+  if (!budget) return "not generated";
   const total = (budget?.agents ?? []).reduce((sum, item) => sum + Number(item.estimatedTokens ?? 0), 0);
-  return total || "not generated";
+  return total;
 }
 
 function renderContextBudgetRow(item) {

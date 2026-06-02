@@ -25,10 +25,13 @@ The operating model is intentionally strict:
 ## Core Capabilities
 
 - Explicit opt-in: the strict harness only starts when the user asks for CrewUp/harness behavior
-- Project adaptation: `inspect` reads the real repository, then `init` generates `.harness/project/`
+- Project adaptation: `init` generates `.harness/project/`; existing or complex repositories can run `inspect` first for stronger structure detection
 - Strict delegation: the main agent routes, delegates, gates, and summarizes; role agents own artifacts
+- Semantic run IDs: extracts action and object terms instead of truncating long user text
+- Schema-first tasks: subagent tasks include owner artifact headings to reduce gate-time rework
+- Model tiers: formal `requirement.md` and `architecture.md` use `gpt-5.5 + medium` by default
 - Stage gates: stage entry gates, artifact provenance, and no-code profile gates reduce drift and overreach
-- Multiple execution environments: Codex native first, with Claude/Cursor/Trae/manual writeback through the Universal Agent Bridge
+- Multiple execution environments: Codex native first, Claude/Cursor/Trae writeback through the Universal Agent Bridge, and manual as an advanced fallback
 - Release checks: local validation, temporary-project pack-install testing, and release preflight
 
 ## Quick Start
@@ -36,9 +39,14 @@ The operating model is intentionally strict:
 ```bash
 npm install -D crewup-harness
 npx crewup install
-npx crewup inspect --no-ai
 npx crewup init --agent codex --yes
 npx crewup check
+```
+
+Brand-new empty projects usually do not need `inspect --no-ai` first; `init` performs basic filesystem detection. For existing projects, monorepos, or more complex repository shapes, run this before `init`:
+
+```bash
+npx crewup inspect --no-ai
 ```
 
 To upgrade a project that already has CrewUp installed, use the safe upgrade path:
@@ -74,7 +82,7 @@ Non-explicit requests remain normal assistant work and should not automatically 
 ## Workflow
 
 ```text
-doctor -> install -> inspect -> init -> check -> run -> spec-freeze
+doctor -> install -> init -> check -> run -> spec-freeze
   -> agent-plan -> orchestrate -> gate-check -> report -> finish
 ```
 
@@ -94,7 +102,7 @@ Common commands:
 | `npx crewup install` | Install the CrewUp template into a target project |
 | `npx crewup install --force` | Safely upgrade the harness core while preserving existing runs, knowledge, project adaptation, and runtime state |
 | `npx crewup install --reset` | Clear and reinstall `.harness/`; deletes old runtime state and should be used only for explicit resets |
-| `npx crewup inspect --no-ai` | Inspect project structure from the filesystem |
+| `npx crewup inspect --no-ai` | Optional: inspect existing or complex project structure from the filesystem |
 | `npx crewup init --agent codex --yes` | Generate project adapter and execution environment config |
 | `npx crewup check` | Validate core config, scripts, and templates |
 | `npx crewup run "..."` | Create and prepare a formal run |
@@ -117,6 +125,36 @@ Common commands:
 | `lite` | Narrow formal engineering tasks | Not a quick mode; delegation and gates remain active |
 | `standard` | Normal multi-file engineering work | Full task, context, execution, and verification loop |
 | `full` | High-risk, broad, multi-stage project work | Stronger requirements, architecture, test, review, and release gates |
+
+## Naming And Model Policy
+
+CrewUp generates shorter semantic run IDs. For example, “plan a full-stack blog system” becomes something like:
+
+```text
+2026-06-02-001-plan-fullstack-blog-system
+```
+
+Default model tiers for formal planning artifacts:
+
+| Role | Artifacts | Default tier |
+| --- | --- | --- |
+| `requirements-plan` | `requirement-plan.md` | `gpt-5.4-mini` / medium |
+| `requirements` | `requirement.md` | `gpt-5.5` / medium |
+| `architect` | `architecture.md`, `implementation-plan.md` | `gpt-5.5` / medium |
+
+When CrewUp generates subagent tasks, it embeds the owner artifact schema, including required headings and owner information. The subagent sees gate requirements before writing, which reduces repair loops after gate checks.
+
+## Normal Order For Planning Runs
+
+When you ask CrewUp to plan a system and explicitly say not to write business code yet, CrewUp should enter `plan_only` or `discovery` and move in this order:
+
+1. The main agent creates the run, freezes the input, generates tasks, and writes the native plan.
+2. The `requirements-plan` subagent writes `.harness/runs/<run-id>/artifacts/requirement-plan.md`.
+3. The `requirements` subagent writes `.harness/runs/<run-id>/artifacts/requirement.md` after its prerequisites are complete.
+4. The `architect` subagent writes `.harness/runs/<run-id>/artifacts/architecture.md` and `implementation-plan.md` after requirements are confirmed.
+5. The `reviewer` checks the planning artifacts, risks, and acceptance criteria.
+
+The main agent may route, check prerequisites, capture results, request repairs, and summarize status. It should not copy subagent-returned artifact bodies into formal owner artifacts. If a subagent cannot write its own artifact, the result should be `blocked` or `needs_input`, not main-agent authorship.
 
 ## Execution Environments
 
