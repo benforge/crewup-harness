@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.3.4
+
+- Added native result files to each subagent's allowed write scope so subagents can write their own `<agent>.result.md` and `<agent>.result.json` outputs without the main agent creating them.
+- Clarified native runner policy: the main agent may register existing subagent result files, but must not create, summarize, or copy result files on behalf of the subagent.
+- Made `native-state mark-result` idempotent when the same agent/status/result paths are already captured, preventing duplicate result registrations.
+
 ## 0.3.3
 
 - Narrowed placeholder detection in `next`, `gate-check`, and `transition` so normal planning terms such as `待确认问题`, `占位首页`, and `环境变量模板` no longer trigger unnecessary owner-agent repair loops.

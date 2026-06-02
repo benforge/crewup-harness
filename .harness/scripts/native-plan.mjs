@@ -79,6 +79,11 @@ for (const taskFile of taskFiles) {
   const spawnName = `${runId}:${agentId}`;
   const resultPath = `.harness/runs/${runId}/logs/native-subagents/${agentId}.result.md`;
   const resultJsonPath = `.harness/runs/${runId}/logs/native-subagents/${agentId}.result.json`;
+  const allowedPatternsWithResult = unique([
+    ...allowedPatterns,
+    resultPath,
+    resultJsonPath
+  ]);
   const prerequisites = completedNativePrerequisitesForAgent(agentId, { root, runId });
   const prompt = renderSpawnPrompt({
     agentId,
@@ -87,7 +92,7 @@ for (const taskFile of taskFiles) {
     prerequisites,
     task,
     specFreeze,
-    allowedPatterns,
+    allowedPatterns: allowedPatternsWithResult,
     contextPack,
     projectOverlayContext,
     artifactIndex,
@@ -115,7 +120,7 @@ for (const taskFile of taskFiles) {
     context_reasons: contextDecision.reasons,
     model_hint: profile.codex_model_hint ?? profile.model,
     reasoning_effort: profile.reasoning_effort,
-    allowed_patterns: allowedPatterns,
+    allowed_patterns: allowedPatternsWithResult,
     write_owner: ["frontend", "docs", "backend", "database", "devops", "tester"].includes(agentId)
   });
 }
@@ -307,6 +312,8 @@ function renderSpawnPrompt({ agentId, agentType, profile, prerequisites = [], ta
     "- 只能在自己的职责范围和下方允许修改范围内工作。",
     "- 你负责的正式 artifact 必须由你自己写入允许范围内的 artifact 文件；不要只把 artifact 正文返回给主 agent 代写。",
     "- 如果你无法写入自己负责的 artifact，请返回 `blocked` 或 `needs_input`，不要要求主 agent 代写。",
+    "- Result files are subagent-owned audit outputs; write them yourself. The main agent may only register them with `native-state mark-result` after they already exist.",
+    "- Do not ask the main agent to create, summarize, or copy your `<agent>.result.md` / `<agent>.result.json` files.",
     "- JSON 里的 `artifactUpdates` / `artifactsUpdated` 只能列出你已经实际写入或更新的 artifact。",
     "- 如果你是 tester/reviewer，反馈需要代码修复时只写清 targetAgents 和 requiredFixes，不要直接修改业务代码。",
     "- 如果你是实现类 agent，收到 tester/reviewer 反馈后只修复自己职责范围内的问题，并在结果中引用反馈来源。",
@@ -481,7 +488,7 @@ function renderPlanMarkdown(plan) {
   lines.push("- 只启动可以和主 agent 工作并行的非阻塞任务。");
   lines.push("- 不要启动 `requires_completed_agents` 尚未完成并捕获结果的任务。");
   lines.push("- 当下一步关键路径需要结果时再等待对应 agent。");
-  lines.push("- 将结果保存或摘要到 `logs/native-subagents/`。");
+  lines.push("- 子 agent 必须自己写入 `logs/native-subagents/<agent>.result.md/json`；主 agent 只登记已存在的 result。");
   lines.push("- 正式 artifact 必须由 owner agent 写入；主 agent 只捕获 result，不代写 owner artifact。");
   lines.push("- agent 完成后先保留在 `waiting_review`，同时遵守保留容量限制。");
   lines.push("- 当可用名额紧张时，先运行 `harness:native-state -- <run-id> recommend-close` 再启动更多 agent。");
@@ -536,6 +543,10 @@ function extractImpactScopes(task) {
 
 function normalizeRelPath(inputPath) {
   return inputPath.replaceAll("\\", "/").replace(/^\.\//, "").replace(/^\/+/, "").trim();
+}
+
+function unique(items) {
+  return [...new Set(items.filter(Boolean))];
 }
 
 async function readOptional(target) {

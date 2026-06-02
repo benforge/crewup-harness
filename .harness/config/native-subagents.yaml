@@ -20,7 +20,7 @@ native_subagents:
       - "Do not duplicate subagent work in the main window."
     after_result:
       - "Collect the final result."
-      - "Write or summarize the result under `.harness/runs/<run>/logs/native-subagents/<agent>.result.md`."
+      - "Require the subagent to write `.harness/runs/<run>/logs/native-subagents/<agent>.result.md` and `.result.json`; the main agent only registers existing result files."
       - "Review changed files before integration."
       - "Do not close a subagent only because it returned a result."
       - "Keep completed subagents in `waiting_review` for follow-up until user acceptance, explicit release by the main agent, or run done/archive cleanup."

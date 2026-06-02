@@ -53,7 +53,7 @@ npm run harness:native-state -- <run-id> mark-spawned <agent> <handle>
 
 10. While subagents run, do non-overlapping coordination work.
 11. Wait only when the next critical-path step needs the result.
-12. Save or summarize each result under:
+12. Require the subagent itself to save each result under:
 
 ```text
 .harness/runs/<run-id>/logs/native-subagents/<agent>.result.md
@@ -68,7 +68,7 @@ npm run harness:native-state -- <run-id> mark-result <agent> <completed|blocked|
 
 The JSON result is the preferred machine-readable contract for reports and gates. The Markdown result remains the human-readable fallback and should still be saved for auditability.
 
-The result file must exist before `mark-result`. A native handle without a saved `<agent>.result.md` is not enough for the main agent to produce a reliable final report.
+The result file must exist before `mark-result`. A native handle without a saved `<agent>.result.md` is not enough for the main agent to produce a reliable final report. The main agent must not create or summarize `<agent>.result.md` / `<agent>.result.json` for the subagent; missing result files mean the main agent should ask the same subagent to write them, then only register them with `native-state`.
 
 Owned artifacts must be written by the owner subagent, not authored in the main window. For example, `requirements-plan` writes `artifacts/requirement-plan.md`, `requirements` writes `artifacts/requirement.md`, and `architect` writes `artifacts/architecture.md` / `artifacts/implementation-plan.md`. The main agent may capture, summarize, gate, or request repair, but it must not become the artifact author when the owner agent exists.
 

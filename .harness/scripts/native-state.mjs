@@ -58,7 +58,7 @@ switch (command) {
       if (!resultPath || !existsSync(resolveWorkspacePath(resultPath))) {
         console.error(`Cannot capture result for ${agentId}: result file is missing.`);
         console.error(`Expected: ${resultPath || "(none)"}`);
-        console.error(`Write or summarize the subagent final message first, then rerun mark-result.`);
+        console.error(`Ask the subagent to write its own result file first, then rerun mark-result.`);
         process.exit(1);
       }
       const resultJsonPath = agent.result_json_path ?? resultPath.replace(/\.result\.md$/, ".result.json");
@@ -66,6 +66,15 @@ switch (command) {
       if (existsSync(resolveWorkspacePath(resultJsonPath)) && parsedJson.status && parsedJson.status !== value) {
         console.error(`Cannot capture result for ${agentId}: JSON status (${parsedJson.status}) does not match mark-result status (${value}).`);
         process.exit(1);
+      }
+      if (
+        agent.result_captured_at
+        && agent.result_status === value
+        && normalizePath(agent.result_path) === normalizePath(resultPath)
+        && normalizePath(agent.result_json_path) === normalizePath(resultJsonPath)
+      ) {
+        console.log(`Result already captured for ${agentId}; no native-state changes needed.`);
+        process.exit(0);
       }
       const retainedCompleted = value === "completed" && agent.retention?.retain_after_result;
       const nextStatus = retainedCompleted
@@ -277,6 +286,10 @@ async function readResultJson(target) {
 
 function resolveWorkspacePath(target) {
   return path.isAbsolute(target) ? target : path.join(root, target);
+}
+
+function normalizePath(target) {
+  return String(target ?? "").replaceAll("\\", "/");
 }
 
 function stripBom(text) {

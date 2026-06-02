@@ -67,6 +67,38 @@ try {
   assertIncludes(requirementPlanTask, "原始需求摘要", "requirements-plan required heading in task");
   assertIncludes(requirementPlanTask, "影响范围候选", "requirements-plan impact heading in task");
   const planOnlyPlan = JSON.parse(await readFile(path.join(planOnlyRunDir, "logs", "native-subagents", "native-subagent-plan.json"), "utf8"));
+  const requirementsPlanNativeTask = planOnlyPlan.tasks.find((task) => task.agent === "requirements-plan");
+  if (!requirementsPlanNativeTask) throw new Error("Missing requirements-plan native task");
+  assertIncludes(
+    requirementsPlanNativeTask.allowed_patterns.join("\n"),
+    `.harness/runs/${planOnlyRunId}/logs/native-subagents/requirements-plan.result.md`,
+    "requirements-plan result md allowed pattern"
+  );
+  assertIncludes(
+    requirementsPlanNativeTask.allowed_patterns.join("\n"),
+    `.harness/runs/${planOnlyRunId}/logs/native-subagents/requirements-plan.result.json`,
+    "requirements-plan result json allowed pattern"
+  );
+  const requirementsPlanSpawn = await readFile(path.join(planOnlyRunDir, "logs", "native-subagents", "requirements-plan.spawn.md"), "utf8");
+  assertIncludes(requirementsPlanSpawn, "Result files are subagent-owned audit outputs", "subagent-owned result prompt");
+  assertIncludes(requirementsPlanSpawn, "main agent may only register", "main-agent result registration boundary");
+  const requirementsPlanResultMd = path.join(planOnlyRunDir, "logs", "native-subagents", "requirements-plan.result.md");
+  const requirementsPlanResultJson = path.join(planOnlyRunDir, "logs", "native-subagents", "requirements-plan.result.json");
+  await writeFile(requirementsPlanResultMd, "Agent: requirements-plan\nStatus: completed\nSummary: result written by subagent\n", "utf8");
+  await writeFile(requirementsPlanResultJson, `${JSON.stringify({
+    agent: "requirements-plan",
+    status: "completed",
+    summary: "result written by subagent",
+    filesChanged: [],
+    artifactUpdates: [{ path: "artifacts/requirement-plan.md" }],
+    artifactsUpdated: ["artifacts/requirement-plan.md"],
+    tests: [],
+    blockers: []
+  }, null, 2)}\n`, "utf8");
+  runCli(appDir, ["native-state", planOnlyRunId, "mark-spawned", "requirements-plan", "test-handle-requirements-plan"]);
+  runCli(appDir, ["native-state", planOnlyRunId, "mark-result", "requirements-plan", "completed"]);
+  const duplicateMarkResult = runCli(appDir, ["native-state", planOnlyRunId, "mark-result", "requirements-plan", "completed"]);
+  assertIncludes(duplicateMarkResult, "Result already captured for requirements-plan", "idempotent native mark-result");
   assertSameMembers(planOnlyPlan.groups.map((group) => group.id), [
     "requirements_planning",
     "requirements_confirmation",
