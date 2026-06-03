@@ -1,5 +1,30 @@
 # Changelog
 
+## Unreleased
+
+## 0.3.7
+
+- Added `crewup audit <run-id>` / `npm run harness:audit` for orchestration stability checks across dispatch order, owner artifact boundaries, implementation-plan assignments, repair loops, retained subagent pressure, and context/token budget warnings.
+- Added `encoding-policy.yaml`, main-agent UTF-8 guidance, and `doctor` terminal code-page detection so Windows users can distinguish terminal mojibake from real document corruption.
+- Added detailed Getting Started and Local Testing docs in Chinese and English, including API key requirements, Codex native prerequisites, bridge/manual mode behavior, local `npm pack` testing, and first-run troubleshooting.
+- Added copy-ready example cases under `examples/crewup-cases/` for counter MVP full workflow, fullstack blog plan-only workflow, and docs-only update workflow.
+- Clarified that CrewUp is a workflow harness, not a model provider: Codex native execution depends on Codex login/native tools or API-backed automation; SDK/API paths and `inspect --ai` require `OPENAI_API_KEY`; Claude/Cursor/Trae use their own credentials through the bridge.
+- Added hard native-state spawn prerequisite enforcement: downstream agents such as `architect` cannot be marked spawned until required upstream agents such as `requirements-plan` and `requirements` have completed and their results are captured.
+- Added `crewup next-agent <run-id>` / `npm run harness:next-agent` to show only currently runnable native subagents and blocked prerequisite reasons.
+- Strengthened `gate-check` owner artifact auditing so formal owner artifacts fail gates when they appear before the owner agent completed and reported them through `artifactUpdates`.
+- Added optional integrations scaffolding with `integrations.yaml`, `crewup integrations status`, doctor visibility, and CodeGraph declared as a disabled optional code intelligence provider.
+- Added negation-aware workload, scope, context, and naming logic so phrases such as "no backend/database/auth/routing" do not trigger high-risk classification, backend/database agents, full context, or auth run names.
+- Switched generated agent responsibility text to clean English while requiring Chinese for human-facing summaries, blockers, handoffs, and coordination comments.
+- Added artifact scaffolds to generated owner-agent tasks to reduce missing-heading repair loops.
+- Added native-state handle validation to reject accidental `--handle=<id>` values.
+- Clarified that target projects should prefer `npx crewup ...` entry commands because npm scripts may not be installed.
+- Added pack-install regression coverage to prevent `requirements` and `architect` from being started in parallel in strict planning flows.
+- Added architecture-owned implementation dispatch: implementation agents selected during run preparation are candidates only; `next-agent` and `native-state` now require `implementation-plan.md` to assign an implementation agent before it can start.
+- Added a maintainer script map documenting core product commands, internal pipeline scripts, optional/advanced scripts, and consolidation candidates.
+- Simplified CLI help into core workflow, subagent planning, runtime support, optional/advanced, and compatibility/maintenance groups.
+- Centralized agent role sets and execution order in `agent-roles.mjs` so gate, transition, native-state, native-plan, and dispatch checks share the same role contract.
+- Removed obsolete/duplicate scripts: `finalize.mjs`, `requirements-interview.mjs`, `requirements-plan.mjs`, `desktop-plan.mjs`, `desktop-light.mjs`, and `overlay-report.mjs`.
+
 ## 0.3.6
 
 - Kept explicit strict/full-loop requests on the full workflow while tightening task contracts to reduce repeated artifact/test/review repair loops.

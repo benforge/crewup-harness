@@ -42,10 +42,23 @@ if (!isInsideGitWorkTree()) {
 
 const beforeStatus = git(["status", "--short", "--untracked-files=all"]);
 const beforeLines = beforeStatus.stdout.trim().split(/\r?\n/).filter(Boolean);
+const untrackedSetupFiles = detectUntrackedSetupFiles(beforeLines);
+if (untrackedSetupFiles.length > 0) {
+  console.warn("Warning: CrewUp setup files are still untracked. Archive commits only stage run-tracked files by default.");
+  console.warn("Recommended: create a separate setup commit for .harness/, AGENTS.md, and .gitignore before relying on archive commits.");
+}
 if (beforeLines.length === 0 && gitPolicy.skip_when_no_changes !== false) {
   await writeAudit({ status: "skipped", reason: "no workspace changes", beforeLines, commit: null });
   console.log("归档提交跳过：git 工作区没有变更。");
   process.exit(0);
+}
+
+function detectUntrackedSetupFiles(statusLines) {
+  const setupPrefixes = [".harness/AGENTS.md", ".harness/config/", ".harness/scripts/", ".harness/orchestrator/", "AGENTS.md", ".gitignore"];
+  return statusLines
+    .filter((line) => line.startsWith("?? "))
+    .map(statusPath)
+    .filter((file) => setupPrefixes.some((prefix) => file === prefix || file.startsWith(prefix)));
 }
 
 const message = renderTemplate(gitPolicy.commit_message_template ?? "chore(harness): archive <run>");

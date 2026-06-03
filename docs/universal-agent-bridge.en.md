@@ -6,6 +6,20 @@ CrewUp keeps Codex as the stable native path and uses the Universal Agent Bridge
 
 The bridge is not a claim that every tool has the same native multi-agent API. It is a stable handoff and result-writeback contract.
 
+## Authentication
+
+CrewUp does not authenticate Claude, Cursor, Trae, or other external tools. Each tool uses its own login state, API key, subscription, local CLI, or editor integration.
+
+The bridge path is still useful because CrewUp owns:
+
+- the run directory
+- the role task
+- the context pack
+- the result JSON schema
+- the gate checks
+
+The external tool owns execution. After execution, the result must be written back before CrewUp can trust the work.
+
 ## Design Goal
 
 ```text

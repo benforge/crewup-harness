@@ -1,17 +1,5 @@
-export const executionOrder = [
-  "pm",
-  "requirements-plan",
-  "requirements",
-  "architect",
-  "frontend",
-  "docs",
-  "backend",
-  "database",
-  "devops",
-  "tester",
-  "reviewer",
-  "release"
-];
+export { executionOrder } from "./agent-roles.mjs";
+import { executionOrder } from "./agent-roles.mjs";
 
 export function executionOrderIndex(agentId) {
   const index = executionOrder.indexOf(agentId);

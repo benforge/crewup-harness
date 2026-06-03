@@ -1,6 +1,8 @@
 import { open, readFile, stat, unlink, writeFile } from "node:fs/promises";
 import { existsSync, unlinkSync } from "node:fs";
 import path from "node:path";
+import { implementationPlanSkipReason, isImplementationAgentUnassigned } from "./lib/implementation-plan-scope.mjs";
+import { writeOwnerAgentIds } from "./lib/agent-roles.mjs";
 
 const root = process.cwd();
 const [runId, command, agentId, value, ...rest] = process.argv.slice(2);
@@ -41,6 +43,8 @@ switch (command) {
     break;
   case "mark-spawned":
     requireAgentAndValue("handle");
+    validateHandle(value);
+    enforceSpawnPrerequisites(agentId);
     updateAgent(agentId, {
       status: "running",
       handle: value,
@@ -158,7 +162,7 @@ function printStatus(current, { includeRecommendations = true } = {}) {
   if (current.fallback) console.log(`Fallback: ${current.fallback.reason}`);
   const retained = (current.agents ?? []).filter((agent) => agent.status === "waiting_review" && agent.retention?.retain_after_result);
   if (retained.length > 0) {
-    const retainedImpl = retained.filter((agent) => ["frontend", "docs", "backend", "database", "devops", "tester"].includes(agent.agent)).length;
+    const retainedImpl = retained.filter((agent) => writeOwnerAgentIds.has(agent.agent)).length;
     console.log(`Retained: ${retained.length} total, ${retainedImpl} implementation, ${retained.length - retainedImpl} non-implementation`);
   }
   for (const agent of current.agents ?? []) {
@@ -168,6 +172,34 @@ function printStatus(current, { includeRecommendations = true } = {}) {
     console.log(`- ${agent.agent}: ${agent.status}, handle=${agent.handle ?? "none"}, ${result}, ${retained}, ${close}`);
   }
   if (includeRecommendations) printCloseRecommendations(current);
+}
+
+function enforceSpawnPrerequisites(targetAgentId) {
+  if (isImplementationAgentUnassigned(targetAgentId, { root, runId })) {
+    console.error(`Cannot spawn ${targetAgentId}: ${implementationPlanSkipReason(targetAgentId)}.`);
+    console.error("The architect-owned implementation plan decides which implementation agents are actually needed.");
+    process.exit(1);
+  }
+
+  const agent = findAgent(targetAgentId);
+  const prerequisites = agent.requires_completed_agents ?? [];
+  if (!prerequisites.length) return;
+
+  const byAgent = new Map((state.agents ?? []).map((item) => [item.agent, item]));
+  const missing = [];
+  for (const prerequisite of prerequisites) {
+    if (isImplementationAgentUnassigned(prerequisite, { root, runId })) continue;
+    const item = byAgent.get(prerequisite);
+    if (!item?.handle || !item?.result_captured_at || item?.result_status !== "completed") {
+      missing.push(prerequisite);
+    }
+  }
+
+  if (missing.length === 0) return;
+  console.error(`Cannot spawn ${targetAgentId}: prerequisite agent results are not completed and captured.`);
+  console.error(`Missing prerequisites: ${missing.join(", ")}`);
+  console.error("Follow the harness order and capture upstream results with native-state mark-result before spawning this agent.");
+  process.exit(1);
 }
 
 async function printDiagnostics(current) {
@@ -245,8 +277,7 @@ function recommendClose(current) {
     return agent.retention?.retain_after_result;
   });
 
-  const implementationAgents = new Set(["frontend", "docs", "backend", "database", "devops", "tester"]);
-  const isImplementation = (agent) => implementationAgents.has(agent.agent);
+  const isImplementation = (agent) => writeOwnerAgentIds.has(agent.agent);
   const priority = capacity.close_recommendation_priority ?? [
     "release",
     "reviewer",
@@ -324,6 +355,15 @@ function validateResultStatus(status) {
   if (!["completed", "blocked", "needs_input"].includes(status)) {
     console.error(`Invalid result status: ${status}`);
     console.error("Expected one of: completed, blocked, needs_input");
+    process.exit(1);
+  }
+}
+
+function validateHandle(handle) {
+  if (String(handle ?? "").startsWith("--")) {
+    console.error(`Invalid native handle for ${agentId}: ${handle}`);
+    console.error(`Use: npm run harness:native-state -- ${runId} mark-spawned ${agentId} <handle>`);
+    console.error("Do not pass --handle=<id>; pass the raw native agent id/handle as the final argument.");
     process.exit(1);
   }
 }

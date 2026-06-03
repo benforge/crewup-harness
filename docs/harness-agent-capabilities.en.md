@@ -6,6 +6,17 @@ CrewUp supports a stable workflow core and a pluggable agent adapter layer.
 
 An adapter is not considered native until it can launch work, collect results, and write back state in a repeatable way.
 
+## Authentication Boundary
+
+Installing CrewUp does not install model access. The selected agent environment must already be authenticated:
+
+- Codex native mode depends on Codex Desktop / CLI login or API-backed automation.
+- `OPENAI_API_KEY` is required for SDK/API mode and `inspect --ai`.
+- Claude, Cursor, and Trae use their own credentials in bridge mode.
+- Manual mode does not require a model key.
+
+CrewUp can still generate tasks, plans, audits, and gates without model access; it just cannot honestly claim that AI subagents executed the work.
+
 ## Product Role Boundary
 
 CrewUp is not designed to let one main agent do everything. It keeps the main agent in an orchestration role:

@@ -23,6 +23,14 @@ Codex 仍然是稳定主路径。Claude、Cursor、Trae 和人工流程通过 br
 3. 用户用上下键选择；默认选中 Codex
 4. 生成共享 harness 核心和对应适配层
 
+## 如何选择环境
+
+- 选择 `codex`：你希望使用当前最稳定的路径，并且 Codex 环境可以启动 native 子 agent。
+- 选择 `claude`、`cursor`、`trae`：你希望 CrewUp 为外部工具生成 handoff 和 result contract。
+- 选择 `manual`：你希望保留 CrewUp 的严格任务、gate 和报告，但不自动执行 AI agent。
+
+被选择的环境仍然需要它自己的认证方式。CrewUp 不提供 API key 或订阅。
+
 ## 非交互模式
 
 `crewup init --agent <name>` 会跳过交互选择，直接使用指定 agent。

@@ -7,6 +7,7 @@ import { decideContextMode } from "./lib/context-mode.mjs";
 import { loadProjectOverlay, renderOverlayContext } from "./lib/project-overlay.mjs";
 import { sortByExecutionOrder } from "./lib/execution-order.mjs";
 import { completedNativePrerequisitesForAgent } from "./lib/delegation-guard.mjs";
+import { isWriteOwnerAgent, writeOwnerAgentIds } from "./lib/agent-roles.mjs";
 import {
   buildBridgeTaskManifest,
   isNativeAgentEnvironment,
@@ -121,7 +122,7 @@ for (const taskFile of taskFiles) {
     model_hint: profile.codex_model_hint ?? profile.model,
     reasoning_effort: profile.reasoning_effort,
     allowed_patterns: allowedPatternsWithResult,
-    write_owner: ["frontend", "docs", "backend", "database", "devops", "tester"].includes(agentId)
+    write_owner: isWriteOwnerAgent(agentId)
   });
 }
 
@@ -229,8 +230,7 @@ function findGroupForAgent(agentId, config) {
 }
 
 function retentionForAgent(agentId, config) {
-  const implementationAgents = new Set(["frontend", "docs", "backend", "database", "devops", "tester"]);
-  const policy = implementationAgents.has(agentId)
+  const policy = writeOwnerAgentIds.has(agentId)
     ? config.retention?.implementation_agents
     : config.retention?.non_implementation_agents;
   return {
@@ -266,6 +266,7 @@ async function mergeNativeState(plan) {
         result_path: task.result_path,
         result_json_path: task.result_json_path,
         wait_group: task.wait_group,
+        requires_completed_agents: task.requires_completed_agents,
         status: existing.status ?? "planned",
         handle: existing.handle ?? null,
         spawned_at: existing.spawned_at ?? null,
@@ -306,6 +307,8 @@ function renderSpawnPrompt({ agentId, agentType, profile, prerequisites = [], ta
     "",
     "## Runtime Rules",
     "",
+    "- Use Chinese for human-facing summaries, handoff notes, blockers, and coordination comments unless the user requested another language.",
+    "- Keep artifact headings, JSON field names, file paths, commands, and status values in English exactly as required by the schema.",
     "- If requires_completed_agents is not `(none)`, the main agent must confirm those agents are completed and captured with `native-state mark-result` before starting you.",
     "- You are not the only agent working in this repository; other agents or the main agent may be progressing orchestration metadata in parallel.",
     "- Do not revert or overwrite changes made by other agents or the user.",

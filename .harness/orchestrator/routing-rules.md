@@ -4,7 +4,9 @@ The main agent chooses role agents based on impact scope and workflow stage.
 
 ## Entry Decision
 
-CrewUp is an explicitly enabled strict workflow. Without `crewup run`, `npm run harness:run`, or a clear chat request to use CrewUp / follow the harness workflow / continue a CrewUp run, do not automatically create a run.
+CrewUp is an explicitly enabled strict workflow. Without `crewup run`, `npx crewup run`, `npm run harness:run`, or a clear chat request to use CrewUp / follow the harness workflow / continue a CrewUp run, do not automatically create a run.
+
+If the explicit CrewUp signal arrives in chat and the user did not provide a runId, the main agent creates the run with `npx crewup run "<user request>"`, extracts the runId from command output, and continues orchestration. Do not make the user run a separate command only to obtain the runId.
 
 Use `.harness/config/intake-policy.yaml` for entry decisions:
 
@@ -33,10 +35,11 @@ Only `direct_run` may create or select a run.
 ## Execution Shape
 
 - Preferred: native subagents using `native-plan`, `spawn_agent`, `wait_agent`, and `close_agent`.
+- Before every native spawn, run `next-agent` and start only currently runnable agents.
 - Fallback: desktop prompts when native tools are unavailable.
 - Lowest fallback: main-agent coordination only, used only for status, read-only coordination, or blocker records.
 
-Implementation agents may run in parallel only when allowed write scopes do not conflict. Planning, verification, review, and release stages follow dependency order.
+Implementation agents selected at run creation are candidates only. They may start only after `architect` completes and `artifacts/implementation-plan.md` assigns their exact agent id. Implementation agents may run in parallel only when allowed write scopes do not conflict. Planning, verification, review, and release stages follow dependency order.
 
 ## Main Agent Boundary
 

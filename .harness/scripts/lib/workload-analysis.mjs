@@ -1,3 +1,5 @@
+import { negatedScopes, stripNegatedScopeText } from "./scope-negation.mjs";
+
 const defaultProfiles = new Set(["discovery", "plan_only", "lite", "standard", "full"]);
 
 const highRiskSignals = [
@@ -83,6 +85,7 @@ export function renderWorkloadAnalysisMarkdown(analysis) {
     `- ambiguous: ${analysis.signals.ambiguous ? "true" : "false"}`,
     `- discovery: ${analysis.signals.discovery ? "true" : "false"}`,
     `- plan_only: ${analysis.signals.planOnly ? "true" : "false"}`,
+    `- negated_scopes: ${analysis.signals.negatedScopes?.length ? analysis.signals.negatedScopes.join(", ") : "(none)"}`,
     "",
     "## Reasons",
     "",
@@ -99,14 +102,16 @@ function chooseRequestedProfile(requested, inferred, signals) {
 }
 
 function collectSignals(text) {
+  const effectiveText = stripNegatedScopeText(text);
   return {
-    highRisk: highRiskSignals.some((pattern) => pattern.test(text)),
-    deepPlanning: deepPlanningSignals.some((pattern) => pattern.test(text)),
-    strictWorkflow: strictWorkflowSignals.some((pattern) => pattern.test(text)),
-    lite: liteSignals.some((pattern) => pattern.test(text)),
-    ambiguous: ambiguitySignals.some((pattern) => pattern.test(text)),
-    discovery: discoverySignals.some((pattern) => pattern.test(text)),
-    planOnly: planOnlySignals.some((pattern) => pattern.test(text)),
+    highRisk: highRiskSignals.some((pattern) => pattern.test(effectiveText)),
+    deepPlanning: deepPlanningSignals.some((pattern) => pattern.test(effectiveText)),
+    strictWorkflow: strictWorkflowSignals.some((pattern) => pattern.test(effectiveText)),
+    lite: liteSignals.some((pattern) => pattern.test(effectiveText)),
+    ambiguous: ambiguitySignals.some((pattern) => pattern.test(effectiveText)),
+    discovery: discoverySignals.some((pattern) => pattern.test(effectiveText)),
+    planOnly: planOnlySignals.some((pattern) => pattern.test(effectiveText)),
+    negatedScopes: negatedScopes(text),
     multiSentence: text.split(/[\u3002\uff01\uff1f!?\n]/).filter((item) => item.trim()).length >= 3,
     longInput: text.length > 600
   };

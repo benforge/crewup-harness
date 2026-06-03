@@ -1,0 +1,24 @@
+integrations:
+  code_intelligence:
+    enabled: false
+    provider: "codegraph"
+    mode: "optional"
+    description: "Optional local code intelligence for large repositories. It helps agents locate symbols, callers, dependencies, and impact scope without changing CrewUp gates."
+    commands:
+      detect: "codegraph --version"
+      status: "codegraph status"
+      init: "codegraph init"
+      index: "codegraph index"
+    recommended_agents:
+      - "architect"
+      - "frontend"
+      - "backend"
+      - "database"
+      - "tester"
+      - "reviewer"
+    rules:
+      - "Code intelligence is optional. CrewUp must work when the provider is missing."
+      - "Use it to locate impacted files, symbols, callers, callees, modules, and dependency direction."
+      - "Do not paste large graph output into prompts, artifacts, or knowledge files."
+      - "Summarize only relevant findings in the current run logs."
+      - "Code intelligence must not replace CrewUp gates, artifact ownership, or subagent results."

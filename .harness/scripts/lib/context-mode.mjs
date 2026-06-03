@@ -1,3 +1,5 @@
+import { stripNegatedScopeText } from "./scope-negation.mjs";
+
 export function decideContextMode({ agentId, task = "", runInput = "", allowedPatterns = [], policy = {}, forceFull = false, forceLight = false }) {
   const config = policy.auto_escalation ?? {};
   if (forceFull) return { mode: config.full_mode ?? "full", reasons: ["forced by --full"] };
@@ -8,9 +10,9 @@ export function decideContextMode({ agentId, task = "", runInput = "", allowedPa
   const targetedMode = config.targeted_mode ?? "targeted";
   const lightMode = config.default_mode ?? "light";
   const reasons = [];
-  const taskForSignals = stripIgnoredSections(String(task ?? ""));
-  const runHaystack = String(runInput ?? "").toLowerCase();
-  const broadHaystack = `${taskForSignals}\n${runInput}`.toLowerCase();
+  const taskForSignals = stripNegatedScopeText(stripIgnoredSections(String(task ?? "")));
+  const runHaystack = stripNegatedScopeText(runInput).toLowerCase();
+  const broadHaystack = stripNegatedScopeText(`${taskForSignals}\n${runInput}`).toLowerCase();
   const normalizedPatterns = allowedPatterns.map(normalizeRelPath);
   const contextHints = extractContextHints(taskForSignals, runInput);
 

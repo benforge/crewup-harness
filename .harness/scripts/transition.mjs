@@ -21,6 +21,7 @@ import {
   readNativeState
 } from "./lib/delegation-guard.mjs";
 import { hasTemplatePlaceholder } from "./lib/placeholder-detector.mjs";
+import { codeImplementationAgentIds, isDocsOnlyAgentSet, isLiteImplementationOnlyAgentSet } from "./lib/agent-roles.mjs";
 
 const root = process.cwd();
 const args = process.argv.slice(2);
@@ -288,20 +289,15 @@ function isLiteDirectImplementationTransition(fromStage, targetStage, currentSta
 }
 
 function isDocsOnlyRun(currentState) {
-  const taskAgents = availableTaskAgents();
-  if (!taskAgents.has("docs")) return false;
-  return !["frontend", "backend", "database", "devops", "pm", "requirements-plan", "requirements", "architect"].some((agent) => taskAgents.has(agent));
+  return isDocsOnlyAgentSet(availableTaskAgents());
 }
 
 function isLiteImplementationOnlyRun(currentState) {
   if (currentState.workflowProfile !== "lite" || isDocsOnlyRun(currentState)) return false;
   const taskAgents = availableTaskAgents();
-  const implementationAgents = ["frontend", "backend", "database", "devops"].filter((agent) => taskAgents.has(agent));
+  const implementationAgents = [...codeImplementationAgentIds].filter((agent) => taskAgents.has(agent));
   return implementationAgents.length > 0
-    && !taskAgents.has("requirements-plan")
-    && !taskAgents.has("requirements")
-    && !taskAgents.has("architect")
-    && !taskAgents.has("pm");
+    && isLiteImplementationOnlyAgentSet(taskAgents, currentState.workflowProfile);
 }
 
 function availableTaskAgents() {

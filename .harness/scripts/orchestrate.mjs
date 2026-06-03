@@ -88,7 +88,6 @@ const input = await readOptional(path.join(".harness", "runs", runId, "input.md"
 const promptBudgets = contextPolicy.context?.prompt_budgets ?? {};
 const writeEnabledAgents = new Set(writePolicy.code_write?.write_enabled_agents ?? []);
 const artifactOwners = {
-  "requirement-interview.md": new Set(["requirements-interview", "requirements-plan", "requirements"]),
   "requirement-plan.md": new Set(["requirements-plan"]),
   "requirement.md": new Set(["pm", "requirements", "requirements-plan"]),
   "architecture.md": new Set(["architect"]),

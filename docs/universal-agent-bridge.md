@@ -6,6 +6,20 @@ CrewUp 保持 Codex 作为稳定 native 主路径，同时用 Universal Agent Br
 
 Bridge 并不宣称所有工具都有相同的原生多 agent API。它是一套稳定的任务交接和结果写回契约。
 
+## 认证方式
+
+CrewUp 不负责认证 Claude、Cursor、Trae 或其他外部工具。每个工具使用自己的登录态、API key、订阅、本地 CLI 或编辑器集成。
+
+Bridge 路径仍然有价值，因为 CrewUp 负责：
+
+- run 目录
+- 角色任务
+- context pack
+- result JSON schema
+- gate 检查
+
+外部工具负责执行。执行完成后，必须把结果写回，CrewUp 才能把这次工作视为可信证据。
+
 ## 设计目标
 
 ```text

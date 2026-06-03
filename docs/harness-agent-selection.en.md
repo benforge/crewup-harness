@@ -23,6 +23,14 @@ Let users choose the execution environment during `crewup init`, then generate o
 3. Let the user select one with arrow keys; Codex is selected by default
 4. Generate the shared harness core plus the selected adapter layer
 
+## Choosing An Environment
+
+- Choose `codex` when you want the strongest current path and your Codex environment can launch native subagents.
+- Choose `claude`, `cursor`, or `trae` when you want CrewUp to generate handoffs and result contracts for that external tool.
+- Choose `manual` when you want strict CrewUp tasks, gates, and reports without automated agent execution.
+
+The selected environment still needs its own authentication. CrewUp does not provide API keys or subscriptions.
+
 ## Non-interactive Fallback
 
 `crewup init --agent <name>` bypasses the prompt and uses the selected agent directly.

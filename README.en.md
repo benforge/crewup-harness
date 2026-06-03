@@ -4,41 +4,55 @@
 
 ![CrewUp workflow](assets/crewup-hero.svg)
 
-CrewUp is an AI harness for large, formal engineering projects. It does not try to replace an agent with a magic coding shortcut. It defines when the harness is active, which role owns which artifact, who executes implementation work, which gates must pass, and how the run is reported and archived.
+CrewUp is an AI harness for large projects and rigorous delivery workflows. It is not a prompt bundle that asks one main agent to do everything. It is a workflow control protocol that defines when formal work starts, which role owns each artifact, who implements changes, which gates must pass, and how a run is reported and archived.
 
-Think of it as the control layer for an AI engineering crew. The main agent stops growing into an everything-doer and instead behaves like a delivery lead: create the run, split the work, allocate context, wait for subagent results, check artifact ownership, and enforce gates. Requirements, architecture, implementation, testing, review, documentation, and release summaries are produced by the owning role agent or external runner.
+Its goal is simple: turn open-ended AI coding into a traceable, delegated, verifiable, and archivable engineering loop.
 
-The operating model is intentionally strict:
+## Who It Is For
 
-- Without an explicit `CrewUp`, `harness`, `crewup run`, or similar signal, the chat remains a normal assistant conversation.
-- Once CrewUp is active, the main agent orchestrates, delegates, checks gates, and summarizes. It should not directly own formal business implementation or primary artifacts.
-- Requirements, architecture, implementation, testing, review, docs, and release artifacts are owned by their corresponding subagents or external runners.
-- CrewUp is built for large projects and rigorous workflows. Tiny edits, casual Q&A, and one-off scripts usually do not need it.
+- Developers or teams that want a standardized AI development workflow
+- Medium-to-large projects, long-running projects, complex refactors, full-stack systems, or multi-module repositories
+- Users who want the main agent to stay in an orchestration role instead of writing requirements, architecture, implementation, and verification artifacts itself
+- Teams that want one delivery protocol across Codex, Claude, Cursor, Trae, or manual execution
 
-## Where It Fits
+Tiny edits, one-off scripts, and casual Q&A usually do not need CrewUp. CrewUp is explicit opt-in, so installing it does not take over every chat.
 
-- Teams or individuals who want a standardized AI development workflow
-- Projects that need one delivery protocol across Codex, Claude, Cursor, Trae, or manual execution
-- Real repositories that need requirements, architecture, implementation, verification, review, release preparation, and archiving to close in a repeatable loop
-- Large AI engineering workflows where the main agent must stay inside an orchestration role
+## Architecture
+
+CrewUp splits AI engineering work into three layers:
+
+| Layer | Owns | Does not own |
+| --- | --- | --- |
+| Main Agent | Run creation, profile selection, task generation, subagent dispatch, result registration, gate checks, user summaries | Formal requirements, architecture, business code, test reports, review reports |
+| Role Agents | Requirements, architecture, frontend, backend, database, DevOps, tester, reviewer, docs, release artifacts | Bypassing run state or writing artifacts owned by another role |
+| Harness Gates | Entry checks, dependency order, artifact provenance, write scope, tester/reviewer feedback, service shutdown, archive readiness | Replacing the project's own tests, CI/CD, coding standards, or engineering judgment |
+
+Default formal order:
+
+```text
+intake -> requirements_plan -> requirements_confirm -> plan
+  -> implement -> verify -> review -> release -> done
+```
+
+A strict workflow does not skip roles just because a task is small. CrewUp reduces waste through clearer task contracts, more accurate routing, and fewer repair loops, not by turning the main agent back into an everything-doer.
 
 ## Core Capabilities
 
-- Explicit opt-in: the strict harness only starts when the user asks for CrewUp/harness behavior
-- Project adaptation: `init` generates `.harness/project/`; existing or complex repositories can run `inspect` first for stronger structure detection
-- Strict delegation: the main agent routes, delegates, gates, and summarizes; role agents own artifacts
-- Semantic run IDs: extracts action and object terms instead of truncating long user text
-- Schema-first tasks: subagent tasks include owner artifact headings to reduce gate-time rework
-- English/ASCII core contracts: core scripts, role files, templates, rules, and contracts avoid mojibake-prone Chinese source text while still detecting Chinese user intent where needed
-- Strict full-loop preservation: explicit strict/full-loop requests stay on the `full` workflow; CrewUp reduces waste through clearer contracts instead of bypassing roles
-- Repair loop support: `native-state diagnose` detects result/state gaps and `repair-plan` groups tester/reviewer fixes by owner agent
-- Frontend MVP verification baseline: tester tasks include non-blank page, add, refresh persistence, complete-state persistence, delete-after-refresh, empty input rejection, desktop/mobile viewport, build, and service shutdown checks
-- Model tiers: formal `requirement.md` and `architecture.md` use `gpt-5.5 + medium` by default
-- Stage gates: stage entry gates, artifact provenance, and no-code profile gates reduce drift and overreach
-- Multiple execution environments: Codex native first, Claude/Cursor/Trae writeback through the Universal Agent Bridge, and manual as an advanced fallback
-- Release checks: local validation, temporary-project pack-install testing, and release preflight
+- Explicit activation: formal workflow starts only through `npx crewup run` or a clear chat request to use CrewUp / harness
+- Main-agent boundary: the main agent orchestrates, checks, and summarizes; it does not write owner artifacts or business code
+- Ordered dispatch: `next-agent` returns only subagents whose prerequisites are complete
+- Artifact ownership: `requirement.md`, `architecture.md`, `implementation-plan.md`, `test-report.md`, and related artifacts must be written by their owner roles
+- Schema-first tasks: subagent tasks include required headings and write contracts before execution
+- Negation-aware routing: when the user explicitly excludes a scope, CrewUp avoids false-positive agents or high-risk classification; normally, requirements and architecture should decide which implementation agents are needed
+- Chinese human-facing coordination: main/subagent summaries, handoffs, blockers, and status notes are Chinese by default
+- English machine contracts: artifact headings, JSON fields, paths, commands, and status values stay in English to reduce encoding drift and false gate failures
+- Feedback repair loop: tester/reviewer findings are routed back to implementation owners instead of being fixed directly by the main agent
+- Runtime archive: runs, reports, dashboard, knowledge, and backlog state have explicit locations and preservation rules
+- Safe upgrade: `install --force` updates the harness core while preserving existing runs, knowledge, project adapters, reports, dashboard, and backlog state
 
-## Quick Start
+## Install
+
+Install in a new or target project:
 
 ```bash
 npm install -D crewup-harness
@@ -47,147 +61,160 @@ npx crewup init --agent codex --yes
 npx crewup check
 ```
 
-Brand-new empty projects usually do not need `inspect --no-ai` first; `init` performs basic filesystem detection. For existing projects, monorepos, or more complex repository shapes, run this before `init`:
+## Model Access And API Keys
+
+CrewUp is a workflow harness. It does not include model credits, API keys, or a built-in subagent runtime.
+
+For `codex` native mode, you need a Codex environment that can launch native subagents. Depending on how you use Codex, this may be a logged-in Codex Desktop / CLI session or API-backed automation. SDK/API paths and `inspect --ai` require `OPENAI_API_KEY`:
+
+```bash
+export OPENAI_API_KEY="sk-..."
+```
+
+On Windows PowerShell:
+
+```powershell
+$env:OPENAI_API_KEY="sk-..."
+```
+
+For `claude`, `cursor`, and `trae`, CrewUp currently uses the Universal Agent Bridge. Those tools use their own login, API key, or subscription, then write CrewUp-compatible result JSON files back into the run directory.
+
+For `manual`, no AI API key is required. CrewUp generates tasks, context, gates, and reports; a human or external tool executes the handoff and writes back results.
+
+For existing projects, monorepos, or complex repository shapes, inspect first:
 
 ```bash
 npx crewup inspect --no-ai
+npx crewup init --agent codex --yes
 ```
 
-To upgrade a project that already has CrewUp installed, use the safe upgrade path:
+Upgrade an existing CrewUp installation:
 
 ```bash
 npx crewup install --force
 ```
 
-`--force` updates the reusable harness core while preserving `.harness/runs/`, `.harness/knowledge/`, `.harness/project/`, `.harness/reports/`, `.harness/dashboard/`, and backlog runtime state. Use `npx crewup install --reset` only when you explicitly want to remove the old harness state and reinstall from scratch.
-
-If you have a model runtime configured and want AI-assisted project evidence refinement:
+`--force` updates reusable `.harness` core files while preserving `.harness/runs/`, `.harness/knowledge/`, `.harness/project/`, `.harness/reports/`, `.harness/dashboard/`, and backlog state. Use reset only when you explicitly want to remove old runtime state and reinstall from scratch:
 
 ```bash
-npx crewup inspect --ai
+npx crewup install --reset
 ```
 
 ## Usage
 
-Explicit CLI run:
+CLI:
 
 ```bash
-npx crewup run "Use CrewUp to plan a payment-system refactor. Start with requirement boundaries, architecture, and staged delivery."
+npx crewup run "Use CrewUp to plan and implement a todo MVP with requirements, architecture, frontend implementation, tester verification, reviewer review, and release summary. Keep the implementation small."
 ```
 
-Explicit chat request:
+Chat:
 
 ```text
-Use CrewUp for this large project: design module boundaries, migration stages, and acceptance gates. Do not write business code yet.
+Use CrewUp to plan and implement a tiny Todo MVP. Keep the full flow: requirements, architecture, implementation, tester, reviewer, release. Let requirements and architecture confirm the scope, then dispatch implementation agents from the architecture plan.
 ```
 
-Non-explicit requests remain normal assistant work and should not automatically enter the CrewUp workflow.
+When CrewUp is requested in chat, the main agent should run `npx crewup run "<user request>"`, extract the runId, then call `npx crewup next-agent <run-id>` and continue orchestration. Users do not need to manually create a runId first.
 
-## Workflow
+Requests without an explicit CrewUp signal remain normal assistant work.
+
+## First Full-Flow Example
+
+Use this small case to test the whole workflow without spending too much:
 
 ```text
-doctor -> install -> init -> check -> run -> spec-freeze
-  -> agent-plan -> orchestrate -> gate-check -> report -> finish
+Use CrewUp to build a tiny counter web app and run the full workflow. Acceptance criteria: page shows counter, initial value is 0, +1/-1/reset work, value persists after refresh, build/test pass. Scope: tiny frontend only; no backend, database, auth, or routing.
 ```
 
-A formal run is split into three layers:
+After the run is created, check orchestration:
 
-| Layer | Owns | Does not own |
-| --- | --- | --- |
-| Main agent | CrewUp activation, profile selection, run creation, task routing, gate checks, status summaries | Formal business implementation or primary artifacts owned by requirements/architect/tester/reviewer/docs/release |
-| Subagents / external runners | Role artifacts, implementation changes, verification, review, risk notes, result writeback | Bypassing run state, artifact ownership, or write scopes |
-| Harness gates | Explicit opt-in, stage transitions, artifact provenance, feedback repair, service shutdown, archive readiness | Replacing the project's own tests, build, CI/CD, or engineering standards |
+```bash
+npx crewup next-agent <run-id>
+npx crewup audit <run-id>
+npx crewup gate-check <run-id>
+```
 
-Common commands:
+More copy-ready prompts are in [examples/crewup-cases](./examples/crewup-cases/README.md).
+
+If Chinese text appears garbled in a Windows terminal, run `npx crewup doctor` and check terminal encoding. CrewUp files are managed as UTF-8, and the main agent should use explicit UTF-8 reads for local documentation.
+
+## Common Commands
 
 | Command | Purpose |
 | --- | --- |
-| `npx crewup doctor` | Check runtime environment and prerequisites |
-| `npx crewup install` | Install the CrewUp template into a target project |
-| `npx crewup install --force` | Safely upgrade the harness core while preserving existing runs, knowledge, project adaptation, and runtime state |
-| `npx crewup install --reset` | Clear and reinstall `.harness/`; deletes old runtime state and should be used only for explicit resets |
-| `npx crewup inspect --no-ai` | Optional: inspect existing or complex project structure from the filesystem |
-| `npx crewup init --agent codex --yes` | Generate project adapter and execution environment config |
-| `npx crewup check` | Validate core config, scripts, and templates |
-| `npx crewup run "..."` | Create and prepare a formal run |
-| `npx crewup run --dry-run "..."` | Show routing/profile decisions without creating a run |
-| `npx crewup agent-plan <run-id>` | Generate a native subagent plan or bridge handoff |
-| `npx crewup native-state <run-id> diagnose` | Diagnose missing handles, uncaptured results, invalid result JSON, and state/result gaps |
-| `npx crewup repair-plan <run-id>` | Generate owner repair tasks from tester/reviewer `requiredFixes` |
-| `npx crewup gate-check <run-id>` | Check quality gates, artifact ownership, and overreach risks |
+| `npx crewup doctor` | Check local environment and prerequisites |
+| `npx crewup install` | Install the CrewUp harness template |
+| `npx crewup install --force` | Safely upgrade harness core while preserving runtime state |
+| `npx crewup inspect --no-ai` | Inspect project structure without AI |
+| `npx crewup init --agent codex --yes` | Generate project adapter and runtime config |
+| `npx crewup check` | Validate harness config, scripts, and templates |
+| `npx crewup run "..."` | Create a formal run |
+| `npx crewup run --dry-run "..."` | Preview naming, profile, and agent routing |
+| `npx crewup next-agent <run-id>` | Show currently runnable subagents and blocked prerequisites |
+| `npx crewup native-state <run-id> diagnose` | Diagnose native subagent handles, results, and state gaps |
+| `npx crewup audit <run-id>` | Audit orchestration order, owner boundaries, repair loops, and context pressure |
+| `npx crewup gate-check <run-id>` | Check gates, artifact ownership, and overreach risks |
 | `npx crewup report <run-id>` | Generate a structured delivery report |
-| `npx crewup finish <run-id>` | Close the run and archive by policy |
+| `npx crewup finish <run-id>` | Finish and archive the run by policy |
 | `npx crewup dashboard` | Generate or refresh `.harness/dashboard/index.html` |
-| `npx crewup skills` | Report installed skills, role labels, and external candidates |
-| `npx crewup dev-service <run-id> start` | Start a run-scoped dev/preview service and record its pid |
-| `npx crewup dev-service <run-id> stop` | Stop the service started for the current run |
+| `npx crewup integrations status` | Show optional integration status, such as CodeGraph |
+| `npx crewup dev-service <run-id> start` | Start a run-scoped preview service |
+| `npx crewup dev-service <run-id> stop` | Stop the run-scoped preview service |
+
+Prefer `npx crewup ...` in target projects because the user's `package.json` may not include `npm run harness:*` scripts.
+
+For internal pipeline and maintenance commands, see [Script Map](./docs/script-map.en.md). Regular developers do not need to memorize every `.harness/scripts` file.
 
 ## Workflow Profiles
 
-| Profile | Best for | Constraint |
+| Profile | Best for | Rule |
 | --- | --- | --- |
-| `discovery` | New-project discovery, module boundaries, technical direction | Discovery and planning first, no direct implementation |
-| `plan_only` | Requests that explicitly say plan only or no code | No-code gate is active; business code changes are forbidden |
-| `lite` | Narrow formal engineering tasks | Not a quick mode; delegation and gates remain active |
-| `standard` | Normal multi-file engineering work | Full task, context, execution, and verification loop |
-| `full` | High-risk, broad, multi-stage project work | Stronger requirements, architecture, test, review, and release gates |
+| `discovery` | New-project discovery, module boundaries, technical direction | Discovery and planning only |
+| `plan_only` | User explicitly asks for planning/no code | Business-code gate is active |
+| `lite` | Narrow but formal engineering tasks | Still delegated and gated |
+| `standard` | Normal multi-file engineering work | Full task, context, implementation, and verification loop |
+| `full` | High-risk, broad, multi-stage, or explicitly strict work | Strong requirements, architecture, tester, reviewer, and release gates |
 
-## Naming And Model Policy
+## When Subagents Start
 
-CrewUp generates shorter semantic run IDs. For example, “plan a full-stack blog system” becomes something like:
+Typical planning-to-development flow:
 
-```text
-2026-06-02-001-plan-fullstack-blog-system
-```
+1. The main agent creates the run, freezes input, generates tasks, and writes the native plan.
+2. `requirements-plan` writes `artifacts/requirement-plan.md`.
+3. `requirements` writes `artifacts/requirement.md` after prerequisites are complete.
+4. `architect` writes `artifacts/architecture.md` and `artifacts/implementation-plan.md` after requirements complete.
+5. Implementation agents start according to impact scope, such as `frontend`, `backend`, `database`, `devops`, or `docs`.
+6. `tester` verifies the result and writes `artifacts/test-report.md`.
+7. `reviewer` reviews implementation, artifacts, risks, and test evidence.
+8. `release` writes `artifacts/release-summary.md`, then the run can be reported and archived.
 
-Default model tiers for formal planning artifacts:
+Normally, users should describe the goal and constraints; requirements/architect artifacts and impact scope should decide which implementation agents are needed. Negation-aware routing only applies when the user has explicitly excluded a scope, so CrewUp does not start irrelevant owner agents just to confirm they are irrelevant.
 
-| Role | Artifacts | Default tier |
-| --- | --- | --- |
-| `requirements-plan` | `requirement-plan.md` | `gpt-5.4-mini` / medium |
-| `requirements` | `requirement.md` | `gpt-5.5` / medium |
-| `architect` | `architecture.md`, `implementation-plan.md` | `gpt-5.5` / medium |
-
-When CrewUp generates subagent tasks, it embeds the owner artifact schema, including required headings and owner information. The subagent sees gate requirements before writing, which reduces repair loops after gate checks.
-
-## Normal Order For Planning Runs
-
-When you ask CrewUp to plan a system and explicitly say not to write business code yet, CrewUp should enter `plan_only` or `discovery` and move in this order:
-
-1. The main agent creates the run, freezes the input, generates tasks, and writes the native plan.
-2. The `requirements-plan` subagent writes `.harness/runs/<run-id>/artifacts/requirement-plan.md`.
-3. The `requirements` subagent writes `.harness/runs/<run-id>/artifacts/requirement.md` after its prerequisites are complete.
-4. The `architect` subagent writes `.harness/runs/<run-id>/artifacts/architecture.md` and `implementation-plan.md` after requirements are confirmed.
-5. The `reviewer` checks the planning artifacts, risks, and acceptance criteria.
-
-The main agent may route, check prerequisites, capture results, request repairs, and summarize status. It should not copy subagent-returned artifact bodies into formal owner artifacts. If a subagent cannot write its own artifact, the result should be `blocked` or `needs_input`, not main-agent authorship.
-
-## Execution Environments
-
-| Environment | Mode | Description |
-| --- | --- | --- |
-| `codex` | native | Generates Codex-native subagent tasks and plans; current stable main path |
-| `claude` | bridge | Generates handoff; Claude executes and writes back `result.json` |
-| `cursor` | bridge | Generates handoff; Cursor executes and writes back `result.json` |
-| `trae` | bridge | Generates handoff; Trae executes and writes back `result.json` |
-| `manual` | manual/bridge | A human or script writes back results by contract |
-
-The bridge focuses on stable handoff and result writeback. It does not claim that every external tool has the same native multi-agent API.
-
-## Key Directories
+## Directory Layout
 
 ```text
 .harness/
-  AGENTS.md                # Entry point before formal project work
-  orchestrator/            # Main agent, routing, and bridge protocols
-  config/                  # Scope, workflow, model, gate, delegation, and write policy
-  project/                 # Current-project adapter layer generated by init
-  runs/                    # Per-run input, tasks, artifacts, and logs
-  reports/                 # Runtime reports
-  knowledge/               # Optional knowledge layer and lessons
+  AGENTS.md                # CrewUp entry contract
+  orchestrator/            # Main agent, routing, native/bridge protocols
+  config/                  # Workflow, model, gate, delegation, and write policies
+  project/                 # Project adapter generated by init
+  runs/                    # Per-run inputs, tasks, artifacts, and logs
+  reports/                 # Delivery reports
+  dashboard/               # Dashboard output
+  knowledge/               # Lessons and reusable context
 ```
 
-## Release Validation
+## Optional Integrations
+
+CrewUp core does not require CodeGraph or any external code intelligence provider. Optional integrations can be inspected with:
+
+```bash
+npx crewup integrations status
+```
+
+CodeGraph is useful for large-codebase structure indexing and impact assistance. It does not replace `.harness/knowledge/`: CodeGraph is code-fact indexing, while knowledge files are project lessons, decisions, and retrospectives.
+
+## Local Validation
 
 ```bash
 npm run harness:check
@@ -196,84 +223,23 @@ npm run test:pack-install
 npm run release:preflight
 ```
 
-`test:pack-install` packs the current project, installs it into a temporary empty project, then runs `crewup install -> inspect -> init -> check -> run --dry-run -> run -> report` to verify the real package installation path.
-
-## Skill Enhancements
-
-After installing CrewUp into a target project, use the CLI to manage optional skills:
-
-```bash
-npx crewup skills
-npx crewup skills:install
-npx crewup skills:resolve
-npx crewup skills:install-exact
-```
-
-`skills.yaml` is a role-label and external-candidate registry. It does not mean those skills are installed. Most users only need `npx crewup skills` to inspect the report, then `npx crewup skills:install` if they want the configured external candidates.
-
-## Feedback And Preview Services
-
-When tester or reviewer feedback requires changes, the main agent routes that feedback back to the owning implementation agent. It should not directly edit business code. Feedback uses `fixRequired`, `targetAgents`, and `requiredFixes` to drive the repair loop.
-
-For user-visible verification, start a run-scoped service:
-
-```bash
-npx crewup dev-service <run-id> start
-npx crewup dev-service <run-id> status
-npx crewup dev-service <run-id> stop
-```
-
-If the service is still running before `finish` / `done`, the gate blocks archive to avoid leftover processes.
-
-## When The Dashboard Is Generated
-
-`.harness/dashboard/` exists by default to reserve the runtime dashboard location. The actual page is:
-
-```text
-.harness/dashboard/index.html
-```
-
-It is generated or refreshed when:
-
-- you run `npx crewup dashboard`
-- `orchestrate` writes runtime status
-- `finish <run-id>` reaches `done`
-
-If you only created a run, but did not run `orchestrate` and have not finished it to `done`, the dashboard directory may contain only `.gitkeep`. That is expected.
-
-## When The Docs Agent Runs
-
-`docs` is not a fixed agent in every run. It starts when documentation is part of the deliverable, or when the implementation changes something users or maintainers need to know.
-
-These requests trigger `docs`:
-
-```bash
-npx crewup run "Update README with install and startup instructions. Do not change source code."
-npx crewup run "Implement login and update integration/configuration docs."
-npx crewup run "Add a public API and document the endpoint and migration notes."
-npx crewup run "Change startup commands and deployment steps; update the developer guide."
-```
-
-Typical trigger signals include:
-
-- README, docs, documentation, usage guide, integration guide, configuration guide, developer guide, install guide
-- public API, configuration changes, startup commands, deployment steps, migration notes
-- user-visible behavior changes that need maintainer or user-facing explanation
-
-If a run only changes internal implementation details and has no documentation impact, `docs` may stay inactive. In that case, the `release` agent records “no documentation changes” in `release-summary.md`. `release` owns the release summary; `docs` owns README/docs project documentation.
+`release:preflight` runs harness validation, example tests, temporary-project pack-install flow tests, and `npm pack --dry-run`.
 
 ## More Docs
 
 | Document | Topic |
 | --- | --- |
 | [Workflow](./docs/harness-workflow.en.md) | Command flow, profiles, and run lifecycle |
+| [Getting Started](./docs/getting-started.en.md) | Install, API key setup, first run, and troubleshooting |
+| [Local Testing](./docs/local-testing.en.md) | Test CrewUp locally with `npm pack` and a temporary project |
 | [Universal Agent Bridge](./docs/universal-agent-bridge.en.md) | External-agent handoff and result JSON contract |
 | [Agent Selection](./docs/harness-agent-selection.en.md) | Agent selection and adapter generation |
 | [Agent Capabilities](./docs/harness-agent-capabilities.en.md) | Support levels, capability boundaries, and claims |
-| [Core Boundary](./docs/harness-core-boundary.en.md) | Reusable core, project adapter, and runtime boundaries |
-| [Iteration Log](./docs/harness-workflow-iteration-plan.md) | Design and change record for the strict workflow updates |
+| [Core Boundary](./docs/harness-core-boundary.en.md) | Core, project adapter, and runtime boundaries |
+| [Script Map](./docs/script-map.en.md) | Core entries, internal pipeline scripts, optional scripts, and consolidation direction |
+| [Optional Integrations](./docs/optional-integrations.en.md) | Optional providers such as CodeGraph |
 | [Extension Guide](./docs/harness-extension-guide.en.md) | Skills, policies, rules, and templates |
 
-## Scope
+## Boundaries
 
-CrewUp does not replace your build system, test framework, CI/CD, business architecture, or team conventions. It provides an AI collaboration and delivery-loop protocol. Real projects should keep their own README, test commands, release flow, and coding standards; CrewUp reads and references that information during initialization and runs.
+CrewUp does not replace your framework, test runner, CI/CD, business architecture, or team conventions. It provides an AI collaboration and delivery-loop protocol. Real projects should keep their own README, test commands, release flow, and coding standards; CrewUp reads and follows that project evidence during initialization and runs.

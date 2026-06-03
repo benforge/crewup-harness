@@ -20,6 +20,7 @@ import {
   requiredNativeAgentsForStageCompletion
 } from "./lib/delegation-guard.mjs";
 import { hasTemplatePlaceholder } from "./lib/placeholder-detector.mjs";
+import { isDocsOnlyAgentSet, isLiteImplementationOnlyAgentSet } from "./lib/agent-roles.mjs";
 
 const root = process.cwd();
 const args = process.argv.slice(2);
@@ -52,6 +53,7 @@ const artifactProvenance = await collectArtifactProvenance(root, runId);
 
 await checkArtifacts();
 await checkArtifactProvenance();
+await checkOwnerArtifactAudit();
 await checkRequirementPlanGate();
 await checkNativeState();
 await checkVerifyReport();
@@ -120,6 +122,29 @@ async function checkArtifactProvenance() {
     const message = `Artifact ${file} lacks provenance from owner ${rules.owner}. Found: ${describeArtifactProvenance(artifactProvenance, file)}`;
     if (shouldRequireArtifactProvenance()) problems.push(message);
     else warnings.push(`${message}. Treating as legacy/manual artifact until run has native/bridge/orchestrate results.`);
+  }
+}
+
+async function checkOwnerArtifactAudit() {
+  const nativeStatePath = path.join(logsDir, "native-subagents", "native-state.json");
+  if (!existsSync(nativeStatePath)) return;
+
+  const native = JSON.parse(await readFile(nativeStatePath, "utf8"));
+  const nativeAgents = new Map((native.agents ?? []).map((agent) => [agent.agent, agent]));
+
+  for (const [file, rules] of Object.entries(schema.artifacts ?? {})) {
+    if (!rules.owner) continue;
+    if (!existsSync(path.join(artifactsDir, file))) continue;
+    if (!nativeAgents.has(rules.owner)) continue;
+    if (artifactHasOwnerProvenance(artifactProvenance, file, rules.owner)) continue;
+
+    const owner = nativeAgents.get(rules.owner);
+    const ownerDone = Boolean(owner?.handle && owner?.result_captured_at && owner?.result_status === "completed");
+    if (!ownerDone) {
+      problems.push(`Owner artifact ${file} exists before owner agent ${rules.owner} completed and captured its result. The main agent must not author owner artifacts.`);
+    } else {
+      problems.push(`Owner artifact ${file} is missing artifactUpdates provenance from ${rules.owner}. Found: ${describeArtifactProvenance(artifactProvenance, file)}`);
+    }
   }
 }
 
@@ -268,14 +293,7 @@ function previousStage(stage) {
 }
 
 function isLiteImplementationOnlyRun() {
-  if (state.workflowProfile !== "lite") return false;
-  const taskAgents = availableTaskAgentsSync();
-  const hasImplementation = ["frontend", "backend", "database", "devops"].some((agent) => taskAgents.has(agent));
-  return hasImplementation
-    && !taskAgents.has("requirements-plan")
-    && !taskAgents.has("requirements")
-    && !taskAgents.has("architect")
-    && !taskAgents.has("pm");
+  return isLiteImplementationOnlyAgentSet(availableTaskAgentsSync(), state.workflowProfile);
 }
 
 function availableTaskAgentsSync() {
@@ -445,9 +463,7 @@ function hasPlaceholder(content) {
 }
 
 function isDocsOnlyRun() {
-  const taskAgents = availableTaskAgentsSync();
-  if (!taskAgents.has("docs")) return false;
-  return !["frontend", "backend", "database", "devops", "pm", "requirements-plan", "requirements", "architect"].some((agent) => taskAgents.has(agent));
+  return isDocsOnlyAgentSet(availableTaskAgentsSync());
 }
 
 function hasAcceptanceCriteria() {

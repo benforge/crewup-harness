@@ -6,6 +6,17 @@ CrewUp 由稳定的工作流核心和可插拔的 agent 适配层组成。
 
 只有当某个适配器可以稳定地启动任务、收集结果并写回状态时，才应该被称为 native 支持。
 
+## 认证边界
+
+安装 CrewUp 不等于已经拥有模型访问能力。你选择的 agent 环境必须先完成认证：
+
+- Codex native 模式依赖 Codex Desktop / CLI 登录态，或 API-backed automation。
+- SDK/API 模式和 `inspect --ai` 需要 `OPENAI_API_KEY`。
+- Claude、Cursor、Trae 在 bridge 模式下使用它们自己的凭证。
+- Manual 模式不需要模型 key。
+
+没有模型访问时，CrewUp 仍然可以生成任务、计划、audit 和 gate；但它不能诚实地声称 AI 子 agent 已经执行了工作。
+
 ## 产品角色边界
 
 CrewUp 的核心不是“让一个主 agent 做完所有事”，而是把主 agent 固定在调度角色：

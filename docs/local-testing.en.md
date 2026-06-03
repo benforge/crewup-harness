@@ -1,0 +1,168 @@
+# Local Testing Guide
+
+[中文](./local-testing.md) | English
+
+Use this guide to test the CrewUp package itself. The recommended path is to create a local tarball with `npm pack`, then install it into a temporary project. This is closer to a real user install than running only inside the source repository.
+
+## What You Can Test
+
+Without an API key, you can test:
+
+- install / init / check
+- run creation, naming, profile selection, and task generation
+- native plan and next-agent ordering constraints
+- audit / gate-check overreach detection
+- pack-install flow
+
+After Codex or API access is configured, you can also test:
+
+- native subagents actually starting
+- requirements-plan / requirements / architect owner artifacts being written by the owning subagents
+- frontend/backend/database/devops/docs dispatch from `implementation-plan.md`
+- tester/reviewer feedback delegation
+- release / finish / archive closeout
+
+## Pack From The Source Repository
+
+```bash
+cd "C:\Users\Administrator.SKY-20260324MFW\Documents\New project"
+npm run release:preflight
+npm pack
+```
+
+This creates something like:
+
+```text
+crewup-harness-0.3.6.tgz
+```
+
+## Create A Temporary Project
+
+```bash
+mkdir C:\Users\Administrator.SKY-20260324MFW\Documents\crewup-local-test
+cd C:\Users\Administrator.SKY-20260324MFW\Documents\crewup-local-test
+npm init -y
+npm install -D "C:\Users\Administrator.SKY-20260324MFW\Documents\New project\crewup-harness-0.3.6.tgz"
+```
+
+## Initialize CrewUp
+
+```bash
+npx crewup install
+npx crewup init --agent codex --yes
+npx crewup doctor
+npx crewup check
+```
+
+To test safe upgrade behavior:
+
+```bash
+npx crewup install --force
+```
+
+`--force` should preserve:
+
+- `.harness/runs/`
+- `.harness/knowledge/`
+- `.harness/project/`
+- `.harness/reports/`
+- `.harness/dashboard/`
+- `.harness/backlog/`
+
+## Minimal Full Development Case
+
+Paste this into the chat window:
+
+```text
+Use CrewUp to build a tiny counter web app and run the full workflow. Acceptance criteria: page shows counter, initial value is 0, +1/-1/reset work, value persists after refresh, build/test pass. Scope: tiny frontend only; no backend, database, auth, or routing.
+```
+
+This case is small but covers:
+
+- requirements-plan
+- requirements
+- architect
+- frontend
+- tester
+- reviewer
+- release
+
+## Key Check Commands
+
+After you have a runId:
+
+```bash
+npx crewup next-agent <run-id>
+npx crewup audit <run-id>
+npx crewup gate-check <run-id>
+npx crewup report <run-id>
+```
+
+Check that:
+
+- initial runnable agent is only `requirements-plan`
+- `requirements` waits for `requirements-plan`
+- `architect` waits for `requirements`
+- implementation agents are decided by `implementation-plan.md`
+- the main agent did not author owner artifacts
+- tester/reviewer issues are delegated back to owner agents
+- audit does not report `owner_artifact_before_owner_done`, `downstream_started_before_prerequisite`, or `unassigned_implementation_started`
+
+## Script-Only Flow Test
+
+In the CrewUp source repository:
+
+```bash
+npm run harness:test-flow
+```
+
+It creates a temporary project, installs the local package, and validates:
+
+- run creation
+- plan-only routing
+- strict/full workflow routing
+- next-agent ordering
+- architecture-owned implementation dispatch
+- native-state premature-start blocking
+- audit overreach blocking
+- gate-check owner artifact blocking
+
+## API Key Check
+
+If you want to test real AI subagents:
+
+```bash
+npx crewup doctor
+```
+
+SDK/API mode or `inspect --ai` requires:
+
+```powershell
+$env:OPENAI_API_KEY="sk-..."
+```
+
+Codex Desktop native subagents depend on the Codex Desktop login state and available native tools. CrewUp generates spawn prompts, native-state, and gates; it does not log into model services for you.
+
+## Common Failures
+
+### `next-agent` does not return the next agent
+
+The upstream result may not be captured, or native-state is incomplete:
+
+```bash
+npx crewup native-state <run-id> diagnose
+```
+
+### `gate-check` reports owner artifact provenance
+
+The artifact may have been written by the main agent, or the subagent did not declare `artifactUpdates` in result JSON. Resume the owner agent instead of copying content in the main window.
+
+### `audit` reports too many retained agents
+
+Run:
+
+```bash
+npx crewup native-state <run-id> recommend-close
+```
+
+Then release subagents that are no longer needed.

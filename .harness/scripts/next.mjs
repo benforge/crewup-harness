@@ -8,6 +8,7 @@ import {
   requiredNativeAgentsForStageCompletion
 } from "./lib/delegation-guard.mjs";
 import { hasTemplatePlaceholder } from "./lib/placeholder-detector.mjs";
+import { isLiteImplementationOnlyAgentSet } from "./lib/agent-roles.mjs";
 
 const root = process.cwd();
 const args = process.argv.slice(2);
@@ -50,11 +51,7 @@ const changedFiles = inferChangedFilesPreview();
 if (state.stage === "done") {
   commands.push(["npm", ["run", "harness:gate-check", "--", runId], "recheck done gate"]);
 } else if (!existsSync(tasksDir) || currentAgents.length === 0) {
-  if (state.stage === "requirements_plan") {
-    commands.push(["npm", ["run", "harness:requirements-plan", "--", runId], "create requirements-plan task"]);
-  } else {
-    commands.push(["npm", ["run", "harness:prepare-run", "--", runId], "generate current-stage agent tasks"]);
-  }
+  commands.push(["npm", ["run", "harness:prepare-run", "--", runId], "generate current-stage agent tasks"]);
 } else {
   const agentsArg = currentAgents.join(",");
   if (!hasContextForAgents(currentAgents)) {
@@ -283,14 +280,7 @@ function suggestTransition(stage, artifactHealth, nativeHealth, agentHealth) {
 }
 
 function isLiteImplementationOnlyRun() {
-  if (state.workflowProfile !== "lite") return false;
-  const agents = new Set(currentAgents);
-  const hasImplementation = ["frontend", "backend", "database", "devops"].some((agent) => agents.has(agent));
-  return hasImplementation
-    && !agents.has("requirements-plan")
-    && !agents.has("requirements")
-    && !agents.has("architect")
-    && !agents.has("pm");
+  return isLiteImplementationOnlyAgentSet(currentAgents, state.workflowProfile);
 }
 
 function isNoCodeWorkflow() {

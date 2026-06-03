@@ -104,7 +104,7 @@ release
 主 agent 可以使用下面命令为当前 run 生成子 agent prompt：
 
 ```bash
-npm run harness:desktop-plan -- <run-id>
+npm run harness:native-plan -- <run-id>
 ```
 
 生成结果：

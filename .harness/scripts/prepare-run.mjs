@@ -5,6 +5,8 @@ import { parse as parseYaml } from "yaml";
 import { loadProjectProfile } from "./lib/project-profile.mjs";
 import { inferOverlayScopeMatches, loadProjectOverlay, overlayRuleFilesForAgent, overlaySummary, resolveImpactScopes } from "./lib/project-overlay.mjs";
 import { analyzeWorkload, renderWorkloadAnalysisMarkdown } from "./lib/workload-analysis.mjs";
+import { hasPositiveMatch, isScopeNegated, negatedScopes, stripNegatedScopeText } from "./lib/scope-negation.mjs";
+import { implementationAgentIds, isDocsOnlyAgentSet } from "./lib/agent-roles.mjs";
 
 const root = process.cwd();
 const args = process.argv.slice(2);
@@ -75,7 +77,7 @@ function selectAgents(inputText, agents, impactScopeConfig, profile, runProfile,
   }
 
   const selected = new Set();
-  if (runProfile === "full") selected.add("pm");
+  if (runProfile === "full" && shouldUsePm(workloadAnalysis)) selected.add("pm");
   if (workloadAnalysis.needsRequirementsPlan) selected.add("requirements-plan");
   if (["standard", "full"].includes(runProfile)) {
     selected.add("requirements");
@@ -92,9 +94,11 @@ function selectAgents(inputText, agents, impactScopeConfig, profile, runProfile,
     if (flags.some((flag) => hasImpact(inputText, flag))) selected.add(agentId);
   }
 
+  removeNegatedAgents(selected, inputText);
+
   if (needsDocsAgent(inputText)) selected.add("docs");
 
-  const implementationAgents = ["frontend", "docs", "backend", "database", "devops"].filter((agent) => selected.has(agent));
+  const implementationAgents = [...implementationAgentIds].filter((agent) => selected.has(agent));
   if (runProfile === "lite" && implementationAgents.length === 0) {
     selected.add("reviewer");
   }
@@ -123,11 +127,11 @@ function selectAgents(inputText, agents, impactScopeConfig, profile, runProfile,
 }
 
 function needsDedicatedTester(inputText) {
-  return /(\u6d4b\u8bd5|\u56de\u5f52|bug|\u4fee\u590d|\u63a5\u53e3|API|\u540e\u7aef|\u6570\u636e\u5e93|\u72b6\u6001|\u8868\u5355|\u6743\u9650|\u767b\u5f55|\u6027\u80fd|\u517c\u5bb9|\u9a8c\u6536|\u7aef\u5230\u7aef|e2e)/i.test(inputText);
+  return /(\u6d4b\u8bd5|\u56de\u5f52|bug|\u4fee\u590d|\u63a5\u53e3|API|\u540e\u7aef|\u6570\u636e\u5e93|\u72b6\u6001|\u8868\u5355|\u6743\u9650|\u767b\u5f55|\u6027\u80fd|\u517c\u5bb9|\u9a8c\u6536|\u7aef\u5230\u7aef|e2e)/i.test(stripNegatedScopeText(inputText));
 }
 
 function needsReleaseAgent(inputText) {
-  return /(\u53d1\u5e03|\u4e0a\u7ebf|\u90e8\u7f72|release|changelog|\u7248\u672c|\u751f\u4ea7|\u56de\u6eda|\u4ea4\u4ed8)/i.test(inputText);
+  return /(\u53d1\u5e03|\u4e0a\u7ebf|\u90e8\u7f72|release|changelog|\u7248\u672c|\u751f\u4ea7|\u56de\u6eda|\u4ea4\u4ed8)/i.test(stripNegatedScopeText(inputText));
 }
 
 function needsDocsAgent(inputText) {
@@ -144,9 +148,13 @@ function isDocsOnlyRequest(inputText) {
 }
 
 function hasImpact(inputText, flag) {
+  const flagScope = scopeForFlag(flag);
+  if (flagScope && isScopeNegated(inputText, flagScope)) return false;
+  const effectiveText = stripNegatedScopeText(inputText);
   const checked = new RegExp(`- \\[[xX]\\]\\s+${escapeRegExp(flag)}\\b`);
   const mentioned = new RegExp(`\\b${escapeRegExp(flag)}\\b`, "i");
-  if (checked.test(inputText) || mentioned.test(inputText)) return true;
+  if (checked.test(inputText)) return true;
+  if (mentioned.test(effectiveText)) return true;
   const aliases = {
     web: [
       /C\s*\u7aef/i,
@@ -167,7 +175,7 @@ function hasImpact(inputText, flag) {
     infra: [/\u90e8\u7f72|CI|CD|Docker|\u73af\u5883\u53d8\u91cf|\u6d41\u6c34\u7ebf/i],
     devops: [/\u90e8\u7f72|CI|CD|Docker|\u73af\u5883\u53d8\u91cf|\u6d41\u6c34\u7ebf/i]
   };
-  return (aliases[flag] ?? []).some((pattern) => pattern.test(inputText));
+  return hasPositiveMatch(inputText, aliases[flag] ?? [], { scope: flagScope });
 }
 
 function buildAgentTask(agentId, agent, inputText, profile, impactScopes) {
@@ -219,6 +227,11 @@ ${inputs.map((item) => `- ${item}`).join("\n")}
 
 ${overlaySummary(projectOverlay)}
 
+## Response Language
+
+- Human-facing summaries, handoff notes, blockers, and coordination comments should be written in Chinese by default.
+- Keep artifact headings, JSON field names, file paths, commands, and status values in English exactly as required by the schema.
+
 ## Responsibility
 
 ${(agent.scope ?? []).map((item) => `- ${item}`).join("\n")}
@@ -242,6 +255,10 @@ ${requiredOutputsFor(agentId).map((item) => `- ${item}`).join("\n")}
 ## Artifact Schema
 
 ${artifactSchemaForAgent(agentId)}
+
+## Artifact Scaffold
+
+${artifactScaffoldForAgent(agentId)}
 
 ## Output Contract
 
@@ -332,6 +349,41 @@ function artifactSchemaForAgent(agentId) {
     : "- No dedicated artifact schema for this agent.";
 }
 
+function artifactScaffoldForAgent(agentId) {
+  const outputs = requiredOutputsFor(agentId)
+    .map((item) => item.replace(/^artifacts\//, ""))
+    .filter((item) => item.endsWith(".md"));
+  const sections = [];
+  for (const output of outputs) {
+    const schema = artifactSchema[output];
+    if (!schema?.required_headings?.length) continue;
+    sections.push(`### artifacts/${output}`);
+    sections.push("");
+    sections.push("```markdown");
+    sections.push(`# ${artifactTitle(output)}`);
+    sections.push("");
+    for (const heading of schema.required_headings) {
+      sections.push(`## ${heading}`);
+      sections.push("");
+      sections.push("- ");
+      sections.push("");
+    }
+    sections.push("```");
+    sections.push("");
+  }
+  return sections.length
+    ? sections.join("\n").trim()
+    : "- No owned artifact scaffold for this agent.";
+}
+
+function artifactTitle(fileName) {
+  return fileName
+    .replace(/\.md$/, "")
+    .split("-")
+    .map((item) => item.charAt(0).toUpperCase() + item.slice(1))
+    .join(" ");
+}
+
 function outputContractFor(agentId) {
   const common = [
     "- Write the owned result files yourself:",
@@ -354,7 +406,7 @@ function outputContractFor(agentId) {
     architect: [
       "- `architecture.md` and `implementation-plan.md` must use the exact headings from Artifact Schema.",
       "- Do not leave placeholder text such as TBD, TODO, waiting for another agent, or template placeholder.",
-      "- The implementation plan must map files/modules to implementation agents."
+      "- The implementation plan must map files/modules to implementation agents and use exact agent ids such as `frontend`, `backend`, `database`, `devops`, and `docs` when assigning work."
     ],
     tester: [
       "- `test-report.md` must use the exact headings from Artifact Schema.",
@@ -434,16 +486,48 @@ function detectImpactScopes(inputText, impactScopeConfig, overlayProfile) {
   }
 
   for (const match of inferOverlayScopeMatches(overlayProfile, { taskText: inputText })) {
+    if (isScopeNegated(inputText, scopeForFlag(match.scope) ?? match.scope)) continue;
     if (impactScopeConfig?.[match.scope] && match.confidence !== "low") scopes.add(match.scope);
   }
   return [...scopes];
 }
 
 function hasExplicitScopeSignal(inputText, scope) {
+  if (isScopeNegated(inputText, scopeForFlag(scope) ?? scope)) return false;
+  const effectiveText = stripNegatedScopeText(inputText);
   const checked = new RegExp(`- \\[[xX]\\]\\s+${escapeRegExp(scope)}\\b`);
   if (checked.test(inputText)) return true;
   if (new Set(["ui"]).has(scope)) return false;
-  return new RegExp(`\\b${escapeRegExp(scope)}\\b`, "i").test(inputText);
+  return new RegExp(`\\b${escapeRegExp(scope)}\\b`, "i").test(effectiveText);
+}
+
+function shouldUsePm(workloadAnalysis) {
+  const signals = workloadAnalysis.signals ?? {};
+  return Boolean(signals.highRisk || signals.ambiguous || signals.discovery || (signals.deepPlanning && !signals.lite));
+}
+
+function removeNegatedAgents(selected, inputText) {
+  const negated = new Set(negatedScopes(inputText));
+  const byScope = {
+    backend: "backend",
+    database: "database",
+    devops: "devops"
+  };
+  for (const [scope, agent] of Object.entries(byScope)) {
+    if (negated.has(scope)) selected.delete(agent);
+  }
+}
+
+function scopeForFlag(flag) {
+  const map = {
+    api: "backend",
+    backend: "backend",
+    db: "database",
+    database: "database",
+    infra: "devops",
+    devops: "devops"
+  };
+  return map[flag] ?? "";
 }
 
 function escapeRegExp(value) {
@@ -503,9 +587,7 @@ async function updateRunState({ workflowProfile, workloadAnalysis }) {
 }
 
 function isDocsOnlyRun(agentList) {
-  const agents = new Set(agentList ?? []);
-  if (!agents.has("docs")) return false;
-  return !["frontend", "backend", "database", "devops", "pm", "requirements-plan", "requirements", "architect"].some((agent) => agents.has(agent));
+  return isDocsOnlyAgentSet(agentList);
 }
 
 

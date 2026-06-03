@@ -6,10 +6,10 @@ agents:
     default_stage: "intake"
     model_profile: "low_cost"
     scope:
-      - "需求入口"
-      - "优先级"
-      - "任务拆分"
-      - "是否允许进入开发"
+      - "intake triage"
+      - "priority and boundary notes"
+      - "task split"
+      - "development readiness"
 
   requirements-plan:
     title: "Requirements Plan Agent"
@@ -18,10 +18,10 @@ agents:
     default_stage: "requirements_plan"
     model_profile: "requirements_planning"
     scope:
-      - "自然语言需求扩写"
-      - "目标和非目标澄清"
-      - "验收标准草拟"
-      - "待确认问题整理"
+      - "natural-language requirement expansion"
+      - "goals and non-goals"
+      - "acceptance criteria draft"
+      - "open questions"
 
   requirements:
     title: "Requirement Agent"
@@ -30,10 +30,10 @@ agents:
     default_stage: "requirements_confirm"
     model_profile: "standard_analysis"
     scope:
-      - "自然语言需求结构化"
-      - "验收标准"
-      - "目标和非目标"
-      - "依赖和疑问"
+      - "structured requirement artifact"
+      - "acceptance criteria"
+      - "goals and non-goals"
+      - "dependencies and questions"
 
   architect:
     title: "Architect Agent"
@@ -42,10 +42,10 @@ agents:
     default_stage: "plan"
     model_profile: "standard_analysis"
     scope:
-      - "影响范围判断"
-      - "模块边界"
-      - "技术方案"
-      - "风险识别"
+      - "impact scope"
+      - "module boundaries"
+      - "technical design"
+      - "risk identification"
 
   frontend:
     title: "Frontend Agent"
@@ -60,13 +60,13 @@ agents:
     rule_files:
       - ".harness/rules/frontend.md"
     scope:
-      - "前端架构"
-      - "页面和路由"
-      - "组件体系"
-      - "状态管理"
-      - "数据请求"
-      - "表单和交互"
-      - "可访问性和性能"
+      - "frontend architecture"
+      - "pages and routes"
+      - "components"
+      - "state management"
+      - "data requests"
+      - "forms and interactions"
+      - "accessibility and performance"
 
   docs:
     title: "Docs Agent"
@@ -82,11 +82,11 @@ agents:
       - ".harness/rules/docs.md"
     scope:
       - "README"
-      - "项目文档"
-      - "使用说明"
-      - "接入说明"
-      - "配置说明"
-      - "开发指南"
+      - "project documentation"
+      - "usage guide"
+      - "integration guide"
+      - "configuration guide"
+      - "developer guide"
 
   backend:
     title: "Backend Agent"
@@ -100,14 +100,14 @@ agents:
     rule_files:
       - ".harness/rules/backend.md"
     scope:
-      - "后端架构"
-      - "服务边界"
-      - "API 契约"
-      - "领域逻辑"
-      - "权限和安全"
-      - "数据访问"
-      - "错误处理"
-      - "可靠性和性能"
+      - "backend architecture"
+      - "service boundaries"
+      - "API contracts"
+      - "domain logic"
+      - "authorization and security"
+      - "data access"
+      - "error handling"
+      - "reliability and performance"
 
   database:
     title: "Database Agent"
@@ -121,10 +121,10 @@ agents:
     rule_files:
       - ".harness/rules/database.md"
     scope:
-      - "表结构"
-      - "迁移"
-      - "索引"
-      - "数据一致性"
+      - "table structure"
+      - "migrations"
+      - "indexes"
+      - "data consistency"
 
   devops:
     title: "DevOps Agent"
@@ -140,8 +140,8 @@ agents:
     scope:
       - "Docker"
       - "CI/CD"
-      - "环境变量"
-      - "部署和回滚"
+      - "environment variables"
+      - "deployment and rollback"
 
   tester:
     title: "Tester Agent"
@@ -152,10 +152,10 @@ agents:
     rule_files:
       - ".harness/rules/tester.md"
     scope:
-      - "单元测试"
-      - "集成测试"
+      - "unit tests"
+      - "integration tests"
       - "E2E"
-      - "测试报告"
+      - "test report"
 
   reviewer:
     title: "Reviewer Agent"
@@ -167,10 +167,10 @@ agents:
       - ".harness/rules/reviewer.md"
       - ".harness/rules/security.md"
     scope:
-      - "代码审查"
-      - "安全风险"
-      - "回归风险"
-      - "完成定义检查"
+      - "code review"
+      - "security risks"
+      - "regression risks"
+      - "definition of done"
 
   release:
     title: "Release Agent"
@@ -179,7 +179,7 @@ agents:
     default_stage: "release"
     model_profile: "low_cost"
     scope:
-      - "发布摘要"
-      - "变更日志"
-      - "部署检查"
-      - "回滚说明"
+      - "release summary"
+      - "change log"
+      - "deployment checks"
+      - "rollback notes"

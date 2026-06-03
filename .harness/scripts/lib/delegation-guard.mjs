@@ -3,30 +3,7 @@ import { readFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { businessPathPatterns, productDocsPath } from "./project-profile.mjs";
-
-const implementationAgents = new Set(["frontend", "docs", "backend", "database", "devops"]);
-const stageOrder = [
-  "intake",
-  "requirements_plan",
-  "requirements_confirm",
-  "plan",
-  "implement",
-  "verify",
-  "review",
-  "release",
-  "done"
-];
-const stageOwners = {
-  intake: ["pm"],
-  requirements_plan: ["requirements-plan"],
-  requirements_confirm: ["requirements"],
-  plan: ["architect"],
-  implement: ["frontend", "docs", "backend", "database", "devops"],
-  verify: ["tester"],
-  review: ["reviewer"],
-  release: ["release"],
-  done: []
-};
+import { implementationAgentIds, stageOrder, stageOwners } from "./agent-roles.mjs";
 let activeBusinessPathPatterns = [
   "src/**",
   "app/**",
@@ -130,10 +107,10 @@ export function evaluateDelegationGuard({ root, runId, state = {}, workspaceFile
   }));
 
   const executedImplementationAgents = (nativeState.agents ?? [])
-    .filter((agent) => implementationAgents.has(agent.agent) && hasCompletedNativeResult(agent));
+    .filter((agent) => implementationAgentIds.has(agent.agent) && hasCompletedNativeResult(agent));
   if (businessFiles.some((file) => !isProductDocPath(file)) && executedImplementationAgents.length === 0) {
     problems.push(`Business code changes detected before ${stage || "the current stage"}, but no completed implementation subagent record was found.`);
-    problems.push("Expected at least one completed frontend, docs, backend, database, or devops native result.");
+    problems.push(`Expected at least one completed implementation native result: ${[...implementationAgentIds].join(", ")}.`);
   }
 
   problems.push(...businessFileOwnershipProblems({ root, runId, state, nativeState, businessFiles, taskAgents, stage }));
@@ -208,14 +185,14 @@ export function completedNativePrerequisitesForAgent(agentId, { root = process.c
   if (agentId === "pm" || agentId === "requirements-plan") return [];
   if (agentId === "requirements") return ["pm", "requirements-plan"].filter((agent) => tasks.has(agent));
   if (agentId === "architect") return ["pm", "requirements-plan", "requirements"].filter((agent) => tasks.has(agent));
-  if (implementationAgents.has(agentId)) return ["pm", "requirements-plan", "requirements", "architect"].filter((agent) => tasks.has(agent));
+  if (implementationAgentIds.has(agentId)) return ["pm", "requirements-plan", "requirements", "architect"].filter((agent) => tasks.has(agent));
   if (agentId === "tester") {
     return [
       "pm",
       "requirements-plan",
       "requirements",
       "architect",
-      ...[...implementationAgents]
+      ...[...implementationAgentIds]
     ].filter((agent) => tasks.has(agent));
   }
   if (agentId === "reviewer") {
@@ -226,7 +203,7 @@ export function completedNativePrerequisitesForAgent(agentId, { root = process.c
       "requirements-plan",
       "requirements",
       "architect",
-      ...[...implementationAgents]
+      ...[...implementationAgentIds]
     ].filter((agent) => tasks.has(agent));
   }
   if (agentId === "release") return ["reviewer"].filter((agent) => tasks.has(agent));

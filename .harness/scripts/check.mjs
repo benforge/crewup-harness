@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { parse as parseYaml } from "yaml";
 import { loadProjectProfile } from "./lib/project-profile.mjs";
+import { planningAgentIds, verificationAgentIds, writeOwnerAgentIds } from "./lib/agent-roles.mjs";
 
 const root = process.cwd();
 const defaultLocalRuleFile = null;
@@ -41,12 +42,13 @@ const requiredPaths = [
   ".harness/config/context-policy.yaml",
   ".harness/config/harness-scope-policy.yaml",
   ".harness/config/intake-policy.yaml",
+  ".harness/config/integrations.yaml",
   ".harness/config/risk-policy.yaml",
-  ".harness/config/requirements-planning.yaml",
   ".harness/config/artifact-schema.yaml",
   ".harness/config/budget-policy.yaml",
   ".harness/config/desktop-runner.yaml",
   ".harness/config/document-policy.yaml",
+  ".harness/config/encoding-policy.yaml",
   ".harness/config/skills.yaml",
   ".harness/config/workflow.yaml",
   ".harness/config/quality-gates.yaml",
@@ -70,7 +72,6 @@ const requiredPaths = [
   ".harness/rules/api.md",
   ".harness/contracts/done-definition.md",
   ".harness/templates/requirement.md",
-  ".harness/templates/requirement-interview.md",
   ".harness/templates/requirement-plan.md",
   ".harness/templates/architecture.md",
   ".harness/templates/test-report.md",
@@ -78,18 +79,15 @@ const requiredPaths = [
   ".harness/templates/main-summary.md",
   ".harness/scripts/orchestrate.mjs",
   ".harness/scripts/run.mjs",
-  ".harness/scripts/overlay-report.mjs",
   ".harness/scripts/verify.mjs",
   ".harness/scripts/intake.mjs",
+  ".harness/scripts/integrations.mjs",
   ".harness/scripts/backlog-item.mjs",
   ".harness/scripts/context-pack.mjs",
   ".harness/scripts/transition.mjs",
-  ".harness/scripts/desktop-plan.mjs",
-  ".harness/scripts/desktop-light.mjs",
-  ".harness/scripts/requirements-interview.mjs",
-  ".harness/scripts/requirements-plan.mjs",
   ".harness/scripts/native-plan.mjs",
   ".harness/scripts/native-state.mjs",
+  ".harness/scripts/orchestration-audit.mjs",
   ".harness/scripts/repair-artifacts.mjs",
   ".harness/scripts/spec-freeze.mjs",
   ".harness/scripts/repair-state.mjs",
@@ -118,6 +116,8 @@ const requiredPaths = [
   ".harness/scripts/lib/context-mode.mjs",
   ".harness/scripts/lib/project-profile.mjs",
   ".harness/scripts/lib/project-overlay.mjs",
+  ".harness/scripts/lib/scope-negation.mjs",
+  ".harness/scripts/lib/implementation-plan-scope.mjs",
   ".harness/scripts/lib/workload-analysis.mjs",
   "docs/harness-core-boundary.md",
   "docs/harness-extension-guide.md",
@@ -126,6 +126,7 @@ const requiredPaths = [
   "docs/harness-agent-capabilities.md",
   "docs/universal-agent-bridge.md",
   "docs/harness-workflow.md",
+  "docs/optional-integrations.md",
   ".harness/skills/build.md",
   ".harness/skills/test.md",
   ".harness/skills/ui-verify.md",
@@ -152,12 +153,13 @@ const configFiles = [
   ".harness/config/delegation-policy.yaml",
   ".harness/config/desktop-runner.yaml",
   ".harness/config/document-policy.yaml",
+  ".harness/config/encoding-policy.yaml",
   ".harness/config/intake-policy.yaml",
+  ".harness/config/integrations.yaml",
   ".harness/config/model-policy.yaml",
   ".harness/config/native-subagents.yaml",
   ".harness/config/quality-gates.yaml",
   ".harness/config/risk-policy.yaml",
-  ".harness/config/requirements-planning.yaml",
   ".harness/config/skills.yaml",
   ".harness/config/workflow.yaml",
   ".harness/config/write-policy.yaml"
@@ -489,13 +491,13 @@ async function checkNativeSubagents() {
     warnings.push(`${rel} mode is ${config.mode}; expected codex_spawn_agent for native lifecycle`);
   }
 
-  for (const role of ["frontend", "docs", "backend", "database", "devops", "tester"]) {
+  for (const role of writeOwnerAgentIds) {
     if (config.agent_type_by_role?.[role] !== "worker") {
       errors.push(`${rel} must map ${role} to worker`);
     }
   }
 
-  for (const role of ["pm", "requirements", "architect", "reviewer", "release"]) {
+  for (const role of [...planningAgentIds, ...verificationAgentIds].filter((role) => role !== "tester")) {
     if (!["explorer", "default"].includes(config.agent_type_by_role?.[role])) {
       errors.push(`${rel} must map ${role} to explorer or default`);
     }

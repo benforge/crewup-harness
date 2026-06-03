@@ -14,6 +14,7 @@
 - `.harness/config/write-policy.yaml`
 - `.harness/config/risk-policy.yaml`
 - `.harness/config/document-policy.yaml`
+- `.harness/config/encoding-policy.yaml`
 - `.harness/config/service-policy.yaml`
 
 ## 模板规则

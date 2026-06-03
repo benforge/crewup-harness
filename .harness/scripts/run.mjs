@@ -12,8 +12,6 @@ const text = valueOf("--text=") ?? positionalText();
 const runIdArg = valueOf("--run=");
 const profileArg = valueOf("--profile=") ?? "auto";
 const agentsArg = valueOf("--agents=");
-const skipRequirementsPlan = args.includes("--skip-requirements-plan");
-const seedRequirementsPlan = args.includes("--seed-requirements-plan");
 const dryRun = args.includes("--dry-run");
 
 if (!text?.trim() && !runIdArg) {
@@ -83,13 +81,8 @@ summary.push(`prepare-run: ${analysis.workflowProfile}`);
 runText("spec-freeze.mjs", [runId]);
 summary.push("spec-freeze: created");
 
-if (analysis.needsRequirementsPlan && !skipRequirementsPlan) {
-  if (seedRequirementsPlan) {
-    runText("requirements-plan.mjs", [runId, "--seed-artifact"]);
-    summary.push("requirements-plan: seed artifact created");
-  } else {
-    summary.push("requirements-plan: delegated to subagent");
-  }
+if (analysis.needsRequirementsPlan) {
+  summary.push("requirements-plan: delegated to subagent");
 }
 
 const agents = agentsArg ?? await agentsFromTasks(runId);

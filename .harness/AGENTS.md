@@ -28,6 +28,13 @@ These rules define the reusable CrewUp workflow layer. They are project-agnostic
 - Tester/reviewer feedback that requires code changes must be delegated back to implementation owner agents.
 - If native subagents are unavailable, record fallback and stop at coordination/reporting; fallback does not authorize the main agent to complete delegated work.
 
+## Encoding
+
+- Harness files are UTF-8.
+- When inspecting local text through a shell, use explicit UTF-8 handling, such as `Get-Content <file> -Encoding UTF8` or a Node UTF-8 read.
+- Do not judge Chinese documentation from mojibake terminal output. Verify with UTF-8 first.
+- Keep machine-checked contracts in English: artifact headings, JSON fields, command names, status values, and schema labels.
+
 ## Required Owner Boundaries
 
 - `requirements-plan` owns `artifacts/requirement-plan.md`.

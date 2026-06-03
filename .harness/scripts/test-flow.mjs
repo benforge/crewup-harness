@@ -4,6 +4,7 @@ import path from "node:path";
 import os from "node:os";
 import { spawnSync } from "node:child_process";
 import { hasTemplatePlaceholder } from "./lib/placeholder-detector.mjs";
+import { sortByExecutionOrder } from "./lib/execution-order.mjs";
 
 const root = process.cwd();
 const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "crewup-flow-"));
@@ -28,6 +29,12 @@ try {
   runCli(appDir, ["inspect", "--no-ai"]);
   runCli(appDir, ["init", "--yes", "--agent", "codex"]);
   runCli(appDir, ["check"]);
+  const mainAgentDoc = await readFile(path.join(appDir, ".harness", "orchestrator", "main-agent.md"), "utf8");
+  assertIncludes(mainAgentDoc, "Do not ask the user to open a terminal just to create a runId", "chat entry run creation rule");
+  assertIncludes(mainAgentDoc, "run `next-agent` and start only agents listed as runnable", "next-agent spawn rule");
+  const integrationsOutput = runCli(appDir, ["integrations", "status"]);
+  assertIncludes(integrationsOutput, "code_intelligence", "optional code intelligence integration");
+  assertIncludes(integrationsOutput, "optional", "optional integration mode");
 
   const missingGate = runInstalledScript(appDir, ".harness/scripts/gate-check.mjs", ["missing-run"], { expectedStatus: 1 });
   assertNotIncludes(missingGate, "SyntaxError", "gate-check syntax error");
@@ -56,13 +63,15 @@ try {
   assertIncludes(planOnlyRunId, "plan-fullstack-blog-system", "semantic plan-only run id");
 
   const planOnlyRunDir = path.join(appDir, ".harness", "runs", planOnlyRunId);
-  const planOnlyTaskNames = await listTaskNames(path.join(planOnlyRunDir, "tasks"));
+  const planOnlyTaskNames = sortByExecutionOrder(await listTaskNames(path.join(planOnlyRunDir, "tasks")));
   assertSameMembers(planOnlyTaskNames, ["architect", "requirements", "requirements-plan", "reviewer"], "plan-only task assignment");
   assertNotExists(path.join(planOnlyRunDir, "artifacts", "requirement-plan.md"), "main-authored requirement-plan artifact");
 
   const requirementPlanTask = await readFile(path.join(planOnlyRunDir, "tasks", "requirements-plan.task.md"), "utf8");
   assertIncludes(requirementPlanTask, "Original Request Summary", "requirements-plan English heading");
   assertIncludes(requirementPlanTask, "Impact Scope Candidates", "requirements-plan impact heading");
+  assertIncludes(requirementPlanTask, "Human-facing summaries, handoff notes, blockers, and coordination comments should be written in Chinese", "Chinese human-facing language rule");
+  assertIncludes(requirementPlanTask, "## Artifact Scaffold", "artifact scaffold section");
   assertIncludes(requirementPlanTask, "artifactUpdates", "task result contract requires artifactUpdates");
   assertIncludes(requirementPlanTask, "do not use `artifacts`", "task result contract rejects artifacts alias");
 
@@ -73,7 +82,43 @@ try {
   assertIncludes(testerTaskCandidates.testerTask, "empty input rejection", "tester baseline includes empty input check");
   assertIncludes(testerTaskCandidates.reviewerTask, "- [x] pass", "reviewer pass format is explicit");
 
+  const counterRunOutput = runCli(appDir, [
+    "run",
+    "\u4f7f\u7528 CrewUp \u505a\u4e00\u4e2a\u6700\u5c0f counter web app\uff0c\u8dd1\u5b8c\u6574 workflow\u3002\u9a8c\u6536\u6807\u51c6\uff1a\u9875\u9762\u663e\u793a counter\uff0c\u521d\u59cb\u503c\u4e3a 0\uff1b\u53ef\u4ee5 +1\u3001-1\u3001reset\uff1b\u5237\u65b0\u540e\u6570\u503c\u4fdd\u7559\uff1bbuild/test \u901a\u8fc7\u3002\u8303\u56f4\uff1a\u53ea\u505a\u4e00\u4e2a\u5f88\u5c0f\u7684\u524d\u7aef\u5b9e\u73b0\uff1b\u4e0d\u9700\u8981 backend\u3001database\u3001auth\u3001routing\u3002"
+  ]);
+  const counterRunId = extractRunId(counterRunOutput);
+  if (!counterRunId) throw new Error(`Failed to detect counter runId from output: ${counterRunOutput}`);
+  assertIncludes(counterRunId, "build-counter-web-app", "semantic counter run id ignores negated auth");
+  const counterTaskNames = sortByExecutionOrder(await listTaskNames(path.join(appDir, ".harness", "runs", counterRunId, "tasks")));
+  assertSameMembers(counterTaskNames, ["requirements-plan", "requirements", "architect", "frontend", "tester", "reviewer", "release"], "counter task assignment excludes negated scopes");
+  assertNotIncludes(counterTaskNames.join(","), "backend", "counter excludes backend");
+  assertNotIncludes(counterTaskNames.join(","), "database", "counter excludes database");
+
+  const architectureDispatchOutput = runCli(appDir, [
+    "run",
+    "Use CrewUp to implement a tiny catalog app with frontend, backend API, and database candidates. Let the architecture plan decide the actual implementation agents."
+  ]);
+  const architectureDispatchRunId = extractRunId(architectureDispatchOutput);
+  if (!architectureDispatchRunId) throw new Error(`Failed to detect architecture-dispatch runId from output: ${architectureDispatchOutput}`);
+  const architectureDispatchRunDir = path.join(appDir, ".harness", "runs", architectureDispatchRunId);
+  const architectureDispatchTaskNames = sortByExecutionOrder(await listTaskNames(path.join(architectureDispatchRunDir, "tasks")));
+  assertIncludes(architectureDispatchTaskNames.join(","), "frontend", "architecture-dispatch has frontend candidate");
+  assertIncludes(architectureDispatchTaskNames.join(","), "backend", "architecture-dispatch has backend candidate");
+  assertIncludes(architectureDispatchTaskNames.join(","), "database", "architecture-dispatch has database candidate");
+  await writeFile(path.join(architectureDispatchRunDir, "artifacts", "implementation-plan.md"), renderFrontendOnlyImplementationPlan(), "utf8");
+  await markNativeAgentsCompleted(architectureDispatchRunDir, ["pm", "requirements-plan", "requirements", "architect"]);
+  const architectureNextAgent = JSON.parse(runCli(appDir, ["next-agent", architectureDispatchRunId, "--json"]));
+  assertSameArray(architectureNextAgent.runnable.map((item) => item.agent), ["frontend"], "implementation dispatch follows architecture plan assignment");
+  assertSameMembers(architectureNextAgent.skipped.map((item) => item.agent), ["backend", "database", "devops"], "unassigned implementation candidates are skipped");
+  const unassignedBackendSpawn = runCliWithStatus(appDir, ["native-state", architectureDispatchRunId, "mark-spawned", "backend", "backend-handle"], { expectedStatus: 1 });
+  assertIncludes(unassignedBackendSpawn, "not assigned by artifacts/implementation-plan.md", "unassigned backend spawn is blocked");
+
   const planOnlyPlan = JSON.parse(await readFile(path.join(planOnlyRunDir, "logs", "native-subagents", "native-subagent-plan.json"), "utf8"));
+  assertSameArray(
+    planOnlyPlan.tasks.map((task) => task.agent),
+    ["requirements-plan", "requirements", "architect", "reviewer"],
+    "plan-only native execution order"
+  );
   const requirementsPlanNativeTask = planOnlyPlan.tasks.find((task) => task.agent === "requirements-plan");
   if (!requirementsPlanNativeTask) throw new Error("Missing requirements-plan native task");
   assertIncludes(requirementsPlanNativeTask.allowed_patterns.join("\n"), `.harness/runs/${planOnlyRunId}/logs/native-subagents/requirements-plan.result.md`, "requirements-plan result md allowed pattern");
@@ -94,6 +139,27 @@ try {
   assertSameMembers(prereqsFor(planOnlyPlan, "architect"), ["requirements-plan", "requirements"], "architect prerequisites");
   assertAgentModel(planOnlyPlan, "requirements", { modelHint: "gpt-5.5", reasoningEffort: "medium" });
   assertAgentModel(planOnlyPlan, "architect", { modelHint: "gpt-5.5", reasoningEffort: "medium" });
+  const nativeState = JSON.parse(await readFile(path.join(planOnlyRunDir, "logs", "native-subagents", "native-state.json"), "utf8"));
+  assertSameMembers(
+    nativeState.agents.find((agent) => agent.agent === "architect")?.requires_completed_agents ?? [],
+    ["requirements-plan", "requirements"],
+    "architect native-state prerequisites"
+  );
+  const nextAgent = JSON.parse(runCli(appDir, ["next-agent", planOnlyRunId, "--json"]));
+  assertSameArray(nextAgent.runnable.map((item) => item.agent), ["requirements-plan"], "initial runnable native agents");
+  assertSameMembers(nextAgent.blocked.map((item) => item.agent), ["requirements", "architect", "reviewer"], "initial blocked native agents");
+  const cleanAudit = JSON.parse(runCli(appDir, ["audit", planOnlyRunId, "--json"]));
+  if (cleanAudit.counts.errors !== 0) throw new Error(`Expected clean orchestration audit, got ${cleanAudit.counts.errors} errors:\n${JSON.stringify(cleanAudit.findings, null, 2)}`);
+  const prematureArchitectSpawn = runCliWithStatus(appDir, ["native-state", planOnlyRunId, "mark-spawned", "architect", "premature-architect"], { expectedStatus: 1 });
+  assertIncludes(prematureArchitectSpawn, "Cannot spawn architect", "architect spawn prerequisite guard");
+  const dirtyHandleSpawn = runCliWithStatus(appDir, ["native-state", planOnlyRunId, "mark-spawned", "requirements-plan", "--handle=dirty"], { expectedStatus: 1 });
+  assertIncludes(dirtyHandleSpawn, "Invalid native handle", "dirty handle guard");
+
+  await writeFile(path.join(planOnlyRunDir, "artifacts", "requirement-plan.md"), renderValidRequirementPlanArtifact(), "utf8");
+  const ownerArtifactAudit = runCliWithStatus(appDir, ["audit", planOnlyRunId], { expectedStatus: 1 });
+  assertIncludes(ownerArtifactAudit, "owner_artifact_before_owner_done", "owner artifact overreach audit");
+  const ownerArtifactGate = runCliWithStatus(appDir, ["gate-check", planOnlyRunId], { expectedStatus: 1 });
+  assertIncludes(ownerArtifactGate, "Owner artifact requirement-plan.md exists before owner agent requirements-plan completed", "owner artifact overreach gate");
 
   await writeFile(path.join(planOnlyRunDir, "logs", "native-subagents", "tester.result.json"), `${JSON.stringify({
     agent: "tester",
@@ -166,6 +232,15 @@ function runCli(cwd, args) {
   const result = spawnSync(process.execPath, [bin, ...args], { cwd, encoding: "utf8" });
   if (result.status !== 0) {
     throw new Error((result.stdout || "") + (result.stderr || ""));
+  }
+  return `${result.stdout ?? ""}${result.stderr ?? ""}`;
+}
+
+function runCliWithStatus(cwd, args, { expectedStatus = 0 } = {}) {
+  const bin = path.join(cwd, "node_modules", "crewup-harness", "bin", "crewup.mjs");
+  const result = spawnSync(process.execPath, [bin, ...args], { cwd, encoding: "utf8" });
+  if (result.status !== expectedStatus) {
+    throw new Error(`Expected crewup ${args.join(" ")} status ${expectedStatus}, got ${result.status}\n${result.stdout || ""}${result.stderr || ""}`);
   }
   return `${result.stdout ?? ""}${result.stderr ?? ""}`;
 }
@@ -258,6 +333,12 @@ function assertSameMembers(actual, expected, label) {
   }
 }
 
+function assertSameArray(actual, expected, label) {
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    throw new Error(`${label} order mismatch.\nExpected: ${expected.join(" -> ")}\nActual: ${actual.join(" -> ")}`);
+  }
+}
+
 async function listTaskNames(dir) {
   if (!existsSync(dir)) return [];
   const names = [];
@@ -278,4 +359,70 @@ function assertAgentModel(plan, agent, expected) {
   if (task.model_hint !== expected.modelHint || task.reasoning_effort !== expected.reasoningEffort) {
     throw new Error(`${agent} model mismatch. Expected ${expected.modelHint}/${expected.reasoningEffort}, got ${task.model_hint}/${task.reasoning_effort}`);
   }
+}
+
+function renderValidRequirementPlanArtifact() {
+  return `# Requirement Plan
+
+## Original Request Summary
+Plan a fullstack blog system.
+
+## Historical Context
+No historical context.
+
+## Goals
+- Clarify scope.
+
+## Non-Goals
+- Do not write business code.
+
+## Acceptance Criteria Draft
+- Planning artifacts are clear.
+
+## Impact Scope Candidates
+- Frontend
+- Admin
+- API
+- Database
+
+## Open Questions
+- Confirm deployment target.
+`;
+}
+
+function renderFrontendOnlyImplementationPlan() {
+  return `# Implementation Plan
+
+## Overview
+
+- Implement only the frontend surface for this run.
+
+## Agent Assignments
+
+| Agent | Scope | Files |
+| --- | --- | --- |
+| frontend | Catalog UI only | src/**, package.json |
+
+## Excluded Candidates
+
+- backend is not assigned in this run.
+- database is not assigned in this run.
+
+## Verification
+
+- Tester verifies the frontend behavior and build.
+`;
+}
+
+async function markNativeAgentsCompleted(runDir, agentIds) {
+  const statePath = path.join(runDir, "logs", "native-subagents", "native-state.json");
+  const state = JSON.parse(await readFile(statePath, "utf8"));
+  for (const agent of state.agents ?? []) {
+    if (!agentIds.includes(agent.agent)) continue;
+    agent.handle = `${agent.agent}-handle`;
+    agent.status = "waiting_review";
+    agent.result_status = "completed";
+    agent.result_captured_at = new Date().toISOString();
+  }
+  await writeFile(statePath, JSON.stringify(state, null, 2), "utf8");
 }

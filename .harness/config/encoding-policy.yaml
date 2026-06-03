@@ -1,0 +1,22 @@
+encoding_policy:
+  default_file_encoding: "utf-8"
+  machine_contract_language: "english"
+  human_facing_language_default: "zh-CN"
+  rules:
+    - "Harness scripts must read and write text files as UTF-8."
+    - "Artifact headings, JSON fields, command names, status values, and schema labels stay English."
+    - "Human-facing summaries, blockers, and handoffs may be Chinese by default."
+    - "On Windows, shell text inspection must use explicit UTF-8 handling."
+    - "Do not rely on PowerShell or cmd default code pages when checking Chinese documentation."
+    - "Prefer Node-based UTF-8 reads or `Get-Content -Encoding UTF8` for local text inspection."
+    - "If terminal output is mojibake, verify with UTF-8 before making a judgment."
+  windows:
+    preferred_code_page: "65001"
+    check_command: "chcp"
+    one_time_command: "chcp 65001"
+    powershell_read_command: "Get-Content <file> -Encoding UTF8"
+    node_read_command: "node -e \"console.log(require('fs').readFileSync(process.argv[1], 'utf8'))\" <file>"
+  agent_guidance:
+    - "When reading repository docs in a shell, use explicit UTF-8 commands first."
+    - "Do not tell the user the document is garbled unless UTF-8 verification also shows garbled content."
+    - "If only terminal rendering is broken, report it as a terminal display issue, not a document issue."

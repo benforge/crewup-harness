@@ -1,14 +1,4 @@
 artifacts:
-  requirement-interview.md:
-    owner: "requirements-plan"
-    required: false
-    required_headings:
-      - "Status"
-      - "Current Understanding"
-      - "Questions"
-      - "Answered Questions"
-      - "Convergence Decision"
-
   requirement-plan.md:
     owner: "requirements-plan"
     required_headings:
