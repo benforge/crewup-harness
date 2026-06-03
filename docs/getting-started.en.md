@@ -106,11 +106,13 @@ After you have a runId:
 npx crewup next-agent <run-id>
 npx crewup audit <run-id>
 npx crewup gate-check <run-id>
+npx crewup report <run-id>
 ```
 
 - `next-agent` shows which subagent is actually runnable now
 - `audit` checks orchestration stability: premature starts, main-agent overreach, missing owner provenance, context pressure, and repair loops
 - `gate-check` decides whether the current stage passes the quality gate
+- `report` summarizes agent results, artifacts, context/token budgets, repair lineage, and archive status
 
 ## Normal Order
 
@@ -126,6 +128,16 @@ requirements-plan
 
 Implementation agents are candidates at run creation time. The actual implementation dispatch should be decided by the architect-owned `artifacts/implementation-plan.md`.
 
+## Tool Fallback
+
+If Context7, an MCP server, a plugin, or another optional tool is unavailable, record it in the run instead of only mentioning it in chat:
+
+```bash
+npx crewup tool-fallback <run-id> --tool Context7 --reason "not available in this session" --fallback "use checked-in docs and architect synthesis"
+```
+
+This is evidence only. It does not authorize the main agent to take over work owned by architect, tester, reviewer, or implementation agents.
+
 ## Finish And Archive
 
 ```bash
@@ -139,7 +151,7 @@ If the run started a preview service:
 npx crewup dev-service <run-id> stop
 ```
 
-Before `finish`, make sure services are stopped, tester/reviewer issues are delegated back to owner agents, and `gate-check` passes.
+Before `finish`, make sure services are stopped, tester/reviewer issues are delegated back to owner agents, and `audit` / `gate-check` pass. Prefer audit/gate/report before closing retained subagents.
 
 ## Troubleshooting
 

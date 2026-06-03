@@ -6,6 +6,12 @@ const root = process.cwd();
 const args = process.argv.slice(2);
 const runId = args.find((arg) => !arg.startsWith("--"));
 const dryRun = args.includes("--dry-run");
+const allowOwnerArtifacts = args.includes("--allow-owner-artifacts");
+const repairTargets = [
+  { rel: "test-report.md", owner: "tester" },
+  { rel: "review-report.md", owner: "reviewer" },
+  { rel: "release-summary.md", owner: "release" }
+];
 
 const ZH = {
   testReport: "\u6d4b\u8bd5\u62a5\u544a",
@@ -47,7 +53,7 @@ const ZH = {
 };
 
 if (!runId) {
-  console.error("Usage: crewup repair-artifacts <run-id> [--dry-run]");
+  console.error("Usage: crewup repair-artifacts <run-id> [--dry-run] [--allow-owner-artifacts]");
   process.exit(1);
 }
 
@@ -62,6 +68,7 @@ if (!existsSync(runDir)) {
 
 const repairs = [];
 const repairedAt = new Date().toISOString();
+const ownerGuard = await guardOwnerArtifacts();
 
 await repairTestReport();
 await repairReviewReport();
@@ -73,6 +80,11 @@ const report = [
   `- runId: ${runId}`,
   `- generatedAt: ${repairedAt}`,
   `- dryRun: ${dryRun ? "true" : "false"}`,
+  `- allowOwnerArtifacts: ${allowOwnerArtifacts ? "true" : "false"}`,
+  "",
+  "## Owner Guard",
+  "",
+  ...(ownerGuard.length ? ownerGuard.map((item) => `- ${item}`) : ["- none"]),
   "",
   "## Repairs",
   "",
@@ -104,6 +116,35 @@ async function repairTestReport() {
   content = normalizeEmptyBullets(content);
 
   await maybeWrite(target, original, content, rel);
+}
+
+async function guardOwnerArtifacts() {
+  const nativePath = path.join(logsDir, "native-subagents", "native-state.json");
+  if (!existsSync(nativePath)) return [];
+  const native = await readJson(nativePath, null);
+  const agents = Array.isArray(native?.agents) ? native.agents : [];
+  const blocked = repairTargets.filter((target) => {
+    if (!existsSync(artifactPath(target.rel))) return false;
+    return agents.some((agent) => agent.agent === target.owner);
+  });
+
+  if (!blocked.length) return [];
+
+  const notes = blocked.map((target) => `${target.rel}: owner agent ${target.owner} exists in native-state; prefer resuming that owner agent for artifact repair.`);
+  if (allowOwnerArtifacts || dryRun) return notes;
+
+  console.error("Refusing to repair owner-agent artifacts directly.");
+  for (const note of notes) console.error(`- ${note}`);
+  console.error("Resume the owner agent first, or rerun with --allow-owner-artifacts for explicit maintenance/legacy normalization.");
+  process.exit(1);
+}
+
+async function readJson(target, fallback) {
+  try {
+    return JSON.parse((await readFile(target, "utf8")).replace(/^\uFEFF/, ""));
+  } catch {
+    return fallback;
+  }
 }
 
 async function repairReviewReport() {

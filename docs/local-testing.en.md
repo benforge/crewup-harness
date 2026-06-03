@@ -11,6 +11,9 @@ Without an API key, you can test:
 - install / init / check
 - run creation, naming, profile selection, and task generation
 - native plan and next-agent ordering constraints
+- architecture-owned implementation dispatch
+- tool-fallback logging
+- repair-artifacts owner guard
 - audit / gate-check overreach detection
 - pack-install flow
 
@@ -33,7 +36,7 @@ npm pack
 This creates something like:
 
 ```text
-crewup-harness-0.3.6.tgz
+crewup-harness-0.3.7.tgz
 ```
 
 ## Create A Temporary Project
@@ -42,7 +45,7 @@ crewup-harness-0.3.6.tgz
 mkdir C:\Users\Administrator.SKY-20260324MFW\Documents\crewup-local-test
 cd C:\Users\Administrator.SKY-20260324MFW\Documents\crewup-local-test
 npm init -y
-npm install -D "C:\Users\Administrator.SKY-20260324MFW\Documents\New project\crewup-harness-0.3.6.tgz"
+npm install -D "C:\Users\Administrator.SKY-20260324MFW\Documents\New project\crewup-harness-0.3.7.tgz"
 ```
 
 ## Initialize CrewUp
@@ -107,6 +110,20 @@ Check that:
 - the main agent did not author owner artifacts
 - tester/reviewer issues are delegated back to owner agents
 - audit does not report `owner_artifact_before_owner_done`, `downstream_started_before_prerequisite`, or `unassigned_implementation_started`
+- audit/gate/report run before retained subagents are closed unless capacity forces earlier closure
+
+## Tool Fallback Test
+
+```bash
+npx crewup tool-fallback <run-id> --tool Context7 --reason "not available in local test" --fallback "use checked-in docs"
+```
+
+Check that these files were generated:
+
+```text
+.harness/runs/<run-id>/logs/tool-fallbacks.json
+.harness/runs/<run-id>/logs/tool-fallbacks.md
+```
 
 ## Script-Only Flow Test
 
@@ -124,6 +141,8 @@ It creates a temporary project, installs the local package, and validates:
 - next-agent ordering
 - architecture-owned implementation dispatch
 - native-state premature-start blocking
+- repair-artifacts owner guard
+- tool-fallback logging
 - audit overreach blocking
 - gate-check owner artifact blocking
 
@@ -156,6 +175,14 @@ npx crewup native-state <run-id> diagnose
 ### `gate-check` reports owner artifact provenance
 
 The artifact may have been written by the main agent, or the subagent did not declare `artifactUpdates` in result JSON. Resume the owner agent instead of copying content in the main window.
+
+### `repair-artifacts` refuses to modify an artifact
+
+This is expected protection. In an active native run, owner artifacts should be repaired by the owner agent first. Use this only for explicit maintenance or legacy normalization:
+
+```bash
+npx crewup repair-artifacts <run-id> --allow-owner-artifacts
+```
 
 ### `audit` reports too many retained agents
 

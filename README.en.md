@@ -47,6 +47,8 @@ A strict workflow does not skip roles just because a task is small. CrewUp reduc
 - Chinese human-facing coordination: main/subagent summaries, handoffs, blockers, and status notes are Chinese by default
 - English machine contracts: artifact headings, JSON fields, paths, commands, and status values stay in English to reduce encoding drift and false gate failures
 - Feedback repair loop: tester/reviewer findings are routed back to implementation owners instead of being fixed directly by the main agent
+- Auditable fallback: when optional tools such as Context7, MCP servers, or plugins are unavailable, `tool-fallback` records the fallback evidence in run logs
+- Repair lineage: repair results preserve `repairOf`, `repairReason`, and `previousResultPath` to reduce repeated repair loops
 - Runtime archive: runs, reports, dashboard, knowledge, and backlog state have explicit locations and preservation rules
 - Safe upgrade: `install --force` updates the harness core while preserving existing runs, knowledge, project adapters, reports, dashboard, and backlog state
 
@@ -152,6 +154,7 @@ If Chinese text appears garbled in a Windows terminal, run `npx crewup doctor` a
 | `npx crewup run --dry-run "..."` | Preview naming, profile, and agent routing |
 | `npx crewup next-agent <run-id>` | Show currently runnable subagents and blocked prerequisites |
 | `npx crewup native-state <run-id> diagnose` | Diagnose native subagent handles, results, and state gaps |
+| `npx crewup tool-fallback <run-id> --tool Context7 --reason "..." --fallback "..."` | Record optional tool fallback evidence |
 | `npx crewup audit <run-id>` | Audit orchestration order, owner boundaries, repair loops, and context pressure |
 | `npx crewup gate-check <run-id>` | Check gates, artifact ownership, and overreach risks |
 | `npx crewup report <run-id>` | Generate a structured delivery report |

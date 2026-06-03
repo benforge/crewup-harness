@@ -47,7 +47,7 @@ These support subagent execution, repair loops, or manual recovery:
 | Script | Responsibility |
 | --- | --- |
 | `repair-plan.mjs` | Group tester/reviewer required fixes into owner repair tasks |
-| `repair-artifacts.mjs` | Normalize artifact headings and empty states |
+| `repair-artifacts.mjs` | Maintenance tool for artifact headings and empty states; does not directly repair active owner artifacts by default |
 | `repair-state.mjs` | Repair malformed run/native state after diagnostics |
 | `verify.mjs` | Project test/build helper |
 | `dev-service.mjs` | Run-scoped preview service lifecycle |
@@ -59,6 +59,7 @@ These are not required for the core strict workflow:
 
 | Script | Role |
 | --- | --- |
+| `tool-fallback.mjs` | Record fallback evidence when optional tools such as Context7, MCP servers, or plugins are unavailable |
 | `integrations.mjs` | Optional provider status, such as CodeGraph |
 | `knowledge.mjs` / `knowledge-select.mjs` | Knowledge refresh and selection |
 | `skills-*.mjs` | Skill reporting, resolution, and installation |
@@ -95,4 +96,6 @@ Agent role sets and execution order are centralized in `.harness/scripts/lib/age
 4. `next-agent` and `native-state` use `implementation-plan.md` to decide which implementation agents may actually start.
 5. Implementation candidates not assigned by `implementation-plan.md` are skipped and do not block tester.
 6. Tester/reviewer feedback must route back to owner implementation agents; the main agent must not directly fix business code.
-7. `gate-check` audits owner artifacts, native results, changed files, review/test state, and overreach risk.
+7. Owner artifact structure problems should first return to the owner agent; `repair-artifacts` is a maintenance/compatibility path.
+8. Optional tool fallback must be recorded with `tool-fallback`.
+9. Prefer `audit`, `gate-check`, and `report` before closing retained subagents.

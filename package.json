@@ -1,6 +1,6 @@
 {
   "name": "crewup-harness",
-  "version": "0.3.7",
+  "version": "0.3.8",
   "description": "CrewUp: a reusable AI workflow harness for project-agnostic agent collaboration.",
   "author": "Ben",
   "license": "MIT",
@@ -88,6 +88,7 @@
     "harness:repair-artifacts": "node .harness/scripts/repair-artifacts.mjs",
     "harness:repair-plan": "node .harness/scripts/repair-plan.mjs",
     "harness:repair-state": "node .harness/scripts/repair-state.mjs",
+    "harness:tool-fallback": "node .harness/scripts/tool-fallback.mjs",
     "harness:report": "node .harness/scripts/report.mjs",
     "harness:dashboard": "node .harness/scripts/dashboard.mjs",
     "harness:knowledge": "node .harness/scripts/knowledge.mjs",

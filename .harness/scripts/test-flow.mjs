@@ -32,6 +32,9 @@ try {
   const mainAgentDoc = await readFile(path.join(appDir, ".harness", "orchestrator", "main-agent.md"), "utf8");
   assertIncludes(mainAgentDoc, "Do not ask the user to open a terminal just to create a runId", "chat entry run creation rule");
   assertIncludes(mainAgentDoc, "run `next-agent` and start only agents listed as runnable", "next-agent spawn rule");
+  assertIncludes(mainAgentDoc, "record optional tool/plugin/MCP fallback with `tool-fallback`", "tool fallback logging rule");
+  assertIncludes(mainAgentDoc, "Run `npx crewup audit <run-id>`", "audit before close rule");
+  assertIncludes(mainAgentDoc, "Use `repair-artifacts` only for legacy/manual structural normalization", "owner repair before repair-artifacts rule");
   const integrationsOutput = runCli(appDir, ["integrations", "status"]);
   assertIncludes(integrationsOutput, "code_intelligence", "optional code intelligence integration");
   assertIncludes(integrationsOutput, "optional", "optional integration mode");
@@ -93,6 +96,12 @@ try {
   assertSameMembers(counterTaskNames, ["requirements-plan", "requirements", "architect", "frontend", "tester", "reviewer", "release"], "counter task assignment excludes negated scopes");
   assertNotIncludes(counterTaskNames.join(","), "backend", "counter excludes backend");
   assertNotIncludes(counterTaskNames.join(","), "database", "counter excludes database");
+  const counterRunDir = path.join(appDir, ".harness", "runs", counterRunId);
+  await writeFile(path.join(counterRunDir, "artifacts", "test-report.md"), "# Test Report\n", "utf8");
+  const blockedArtifactRepair = runCliWithStatus(appDir, ["repair-artifacts", counterRunId], { expectedStatus: 1 });
+  assertIncludes(blockedArtifactRepair, "Refusing to repair owner-agent artifacts directly", "repair-artifacts owner guard");
+  const allowedArtifactRepair = runCli(appDir, ["repair-artifacts", counterRunId, "--allow-owner-artifacts"]);
+  assertIncludes(allowedArtifactRepair, "allowOwnerArtifacts: true", "repair-artifacts explicit maintenance override");
 
   const architectureDispatchOutput = runCli(appDir, [
     "run",
@@ -128,6 +137,22 @@ try {
   assertIncludes(requirementsPlanSpawn, "Result files are subagent-owned audit outputs", "subagent-owned result prompt");
   assertIncludes(requirementsPlanSpawn, "main agent may only register", "main-agent result registration boundary");
   assertIncludes(requirementsPlanSpawn, "do not use `artifacts` as a substitute", "native prompt rejects artifacts alias");
+  assertIncludes(requirementsPlanSpawn, "repairOf", "native prompt repair lineage field");
+  assertIncludes(requirementsPlanSpawn, "previousResultPath", "native prompt previous result field");
+
+  const toolFallbackOutput = runCli(appDir, [
+    "tool-fallback",
+    planOnlyRunId,
+    "--tool",
+    "Context7",
+    "--reason",
+    "not available in test",
+    "--fallback",
+    "use checked-in docs"
+  ]);
+  assertIncludes(toolFallbackOutput, "Tool fallback recorded", "tool-fallback output");
+  const toolFallbackLog = JSON.parse(await readFile(path.join(planOnlyRunDir, "logs", "tool-fallbacks.json"), "utf8"));
+  assertIncludes(JSON.stringify(toolFallbackLog), "Context7", "tool-fallback json entry");
 
   assertSameMembers(planOnlyPlan.groups.map((group) => group.id), [
     "requirements_planning",

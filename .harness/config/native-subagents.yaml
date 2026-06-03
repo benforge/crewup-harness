@@ -25,6 +25,7 @@ native_subagents:
       - "Review changed files before integration."
       - "Do not close a subagent only because it returned a result."
       - "Keep completed subagents in `waiting_review` for follow-up until user acceptance, explicit release by the main agent, or run done/archive cleanup."
+      - "Before closing retained subagents, run audit, gate-check, and report unless retention capacity forces earlier closure."
       - "Close subagents only after marking them `ready_to_close` and recording the close audit."
 
   runtime:

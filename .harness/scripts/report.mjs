@@ -151,7 +151,7 @@ async function buildAgentRows(native, taskNames) {
       files: compactList([parsed["Files changed"], parsed["Artifacts updated"]]),
       tests: parsed.Tests ?? "not recorded",
       blockers: parsed.Blockers ?? "not recorded",
-      handoff: parsed.Handoff ?? "not recorded"
+      handoff: compactList([parsed.Handoff, parsed.Repair])
     });
   }
   return rows;
@@ -219,8 +219,17 @@ function parseAgentResultJson(value) {
     "Artifacts updated": listText(value.artifactsUpdated ?? value.artifactUpdates ?? value.writtenArtifacts ?? value.reviewedArtifacts),
     Tests: listText(value.tests ?? checksToList(value.checks)),
     Blockers: listText(blockers),
+    Repair: repairText(value),
     Handoff: handoff
   };
+}
+
+function repairText(value) {
+  const repairOf = asArray(value.repairOf).filter(Boolean);
+  const previous = value.previousResultPath ? [`previous: ${value.previousResultPath}`] : [];
+  const reason = value.repairReason ? [`reason: ${value.repairReason}`] : [];
+  const parts = [...repairOf.map((item) => `repairOf: ${item}`), ...previous, ...reason];
+  return parts.join("<br>");
 }
 
 function summaryFromStructuredResult(value) {

@@ -63,6 +63,8 @@ Negation-aware routing only removes false-positive scope. If the user says `no b
 
 The main agent must not copy subagent text into owner artifacts. If an owner agent fails to write the artifact, the run should be repaired, blocked, or resumed with that owner agent.
 
+`repair-artifacts` is a maintenance tool, not the first repair path for active owner-agent artifacts. By default, when native-state contains the owner agent, it refuses to modify those owner artifacts unless `--allow-owner-artifacts` is explicitly supplied.
+
 ## Native Subagent Path
 
 ```bash
@@ -86,6 +88,18 @@ The main agent may prepare tasks and native plans ahead of time, but it must not
 
 `gate-check` also audits owner artifacts. If `artifacts/requirement-plan.md`, `artifacts/requirement.md`, `artifacts/architecture.md`, or other owner artifacts appear before the owner agent has completed and reported them through `artifactUpdates`, the gate fails. This keeps the main agent in an orchestration role instead of letting it fill formal artifacts directly.
 
+Technical reference gathering follows the same ownership rule. The main agent may record minimal source links, local evidence, and fallback notes, but `architect` owns technical synthesis, trade-off analysis, and final technology recommendations.
+
+## Tool Fallback Log
+
+Context7, MCP servers, plugins, Playwright, Browser, CodeGraph, and similar integrations are optional enhancements. If one is unavailable, record it in the run instead of only mentioning it in chat:
+
+```bash
+npx crewup tool-fallback <run-id> --tool Context7 --reason "not available in this session" --fallback "architect uses project evidence and checked-in docs"
+```
+
+Tool fallback logs are evidence only. They do not transfer an owner agent's responsibility to the main agent.
+
 ## Orchestration Audit
 
 Use `audit` when you want a direct stability check for the workflow itself:
@@ -97,6 +111,14 @@ npx crewup audit <run-id>
 `audit` checks dispatch order, premature downstream starts, implementation agents that were not assigned by `implementation-plan.md`, owner artifacts without owner provenance, tester/reviewer feedback that still needs delegated repair, retained subagent pressure, and large context/token budgets.
 
 `gate-check` answers "can this run pass the quality gate?". `audit` answers "is the orchestration staying clean, calm, and delegated?". A clean audit writes `logs/orchestration-audit.md` and `logs/orchestration-audit.json`.
+
+Before closing retained subagents, prefer:
+
+```text
+audit -> gate-check -> report -> mark-ready-to-close -> close_agent -> mark-closed
+```
+
+The normal exception is capacity pressure. If the environment cannot keep enough agents open to continue, use `native-state recommend-close`, release the lowest-value retained agents, and record the reason.
 
 ## Artifact Contract
 
@@ -152,6 +174,16 @@ npx crewup repair-plan <run-id>
 
 - `native-state diagnose` reports missing handles, uncaptured result files, invalid JSON, and state/result mismatches.
 - `repair-plan` reads tester/reviewer `requiredFixes` and creates owner repair tasks under `tasks/repairs/`.
+
+Repair result JSON should preserve lineage when it supersedes an earlier result:
+
+```json
+{
+  "repairOf": ["RF-01", ".harness/runs/<run-id>/logs/native-subagents/frontend.result.json"],
+  "repairReason": "tester reported a blocking issue",
+  "previousResultPath": ".harness/runs/<run-id>/logs/native-subagents/frontend.result.json"
+}
+```
 
 ## Release Validation
 

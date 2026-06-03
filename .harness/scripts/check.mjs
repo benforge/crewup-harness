@@ -89,6 +89,7 @@ const requiredPaths = [
   ".harness/scripts/native-state.mjs",
   ".harness/scripts/orchestration-audit.mjs",
   ".harness/scripts/repair-artifacts.mjs",
+  ".harness/scripts/tool-fallback.mjs",
   ".harness/scripts/spec-freeze.mjs",
   ".harness/scripts/repair-state.mjs",
   ".harness/scripts/report.mjs",

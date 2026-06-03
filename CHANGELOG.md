@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.3.8
+
+- Added `crewup tool-fallback <run-id>` / `npm run harness:tool-fallback` to record optional tool, MCP, plugin, and Context7 fallback evidence in run logs instead of leaving it only in chat.
+- Strengthened main-agent orchestration rules: technical synthesis stays with `architect`, owner artifact repair returns to the owner agent first, and retained subagents should be closed after `audit`, `gate-check`, and `report` unless capacity forces earlier closure.
+- Added repair lineage fields (`repairOf`, `repairReason`, `previousResultPath`) to native and bridge result contracts and surfaced repair context in run reports.
+- Guarded `repair-artifacts` so it refuses to modify active owner-agent artifacts by default; explicit maintenance use now requires `--allow-owner-artifacts`.
+- Rewrote mojibake-affected Chinese README and docs pages as clean UTF-8 and updated bilingual usage/testing docs for the current architecture.
+- Expanded pack-install flow tests to cover tool fallback logging, repair-artifacts owner guard, repair lineage prompt fields, and the closeout ordering guidance.
+
 ## 0.3.7
 
 - Added `crewup audit <run-id>` / `npm run harness:audit` for orchestration stability checks across dispatch order, owner artifact boundaries, implementation-plan assignments, repair loops, retained subagent pressure, and context/token budget warnings.

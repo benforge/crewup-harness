@@ -92,12 +92,21 @@ Each external agent must write:
   "fileChanges": [],
   "recommendedCodeChanges": [],
   "tests": ["npm test"],
+  "repairOf": [],
+  "repairReason": "",
+  "previousResultPath": "",
   "blockers": [],
   "handoff": "Next step for the main agent."
 }
 ```
 
 `artifactUpdates` feeds the provenance gate: every primary artifact should include the artifact name, path, owner, and action. `artifactsUpdated` remains as a lighter path list for older tools or manual writeback.
+
+When the result repairs or supersedes an earlier result, fill:
+
+- `repairOf`: issue ids or previous result paths being repaired
+- `repairReason`: why the repair was needed
+- `previousResultPath`: the earlier result JSON path, when known
 
 Valid `status` values:
 

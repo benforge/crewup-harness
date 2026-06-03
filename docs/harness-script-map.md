@@ -2,11 +2,11 @@
 
 中文 | [English](./script-map.en.md)
 
-这个文档用于维护 CrewUp 的脚本边界。目标不是让用户记住所有脚本，而是明确哪些是稳定产品入口，哪些只是内部流水线、兼容路径或维护工具，避免后续继续用补丁方式堆叠流程。
+这份文档用于维护 CrewUp 的脚本边界。目标不是让普通用户记住所有脚本，而是让产品入口稳定、内部流水线清晰，避免后续用补丁方式不断叠加流程。
 
 ## 核心产品入口
 
-这些命令应该保持稳定、文档清晰，并推荐给普通开发者使用：
+这些命令应保持稳定，并推荐给普通开发者使用：
 
 | 命令 | 脚本 | 定位 |
 | --- | --- | --- |
@@ -47,7 +47,7 @@
 | 脚本 | 职责 |
 | --- | --- |
 | `repair-plan.mjs` | 把 tester/reviewer requiredFixes 分组为 owner repair task |
-| `repair-artifacts.mjs` | 规范 artifact heading 和空状态，偏维护工具 |
+| `repair-artifacts.mjs` | 维护工具：规范 artifact heading 和空状态；默认不直接修活跃 owner artifact |
 | `repair-state.mjs` | 诊断后修复异常 run/native state |
 | `verify.mjs` | 项目测试/构建检查辅助 |
 | `dev-service.mjs` | run 级预览服务生命周期 |
@@ -59,9 +59,10 @@
 
 | 脚本 | 定位 |
 | --- | --- |
+| `tool-fallback.mjs` | 记录 Context7/MCP/插件等可选工具不可用时的降级证据 |
 | `integrations.mjs` | 可选集成状态，例如 CodeGraph |
 | `knowledge.mjs` / `knowledge-select.mjs` | knowledge 层刷新和选择 |
-| `skills-*.mjs` | skill 报告、解析和安装 |
+| `skills-*.mjs` | skill 报告、解析、安装和审计 |
 | `orchestrate.mjs` | bridge/外部 runner 结果收集路径 |
 | `product-sync.mjs` | release 后产品文档同步 |
 | `cleanup.mjs` | 清理运行态文件 |
@@ -69,7 +70,7 @@
 
 ## 角色真源
 
-脚本里的 agent 角色集合和执行顺序由 `.harness/scripts/lib/agent-roles.mjs` 统一维护。调度、门禁、native-state、native-plan、transition 不应该各自再维护一份角色列表。
+脚本里的 agent 角色集合和执行顺序由 `.harness/scripts/lib/agent-roles.mjs` 统一维护。调度、门禁、native-state、native-plan、transition 不应各自再维护一份角色列表。
 
 | 分组 | Agent |
 | --- | --- |
@@ -79,14 +80,6 @@
 | Write owner | `frontend`, `docs`, `backend`, `database`, `devops`, `tester` |
 | Verification/release | `tester`, `reviewer`, `release` |
 
-## 可以收敛的方向
-
-- `finalize.mjs` 已删除；统一使用 `finish.mjs`。
-- `requirements-interview.mjs` 和 `requirements-plan.mjs` 已删除；需求规划必须由 `requirements-plan` / `requirements` 子 agent 写 owner artifacts。
-- `desktop-plan.mjs` 和 `desktop-light.mjs` 已删除；非 native 环境统一走 `native-plan.mjs` 生成的 bridge handoff。
-- `orchestrate.mjs` 是 bridge path 的高级能力。Codex native 主路径应优先使用 `native-plan`、`next-agent`、`native-state`。
-- `next.mjs` 是状态建议器，不是执行器。正式调度以 `next-agent` 为准。
-
 ## 当前核心工作流契约
 
 1. `crewup run` 可以根据入口需求生成候选 agent，但 implementation agent 只是候选。
@@ -95,4 +88,6 @@
 4. `next-agent` 和 `native-state` 根据 `implementation-plan.md` 决定哪些 implementation agents 可以真正启动。
 5. 未被 `implementation-plan.md` 分配的 implementation candidates 会被跳过，且不会阻塞 tester。
 6. tester/reviewer 反馈必须回到 owner implementation agents，不允许 main agent 直接修业务代码。
-7. `gate-check` 负责检查 owner artifact、native result、changed files、review/test 状态和 overreach 风险。
+7. owner artifact 结构问题优先恢复 owner agent 处理，`repair-artifacts` 只作维护/兼容路径。
+8. 可选工具不可用必须用 `tool-fallback` 记录到 run logs。
+9. 默认先 `audit`、`gate-check`、`report`，再关闭保留的子 agent。

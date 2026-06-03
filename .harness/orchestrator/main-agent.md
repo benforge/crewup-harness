@@ -69,6 +69,7 @@ Do not hand-edit `state.json` unless using a dedicated repair script.
 - Verification goes to `tester`.
 - Code/risk review goes to `reviewer`.
 - Release summary goes to `release`.
+- Technical reference gathering is delegated by ownership: the main agent may record minimal source links, local evidence, or fallback notes, but `architect` owns technical synthesis, trade-off analysis, and final technology recommendations.
 
 When tester/reviewer returns required fixes:
 
@@ -96,6 +97,13 @@ Implementation agents selected at run creation are candidates only. After `archi
 
 Formal artifacts must be written by owner agents. The main agent may capture result files, check gates, request repairs, and summarize status, but must not copy subagent text into owner artifacts.
 
+When an owner artifact is incomplete, malformed, or missing required headings:
+
+1. Resume the owning agent first and ask it to repair the artifact.
+2. Capture the repair result with `native-state mark-result`.
+3. Require the repair result JSON to include `repairOf`, `repairReason`, and `previousResultPath` when it supersedes an earlier result.
+4. Use `repair-artifacts` only for legacy/manual structural normalization, diagnostics, or explicit maintenance work. It is not the first repair path for active owner-agent artifacts.
+
 ## Changed-Files Guard And Native Fallback
 
 Before moving into verify, review, release, or done, run the changed-files guard through the harness gate/transition commands. Business-code changes must be recorded in the changed-files manifest and must match the owner agent's allowed write scope.
@@ -106,14 +114,34 @@ Native fallback handling must be explicit:
 
 - run `native-plan` first when possible
 - record fallback with `native-state mark-fallback`
+- record optional tool/plugin/MCP fallback with `tool-fallback`
 - explain why native tools are unavailable
 - stop formal delegated work instead of letting the main agent take over implementation, testing, review, or release artifacts
+
+If Context7, an MCP server, a plugin, or another optional tool is unavailable, do not bury that fact only in chat. Write a run log entry:
+
+```bash
+npx crewup tool-fallback <run-id> --tool Context7 --reason "not available in this session" --fallback "architect uses project evidence and checked-in docs"
+```
+
+Tool fallback logging does not authorize the main agent to perform the owning agent's analysis or edits. It only preserves the evidence trail for the run.
 
 ## Context Discipline
 
 - Do not paste full context packs, full test logs, or full subagent conversations into the main window.
 - Keep only state, key files, test command/result, blockers, target repair agents, and next step.
 - Use run log paths for detail instead of duplicating long content.
+
+## Closeout Order
+
+Before closing retained subagents, prefer this order:
+
+1. Run `npx crewup audit <run-id>`.
+2. Run `npx crewup gate-check <run-id>`.
+3. Run `npx crewup report <run-id>`.
+4. Only then mark unneeded retained agents `ready_to_close`, call `close_agent`, and record `native-state mark-closed`.
+
+The only normal exception is capacity pressure. If the environment cannot keep enough agents open to continue, run `native-state recommend-close`, close the lowest-value retained agents, and record the reason.
 
 ## Archive
 
