@@ -22,6 +22,7 @@ import {
 } from "./lib/delegation-guard.mjs";
 import { hasTemplatePlaceholder } from "./lib/placeholder-detector.mjs";
 import { codeImplementationAgentIds, isDocsOnlyAgentSet, isLiteImplementationOnlyAgentSet } from "./lib/agent-roles.mjs";
+import { writeRunStatus } from "./lib/run-lifecycle.mjs";
 
 const root = process.cwd();
 const args = process.argv.slice(2);
@@ -71,7 +72,9 @@ await enforceGate(to, state);
 const now = new Date().toISOString();
 state.stage = to;
 state.updatedAt = now;
-state.status = to === "done" ? "done" : "in-progress";
+state.status = to === "done" ? "done" : "active";
+state.outcome = to === "done" ? "success" : (state.outcome ?? "none");
+state.archived = Boolean(state.archived);
 state.confirmations = state.confirmations ?? {};
 if (approveImplementation) state.confirmations.implementation_approved_at = now;
 if (approveProductSync || to === "done") state.confirmations.product_sync_approved_at = now;
@@ -82,6 +85,7 @@ state.transitions = [
 
 await writeFile(statePath, `${JSON.stringify(state, null, 2)}\n`, "utf8");
 await appendTransitionLog({ from, to, at: now, force });
+await writeRunStatus(root, runId, state);
 
 console.log(`Transitioned ${runId}: ${from} -> ${to}`);
 if (to === "done") {

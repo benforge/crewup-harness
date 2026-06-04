@@ -8,20 +8,20 @@ CrewUp is an explicitly enabled strict workflow. Without `crewup run`, `npx crew
 
 If the explicit CrewUp signal arrives in chat and the user did not provide a runId, the main agent creates the run with `npx crewup run "<user request>"`, extracts the runId from command output, and continues orchestration. Do not make the user run a separate command only to obtain the runId.
 
-Use `.harness/config/intake-policy.yaml` for entry decisions:
+Entry decisions are intentionally simple:
 
 - no explicit CrewUp signal: no harness
-- formal request without start signal: backlog_new
-- scheduled but not immediate: backlog_ready
-- start now or continue existing run: direct_run
-- simple explanation/status/read-only check: no_harness
+- explicit CrewUp signal with no runId: create a new run
+- explicit existing runId or "continue this run": continue that run
+- simple explanation/status/read-only check: no harness unless the user asks for CrewUp status
 
-Only `direct_run` may create or select a run.
+Do not route formal work through backlog. `Run` is the only default CrewUp work unit.
 
 ## Role Routing
 
-- New feature or formal iteration: `pm`, `requirements`
-- Requirement writing, user stories, acceptance criteria, non-goals, scope clarification: `requirements`
+- New feature or formal iteration: `requirements-plan`, then `requirements`
+- Requirement expansion, scope clarification, non-goals, and acceptance preview: `requirements-plan`
+- Formal requirement writing, user stories, acceptance criteria, and confirmed boundaries: `requirements`
 - Technical design, architecture, impact scope, cross-module plan: `architect`
 - Frontend pages, components, UI, interaction, styles: `frontend`
 - Backend API, services, authentication, business logic: `backend`
@@ -40,6 +40,8 @@ Only `direct_run` may create or select a run.
 - Lowest fallback: main-agent coordination only, used only for status, read-only coordination, or blocker records.
 
 Implementation agents selected at run creation are candidates only. They may start only after `architect` completes and `artifacts/implementation-plan.md` assigns their exact agent id. Implementation agents may run in parallel only when allowed write scopes do not conflict. Planning, verification, review, and release stages follow dependency order.
+
+`pm` is optional coordination support only. Do not start `pm` as a default parallel replacement for `requirements-plan`, and do not let `pm` write `requirement.md`.
 
 ## Main Agent Boundary
 

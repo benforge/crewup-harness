@@ -68,21 +68,14 @@ console.log(`impact_scopes: ${impactScopes.length ? impactScopes.join(",") : "(n
 for (const agentId of selectedAgents) console.log(`- ${agentId}`);
 
 function selectAgents(inputText, agents, impactScopeConfig, profile, runProfile, impactScopes, workloadAnalysis = {}) {
-  if (isDocsOnlyRequest(inputText)) {
-    return ["docs", "reviewer", "release"].filter((agentId) => agents[agentId]);
-  }
-
   if (["discovery", "plan_only"].includes(runProfile)) {
     return ["requirements-plan", "requirements", "architect", "reviewer"].filter((agentId) => agents[agentId]);
   }
 
   const selected = new Set();
-  if (runProfile === "full" && shouldUsePm(workloadAnalysis)) selected.add("pm");
-  if (workloadAnalysis.needsRequirementsPlan) selected.add("requirements-plan");
-  if (["standard", "full"].includes(runProfile)) {
-    selected.add("requirements");
-    selected.add("architect");
-  }
+  selected.add("requirements-plan");
+  selected.add("requirements");
+  selected.add("architect");
 
   for (const scope of impactScopes) {
     const config = impactScopeConfig[scope];
@@ -99,10 +92,6 @@ function selectAgents(inputText, agents, impactScopeConfig, profile, runProfile,
   if (needsDocsAgent(inputText)) selected.add("docs");
 
   const implementationAgents = [...implementationAgentIds].filter((agent) => selected.has(agent));
-  if (runProfile === "lite" && implementationAgents.length === 0) {
-    selected.add("reviewer");
-  }
-
   if (runProfile === "lite") {
     if (!isDocsOnlyRequest(inputText)) {
       selected.add("tester");
@@ -188,6 +177,8 @@ function buildAgentTask(agentId, agent, inputText, profile, impactScopes) {
   });
   const inputs = [
     `.harness/runs/${runId}/input.md`,
+    agentId === "requirements-plan" ? `.harness/runs/${runId}/logs/clarifications/answers.json` : null,
+    agentId === "requirements-plan" ? `.harness/runs/${runId}/logs/clarifications/answers.md` : null,
     `.harness/runs/${runId}/artifacts/requirement.md`,
     `.harness/runs/${runId}/artifacts/architecture.md`,
     `.harness/runs/${runId}/artifacts/implementation-plan.md`,
@@ -229,7 +220,8 @@ ${overlaySummary(projectOverlay)}
 
 ## Response Language
 
-- Human-facing summaries, handoff notes, blockers, and coordination comments should be written in Chinese by default.
+- Human-facing summaries, handoff notes, blockers, and coordination comments should match the user's primary language.
+- User primary language for this run: ${workloadAnalysis.primaryLanguage ?? "en"}.
 - Keep artifact headings, JSON field names, file paths, commands, and status values in English exactly as required by the schema.
 
 ## Responsibility
@@ -290,7 +282,7 @@ function allowedPathsFor(agentId, impactScopeConfig, impactScopes) {
   if (paths.length > 0) return [...new Set(paths)];
 
   const artifactByAgent = {
-    pm: [".harness/runs/<run>/artifacts/requirement.md", ".harness/runs/<run>/state.json"],
+    pm: [".harness/runs/<run>/logs/native-subagents/pm.result.md", ".harness/runs/<run>/logs/native-subagents/pm.result.json"],
     "requirements-plan": [".harness/runs/<run>/artifacts/requirement-plan.md"],
     requirements: [".harness/runs/<run>/artifacts/requirement.md"],
     architect: [".harness/runs/<run>/artifacts/architecture.md", ".harness/runs/<run>/artifacts/implementation-plan.md"],
@@ -396,6 +388,17 @@ function outputContractFor(agentId) {
   const byAgent = {
     "requirements-plan": [
       "- `requirement-plan.md` must use the exact headings from Artifact Schema.",
+      "- The `Clarification Card` section must be the first user-facing review surface and use compact Markdown tables/bullets.",
+      "- The card must include `Confirmed Facts`, `Decisions Needed`, `Non-Goals Snapshot`, `Acceptance Preview`, and `Ready To Continue` subsections.",
+      "- Write all user-facing card content, question text, option labels, option descriptions, summaries, blockers, and handoff notes in the user's primary language.",
+      "- Keep required headings, JSON field names, status values, file paths, and commands in English.",
+      "- Expand the request into goals, non-goals, boundary decisions, acceptance criteria draft, and impact scope candidates.",
+      "- First pass must return `needs_input` with `clarificationQuestions` unless prior user answers and `userConfirmed: true` are already present.",
+      "- If required decisions are missing, return `needs_input` and fill `clarificationQuestions` in the result JSON.",
+      "- Do not answer your own clarification questions or silently choose defaults for the user.",
+      "- Return at most 3 clarification questions per round; prefer a second round over a long questionnaire.",
+      "- Prefer `single_choice` or `multi_choice` questions with 2-3 short options when the decision space is clear.",
+      "- Keep question labels and descriptions concise enough for CLI or native choice UI.",
       "- `Acceptance Criteria Draft` must contain numbered entries such as `AC-01`, `AC-02`."
     ],
     requirements: [
@@ -450,6 +453,7 @@ function buildMainSummary(selectedAgents, workflowProfile, impactScopes) {
 - runId: ${runId}
 - workflow_profile: ${workflowProfile}
 - run_type: ${workloadAnalysis.runType}
+- primary_language: ${workloadAnalysis.primaryLanguage ?? "en"}
 - impact_scopes: ${impactScopes.length ? impactScopes.join(", ") : "(none)"}
 
 ## Main Agent Model
@@ -464,7 +468,7 @@ ${selectedAgents.map((agent) => `- tasks/${agent}.task.md`).join("\n")}
 
 ## Execution Rules
 
-- Use intake before creating or selecting a run.
+- Use crewup run to create or select a run; do not route default work through backlog.
 - Keep the strict harness flow when the user explicitly requests CrewUp/full-loop workflow.
 - Use native subagents when lifecycle tools are available.
 - Formal artifacts must be written by their owner agents, not by the main agent.

@@ -23,7 +23,7 @@
 10. 收集子 agent 结果，更新 artifacts、logs、dashboard。
 11. 在需求和方案阶段结束后请求用户审核，确认后再进入开发。
 12. 运行 `harness:verify` 和 `harness:gate-check`。
-13. 用中文向用户汇总结果。
+13. 使用用户的主要语言向用户汇总结果。
 
 ## 子 Agent 可见性
 
@@ -35,13 +35,39 @@
 .harness/runs/<run-id>/logs/desktop-agents/<agent>.result.md
 ```
 
+## Codex Native Clarification
+
+Codex Desktop should provide the best available user interaction for requirements clarification.
+
+When `requirements-plan` returns `needs_input` with `clarificationQuestions`:
+
+1. The main agent must stay as interaction transport only. It must not answer the questions or write the requirement artifact.
+2. If the current Codex surface exposes native Plan-mode/user-choice UI, use that UI for the next clarification round.
+3. Show at most 3 questions in one round. If more decisions are needed, resume `requirements-plan` after the first answers and let it ask a second round.
+4. Keep choices short. Do not paste the full result JSON or a long questionnaire into the main chat.
+5. After the user chooses, save answers through:
+
+```bash
+npx crewup clarify <run-id> --answers="Q-01:A;Q-02:B,C"
+```
+
+6. If native UI is unavailable, ask the user to run:
+
+```bash
+npx crewup clarify <run-id> --interactive
+```
+
+Do not degrade into a long chat-based questionnaire unless the user explicitly asks to answer in chat.
+
+Subagent conversations and results should match the user's primary language for user-facing summaries, clarification card content, questions, option labels, blockers, tests, and handoff notes. Keep required headings, JSON keys, status values, file paths, and commands in English.
+
 ## 执行顺序
 
 默认分三组：
 
 ```text
 intake:
-  pm -> requirements -> architect
+  requirements-plan -> requirements -> architect
 
 implementation:
   frontend / backend / database / devops 可并行
@@ -51,6 +77,8 @@ verification:
 ```
 
 实际是否并行由主 agent 根据当前任务依赖判断。
+
+`pm` 是可选协调角色，不是默认需求链入口。正式需求链必须先由 `requirements-plan` 生成澄清卡和 `requirement-plan.md`，用户确认后再由 `requirements` 写正式 `requirement.md`。
 
 ## Tab 生命周期
 

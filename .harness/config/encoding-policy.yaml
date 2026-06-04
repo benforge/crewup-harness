@@ -5,7 +5,7 @@ encoding_policy:
   rules:
     - "Harness scripts must read and write text files as UTF-8."
     - "Artifact headings, JSON fields, command names, status values, and schema labels stay English."
-    - "Human-facing summaries, blockers, and handoffs may be Chinese by default."
+    - "Human-facing summaries, blockers, and handoffs should match the user's primary language."
     - "On Windows, shell text inspection must use explicit UTF-8 handling."
     - "Do not rely on PowerShell or cmd default code pages when checking Chinese documentation."
     - "Prefer Node-based UTF-8 reads or `Get-Content -Encoding UTF8` for local text inspection."

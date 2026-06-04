@@ -36,7 +36,7 @@ npm pack
 This creates something like:
 
 ```text
-crewup-harness-0.3.7.tgz
+crewup-harness-0.3.8.tgz
 ```
 
 ## Create A Temporary Project
@@ -45,7 +45,7 @@ crewup-harness-0.3.7.tgz
 mkdir C:\Users\Administrator.SKY-20260324MFW\Documents\crewup-local-test
 cd C:\Users\Administrator.SKY-20260324MFW\Documents\crewup-local-test
 npm init -y
-npm install -D "C:\Users\Administrator.SKY-20260324MFW\Documents\New project\crewup-harness-0.3.7.tgz"
+npm install -D "C:\Users\Administrator.SKY-20260324MFW\Documents\New project\crewup-harness-0.3.8.tgz"
 ```
 
 ## Initialize CrewUp
@@ -70,7 +70,6 @@ npx crewup install --force
 - `.harness/project/`
 - `.harness/reports/`
 - `.harness/dashboard/`
-- `.harness/backlog/`
 
 ## Minimal Full Development Case
 
@@ -96,6 +95,7 @@ After you have a runId:
 
 ```bash
 npx crewup next-agent <run-id>
+npx crewup status <run-id>
 npx crewup audit <run-id>
 npx crewup gate-check <run-id>
 npx crewup report <run-id>
@@ -106,11 +106,32 @@ Check that:
 - initial runnable agent is only `requirements-plan`
 - `requirements` waits for `requirements-plan`
 - `architect` waits for `requirements`
-- implementation agents are decided by `implementation-plan.md`
+- implementation agents are decided by `implementation-plan.md`; missing plan means implementation agents cannot start
+- `lite` cannot start implementation agents directly; it only shortens planning artifacts
 - the main agent did not author owner artifacts
 - tester/reviewer issues are delegated back to owner agents
 - audit does not report `owner_artifact_before_owner_done`, `downstream_started_before_prerequisite`, or `unassigned_implementation_started`
 - audit/gate/report run before retained subagents are closed unless capacity forces earlier closure
+
+## Run Lifecycle Test
+
+When testing blocked, partial, or canceled outcomes, make sure the run still closes cleanly:
+
+```bash
+npx crewup status
+npx crewup status <run-id>
+npx crewup archive <run-id> --outcome=blocked --reason="local dependency unavailable"
+npx crewup cancel <run-id> --reason="test cancellation"
+npx crewup continue <run-id> "Continue the previous unfinished counter MVP"
+```
+
+Check that:
+
+- `.harness/runs/<run-id>/RUN_STATUS.md` always exists
+- `.harness/runs/<run-id>/RUN_SUMMARY.md` exists after archive
+- `.harness/runs/<run-id>/logs/archive/archive-summary.md` exists after archive
+- `.harness/reports/<run-id>.md` exists after report or archive
+- `continue` creates a new run whose `input.md` includes the source run status and summary
 
 ## Tool Fallback Test
 
@@ -143,6 +164,8 @@ It creates a temporary project, installs the local package, and validates:
 - native-state premature-start blocking
 - repair-artifacts owner guard
 - tool-fallback logging
+- status/runs status cards
+- cancel/archive/continue lifecycle closeout
 - audit overreach blocking
 - gate-check owner artifact blocking
 

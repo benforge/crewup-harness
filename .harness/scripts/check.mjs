@@ -41,7 +41,6 @@ const requiredPaths = [
   ".harness/config/checks.yaml",
   ".harness/config/context-policy.yaml",
   ".harness/config/harness-scope-policy.yaml",
-  ".harness/config/intake-policy.yaml",
   ".harness/config/integrations.yaml",
   ".harness/config/risk-policy.yaml",
   ".harness/config/artifact-schema.yaml",
@@ -59,6 +58,7 @@ const requiredPaths = [
   ".harness/orchestrator/human-intervention.md",
   ".harness/orchestrator/codex-desktop-runner.md",
   ".harness/agents/frontend.md",
+  ".harness/agents/requirements-plan.md",
   ".harness/rules/frontend.md",
   ".harness/agents/docs.md",
   ".harness/rules/docs.md",
@@ -80,10 +80,12 @@ const requiredPaths = [
   ".harness/scripts/orchestrate.mjs",
   ".harness/scripts/run.mjs",
   ".harness/scripts/verify.mjs",
-  ".harness/scripts/intake.mjs",
   ".harness/scripts/integrations.mjs",
-  ".harness/scripts/backlog-item.mjs",
+  ".harness/scripts/archive.mjs",
+  ".harness/scripts/cancel.mjs",
+  ".harness/scripts/continue-run.mjs",
   ".harness/scripts/context-pack.mjs",
+  ".harness/scripts/clarify.mjs",
   ".harness/scripts/transition.mjs",
   ".harness/scripts/native-plan.mjs",
   ".harness/scripts/native-state.mjs",
@@ -119,6 +121,7 @@ const requiredPaths = [
   ".harness/scripts/lib/project-overlay.mjs",
   ".harness/scripts/lib/scope-negation.mjs",
   ".harness/scripts/lib/implementation-plan-scope.mjs",
+  ".harness/scripts/lib/run-lifecycle.mjs",
   ".harness/scripts/lib/workload-analysis.mjs",
   "docs/harness-core-boundary.md",
   "docs/harness-extension-guide.md",
@@ -132,11 +135,6 @@ const requiredPaths = [
   ".harness/skills/test.md",
   ".harness/skills/ui-verify.md",
   ".harness/skills/release-check.md",
-  ".harness/backlog/new",
-  ".harness/backlog/ready",
-  ".harness/backlog/in-progress",
-  ".harness/backlog/review",
-  ".harness/backlog/done",
   ".harness/knowledge",
   ".harness/project",
   ".harness/runs",
@@ -155,7 +153,6 @@ const configFiles = [
   ".harness/config/desktop-runner.yaml",
   ".harness/config/document-policy.yaml",
   ".harness/config/encoding-policy.yaml",
-  ".harness/config/intake-policy.yaml",
   ".harness/config/integrations.yaml",
   ".harness/config/model-policy.yaml",
   ".harness/config/native-subagents.yaml",
@@ -201,7 +198,6 @@ await checkHarnessScopePolicy();
 await checkArtifactOwners();
 await checkNativeExecutionGates();
 await checkDelegationGuardWiring();
-await checkBacklogFileNames();
 
 if (errors.length > 0) {
   console.error("Harness check failed:");
@@ -750,21 +746,6 @@ async function checkDelegationGuardWiring() {
     const mainAgent = await readFile(mainAgentPath, "utf8");
     if (!mainAgent.includes("harness:changed-files") || !mainAgent.includes("native-state mark-fallback")) {
       errors.push(".harness/orchestrator/main-agent.md must document changed-files guard and native fallback handling");
-    }
-  }
-}
-
-async function checkBacklogFileNames() {
-  const backlogRoot = path.join(root, ".harness", "backlog");
-  const queues = ["new", "ready", "in-progress", "review", "done"];
-  for (const queue of queues) {
-    const dir = path.join(backlogRoot, queue);
-    const entries = await readdir(dir, { withFileTypes: true }).catch(() => []);
-    for (const entry of entries) {
-      if (!entry.isFile() || !entry.name.endsWith(".md")) continue;
-      if (!/^\d{3,}-/.test(entry.name)) {
-        errors.push(`Backlog file must start with a sequence number: .harness/backlog/${queue}/${entry.name}`);
-      }
     }
   }
 }

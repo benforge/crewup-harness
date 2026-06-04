@@ -43,9 +43,30 @@ npx crewup run "<user request>"
 
 After the command returns, extract the runId from the output and continue orchestration in the same chat. The user should not have to copy a runId between terminal and chat for normal CrewUp usage.
 
+Before every dispatch decision, run:
+
+```bash
+npx crewup status <run-id>
+npx crewup next-agent <run-id>
+```
+
+`next-agent` is the only dispatch authority. The main agent must not infer runnable agents from the user's request, the native plan, previous chat messages, or visible artifact names. If an agent is not listed as runnable, do not start it.
+
 The strict sequence is:
 
 `intake -> requirements_plan -> requirements_confirm -> plan -> implement -> verify -> review -> release -> done`
+
+Every formal CrewUp run starts with requirements planning. `lite` means shorter artifacts and smaller context, not skipping `requirements-plan`, `requirements`, or `architect`.
+
+`requirements-plan` is the clarification owner. When it returns `needs_input` with `clarificationQuestions`, the main agent is only the interaction transport:
+
+1. Prefer the host's native choice UI when it is available. In Codex Plan mode or another Codex surface that exposes native user-choice prompts, render up to 3 short questions from `clarificationQuestions` through that native UI.
+2. If native choice UI is unavailable, do not paste a questionnaire into chat by default. Ask the user to run `npx crewup clarify <run-id> --interactive` in a real terminal.
+3. Show compact chat choices only when the user explicitly asks to answer in chat, and still limit the round to 1-3 questions.
+4. Record the user's selected answers into `.harness/runs/<run-id>/logs/clarifications/answers.json` by using `npx crewup clarify <run-id> --answers="Q-01:A;Q-02:B,C"` or an equivalent handoff file.
+5. Resume `requirements-plan` after answers are recorded.
+
+The main agent must not silently choose defaults, answer the questions, expand the requirement reasoning, or write `requirement-plan.md` for the user.
 
 Advance stages only through:
 
@@ -57,7 +78,8 @@ Do not hand-edit `state.json` unless using a dedicated repair script.
 
 ## Language
 
-- Use Chinese for user-facing coordination, status updates, summaries, blockers, and subagent handoff discussion by default.
+- Match the user's primary language for user-facing coordination, status updates, summaries, blockers, and subagent handoff discussion.
+- Ask subagents to match the user's primary language for user-facing summaries, clarification cards, question text, option labels, blockers, tests, and handoff notes.
 - Keep artifact headings, JSON field names, file paths, commands, status values, and schema-owned contract text in English exactly as required by the harness.
 - When reading local text through a shell, use explicit UTF-8 handling first. On Windows prefer `Get-Content <file> -Encoding UTF8` or a Node UTF-8 read; do not judge Chinese docs from mojibake terminal output.
 
@@ -93,7 +115,11 @@ npx crewup next-agent <run-id>
 
 Before starting an agent, run `next-agent` and start only agents listed as runnable. Do not guess from the plan, and do not start downstream agents until required upstream agents have real captured results.
 
+After an agent finishes, register its result first, then run `next-agent` again before deciding what to start next. Never chain-start a downstream agent from memory.
+
 Implementation agents selected at run creation are candidates only. After `architect` completes, start implementation agents only when `artifacts/implementation-plan.md` assigns their exact agent id. `next-agent` and `native-state` enforce this architecture-owned implementation dispatch.
+
+If `artifacts/implementation-plan.md` is missing, implementation agents are not runnable. A missing plan is a blocker, not permission to start coding.
 
 Formal artifacts must be written by owner agents. The main agent may capture result files, check gates, request repairs, and summarize status, but must not copy subagent text into owner artifacts.
 
@@ -129,8 +155,26 @@ Tool fallback logging does not authorize the main agent to perform the owning ag
 ## Context Discipline
 
 - Do not paste full context packs, full test logs, or full subagent conversations into the main window.
+- Do not paste full subagent result files into the main window.
 - Keep only state, key files, test command/result, blockers, target repair agents, and next step.
 - Use run log paths for detail instead of duplicating long content.
+- Prefer `npx crewup status <run-id>` and `.harness/runs/<run-id>/RUN_STATUS.md` as the user-facing source of truth for current state.
+- Status summaries should use this compact shape: current run, status, stage, owner, completed, waiting/blocker, next command, done yes/no.
+
+## User-Facing Reporting
+
+Main-agent updates should be short and path-based. Use this shape unless the user explicitly asks for more detail:
+
+```text
+Run: <run-id>
+Status: <status> / <stage>
+Owner: <current owner>
+Next: <next command or runnable agent>
+Status card: .harness/runs/<run-id>/RUN_STATUS.md
+Details: .harness/runs/<run-id>/logs/run-report.md
+```
+
+When reporting subagent results, summarize in one or two lines and cite the result path. Do not paste the result body, artifact body, context pack, or long logs into chat. If the user asks for details, point to the file path first and only quote the smallest relevant excerpt.
 
 ## Closeout Order
 
@@ -143,6 +187,12 @@ Before closing retained subagents, prefer this order:
 
 The only normal exception is capacity pressure. If the environment cannot keep enough agents open to continue, run `native-state recommend-close`, close the lowest-value retained agents, and record the reason.
 
-## Archive
+## Archive And Outcomes
 
-When a run reaches `done`, report whether archive commit was created, skipped, blocked, or failed. Do not claim closure while required gates or archive policy remain unresolved.
+Archive means the run evidence has been organized. It does not always mean success.
+
+Allowed run outcomes are `success`, `partial`, `blocked`, `canceled`, and `failed`.
+
+When a run reaches `done`, use `npx crewup finish <run-id>` so it records success archive evidence. For blocked, partial, canceled, or failed runs, use `npx crewup archive <run-id> --outcome=<outcome> --reason="..."` or `npx crewup cancel <run-id> --reason="..."`.
+
+Do not claim a run is done unless `state.status=done`, `outcome=success`, gates passed, report exists, and the status card says archived or ready to archive.

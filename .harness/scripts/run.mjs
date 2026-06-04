@@ -1,22 +1,25 @@
-﻿import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { analyzeWorkload, renderWorkloadAnalysisMarkdown } from "./lib/workload-analysis.mjs";
 import { resolveScriptPath } from "./lib/script-root.mjs";
 import { isNativeAgentEnvironment, readAgentEnvironment } from "./lib/agent-runtime.mjs";
+import { semanticSlugFromText } from "./lib/naming.mjs";
+import { writeRunState, writeRunStatus } from "./lib/run-lifecycle.mjs";
 
 const root = process.cwd();
 const args = process.argv.slice(2);
 const text = valueOf("--text=") ?? positionalText();
 const runIdArg = valueOf("--run=");
+const fromRunId = valueOf("--from-run=");
 const profileArg = valueOf("--profile=") ?? "auto";
 const agentsArg = valueOf("--agents=");
 const dryRun = args.includes("--dry-run");
 
 if (!text?.trim() && !runIdArg) {
-  console.error('请提供需求文本，例如：npm run harness:run -- "现在直接实现：给首页加一个搜索入口"');
-  console.error("或继续已有 run：npm run harness:run -- --run=<run-id>");
+  console.error('Please provide a request, for example: npx crewup run "Build a minimal counter page"');
+  console.error("Or continue preparing an existing run: npx crewup run --run=<run-id>");
   process.exit(1);
 }
 
@@ -30,37 +33,13 @@ if (dryRun) {
 }
 
 let runId = runIdArg;
-let backlogFile = null;
-
 if (!runId) {
-  const intake = runJson("intake.mjs", ["--no-write", `--text=${inputText}`]);
-  summary.push(`intake: ${intake.entry}`);
-
-  if (intake.entry === "no_harness") {
-    console.log("Intake 判定为 no_harness：无需创建 run。");
-    console.log(JSON.stringify(intake, null, 2));
-    process.exit(0);
-  }
-
-  const queue = intake.entry === "backlog_new" ? "new" : "ready";
-  backlogFile = runText("backlog-item.mjs", [`--queue=${queue}`, `--text=${inputText}`]).trim().split(/\r?\n/).at(-1);
-  summary.push(`backlog: ${backlogFile}`);
-
-  if (intake.entry !== "direct_run") {
-    await writeRunSummary(null, { summary, analysis, backlogFile });
-    console.log(`已进入 backlog/${queue}，暂不创建 run：${backlogFile}`);
-    console.log("当你确认开工时，再说“现在做/直接实现/开始开发”。");
-    process.exit(0);
-  }
-
-  const readyFile = await ensureReadyBacklog(backlogFile);
-  const output = runText("new-run.mjs", [path.basename(readyFile)]);
-  runId = extractRunId(output);
+  runId = await createDirectRun(inputText, analysis, { fromRunId });
   summary.push(`run: ${runId}`);
 }
 
 if (!runId || !existsSync(path.join(root, ".harness", "runs", runId))) {
-  console.error(`run 不存在：${runId}`);
+  console.error(`Run not found: ${runId}`);
   process.exit(1);
 }
 
@@ -81,42 +60,32 @@ summary.push(`prepare-run: ${analysis.workflowProfile}`);
 runText("spec-freeze.mjs", [runId]);
 summary.push("spec-freeze: created");
 
-if (analysis.needsRequirementsPlan) {
-  summary.push("requirements-plan: delegated to subagent");
-}
+if (analysis.needsRequirementsPlan) summary.push("requirements-plan: delegated to subagent");
 
 const agents = agentsArg ?? await agentsFromTasks(runId);
 if (agents) {
   runText("context-pack.mjs", [runId, `--agents=${agents}`]);
-runText("native-plan.mjs", [runId, `--agents=${agents}`]);
-summary.push(`native-plan: ${agents}`);
+  runText("native-plan.mjs", [runId, `--agents=${agents}`]);
+  summary.push(`native-plan: ${agents}`);
 
-runText("token-ledger.mjs", [runId]);
-summary.push("token-ledger: created");
+  runText("token-ledger.mjs", [runId]);
+  summary.push("token-ledger: created");
 }
 
-await writeRunSummary(runId, { summary, analysis, backlogFile });
+await writeRunSummary(runId, { summary, analysis });
+await writeRunStatus(root, runId);
 
-  console.log(`Harness run 已准备好：${runId}`);
-  console.log(`- profile: ${analysis.workflowProfile}`);
-  console.log(`- run_type: ${analysis.runType}`);
-  console.log(`- complexity: ${analysis.complexityScore}/5 (${analysis.complexityLevel})`);
+console.log(`CrewUp run prepared: ${runId}`);
+console.log(`- profile: ${analysis.workflowProfile}`);
+console.log(`- run_type: ${analysis.runType}`);
+console.log(`- complexity: ${analysis.complexityScore}/5 (${analysis.complexityLevel})`);
 console.log(`- agents: ${agents || "(none)"}`);
+console.log(`- status: .harness/runs/${runId}/RUN_STATUS.md`);
 const agentEnvironment = await readAgentEnvironment(root);
 if (isNativeAgentEnvironment(agentEnvironment)) {
-  console.log("下一步：主 agent 读取 native-subagent-plan.json，并按计划启动原生子 agent。");
+  console.log("Next: read native-subagent-plan.json and start only currently runnable native subagents.");
 } else {
-  console.log("下一步：外部 agent 读取 agent-bridge/*.handoff.md，完成后写回对应 *.result.json。");
-}
-
-function runJson(script, scriptArgs) {
-  const output = runText(script, scriptArgs);
-  try {
-    return JSON.parse(output);
-  } catch (error) {
-    console.error(output);
-    throw error;
-  }
+  console.log("Next: external agent reads agent-bridge/*.handoff.md and writes back *.result.json.");
 }
 
 function runText(script, scriptArgs) {
@@ -132,32 +101,6 @@ function runText(script, scriptArgs) {
   return result.stdout.trim();
 }
 
-async function ensureReadyBacklog(relPath) {
-  const normalized = relPath.replaceAll("\\", "/");
-  if (normalized.includes("/ready/")) return normalized.split("/ready/").at(-1);
-  const source = path.join(root, normalized);
-  const target = path.join(root, ".harness", "backlog", "ready", path.basename(normalized));
-  if (!existsSync(source)) {
-    console.error(`无法找到 backlog 文件：${normalized}`);
-    process.exit(1);
-  }
-  const content = await readFile(source, "utf8");
-  await mkdir(path.dirname(target), { recursive: true });
-  await writeFile(target, content.replace(/- queue: .+/, "- queue: ready"), "utf8");
-  summary.push(`ready: ${path.relative(root, target).replaceAll("\\", "/")}`);
-  return path.basename(target);
-}
-
-function extractRunId(output) {
-  const match = /Created run:\s+\.harness[\\/]runs[\\/](.+)$/m.exec(output);
-  if (!match) {
-    console.error(output);
-    console.error("无法从 harness:new-run 输出中识别 runId。");
-    process.exit(1);
-  }
-  return match[1].trim();
-}
-
 async function agentsFromTasks(currentRunId) {
   const tasksDir = path.join(root, ".harness", "runs", currentRunId, "tasks");
   const entries = await readdir(tasksDir, { withFileTypes: true }).catch(() => []);
@@ -169,32 +112,187 @@ async function agentsFromTasks(currentRunId) {
 }
 
 async function writeRunSummary(currentRunId, data) {
-  const target = currentRunId
-    ? path.join(root, ".harness", "runs", currentRunId, "logs", "harness-run.md")
-    : path.join(root, ".harness", "reports", "last-harness-run.md");
+  const target = path.join(root, ".harness", "runs", currentRunId, "logs", "harness-run.md");
   await mkdir(path.dirname(target), { recursive: true });
   await writeFile(target, renderSummary(data), "utf8");
 }
 
-function renderSummary({ summary: items, analysis: workload, backlogFile: item }) {
+function renderSummary({ summary: items, analysis: workload }) {
   return [
-    "# Harness Run 入口摘要",
+    "# Harness Run Entry Summary",
     "",
     `- generatedAt: ${new Date().toISOString()}`,
-    `- backlog: ${item ?? "无"}`,
+    "- source: direct_run",
     `- workflow_profile: ${workload.workflowProfile}`,
     `- run_type: ${workload.runType}`,
     `- complexity: ${workload.complexityScore}/5 (${workload.complexityLevel})`,
     "",
-    "## 步骤",
+    "## Steps",
     "",
     ...items.map((entry) => `- ${entry}`),
     "",
-    "## 分析",
+    "## Analysis",
     "",
     ...workload.reasons.map((entry) => `- ${entry}`),
     ""
   ].join("\n");
+}
+
+async function createDirectRun(requestText, workload, { fromRunId: sourceRunId = null } = {}) {
+  const today = new Date().toISOString().slice(0, 10);
+  const sequence = await nextRunSequence(today);
+  const slug = semanticSlugFromText(requestText, "crewup-run");
+  const runId = `${today}-${sequence}-${slug}`;
+  const runDir = path.join(root, ".harness", "runs", runId);
+  if (existsSync(runDir)) {
+    console.error(`Run already exists: ${path.relative(root, runDir)}`);
+    process.exit(1);
+  }
+
+  await mkdir(path.join(runDir, "artifacts"), { recursive: true });
+  await mkdir(path.join(runDir, "logs"), { recursive: true });
+  const input = sourceRunId ? await renderContinuationInput(sourceRunId, requestText) : `${requestText.trim()}\n`;
+  await writeFile(path.join(runDir, "input.md"), input, "utf8");
+  await writeFile(path.join(runDir, "artifacts", ".gitkeep"), "", "utf8");
+
+  const now = new Date().toISOString();
+  const git = createRunBranch(runId, slug);
+  const state = {
+    runId,
+    source: sourceRunId ? "continue_run" : "direct_run",
+    sourceRunId,
+    stage: "requirements_plan",
+    status: "active",
+    outcome: "none",
+    archived: false,
+    workflowProfile: workload.workflowProfile,
+    runType: workload.runType,
+    primaryLanguage: workload.primaryLanguage,
+    owners: ["requirements-plan"],
+    createdAt: now,
+    updatedAt: now,
+    confirmations: {},
+    transitions: [
+      {
+        from: "intake",
+        to: "requirements_plan",
+        at: now,
+        reason: "direct_run_created"
+      }
+    ],
+    git
+  };
+  await writeRunState(root, runId, state);
+  await writeFile(path.join(runDir, "logs", "created.md"), renderCreatedLog({ runId, requestText, now, git, sourceRunId }), "utf8");
+  return runId;
+}
+
+async function renderContinuationInput(sourceRunId, requestText) {
+  const sourceDir = path.join(root, ".harness", "runs", sourceRunId);
+  if (!existsSync(sourceDir)) {
+    console.error(`Source run not found: ${sourceRunId}`);
+    process.exit(1);
+  }
+  const status = await readOptional(path.join(sourceDir, "RUN_STATUS.md"));
+  const summary = await readOptional(path.join(sourceDir, "RUN_SUMMARY.md"));
+  const requirement = await readOptional(path.join(sourceDir, "artifacts", "requirement.md"));
+  const architecture = await readOptional(path.join(sourceDir, "artifacts", "architecture.md"));
+  const implementationPlan = await readOptional(path.join(sourceDir, "artifacts", "implementation-plan.md"));
+  return [
+    `# Continuation Request From ${sourceRunId}`,
+    "",
+    "## New Request",
+    "",
+    requestText.trim(),
+    "",
+    "## Source Run Status",
+    "",
+    status || "No RUN_STATUS.md found.",
+    "",
+    "## Source Run Summary",
+    "",
+    summary || "No RUN_SUMMARY.md found.",
+    "",
+    "## Reusable Requirement",
+    "",
+    firstChars(requirement, 12000) || "No requirement.md found.",
+    "",
+    "## Reusable Architecture",
+    "",
+    firstChars(architecture, 12000) || "No architecture.md found.",
+    "",
+    "## Reusable Implementation Plan",
+    "",
+    firstChars(implementationPlan, 12000) || "No implementation-plan.md found.",
+    ""
+  ].join("\n");
+}
+
+async function readOptional(target) {
+  if (!existsSync(target)) return "";
+  return await readFile(target, "utf8").catch(() => "");
+}
+
+function firstChars(value, max) {
+  const text = String(value ?? "").trim();
+  return text.length > max ? `${text.slice(0, max)}\n\n...truncated...` : text;
+}
+
+function renderCreatedLog({ runId, requestText, now, git, sourceRunId }) {
+  return [
+    "# Run Created",
+    "",
+    `- runId: ${runId}`,
+    `- source: ${sourceRunId ? "continue_run" : "direct_run"}`,
+    `- sourceRunId: ${sourceRunId ?? "(none)"}`,
+    `- createdAt: ${now}`,
+    `- branch: ${git.branch ?? "(none)"}`,
+    `- branchCreated: ${git.createdByHarness ? "yes" : "no"}`,
+    `- branchReason: ${git.reason || "none"}`,
+    "",
+    "## Original Request",
+    "",
+    requestText.trim(),
+    ""
+  ].join("\n");
+}
+
+async function nextRunSequence(today) {
+  const runsRoot = path.join(root, ".harness", "runs");
+  const entries = await readdir(runsRoot, { withFileTypes: true }).catch(() => []);
+  const numbers = entries
+    .filter((entry) => entry.isDirectory() && entry.name.startsWith(`${today}-`))
+    .map((entry) => Number(new RegExp(`^${today}-(\\d{3})-`).exec(entry.name)?.[1] ?? 0))
+    .filter(Boolean);
+  return String((numbers.length ? Math.max(...numbers) : 0) + 1).padStart(3, "0");
+}
+
+function createRunBranch(runId, slug) {
+  const inside = git(["rev-parse", "--is-inside-work-tree"]);
+  if (inside.status !== 0 || inside.stdout.trim() !== "true") {
+    return { available: false, createdByHarness: false, branch: null, baseBranch: null, baseCommit: null, reason: "not a git worktree" };
+  }
+  const baseBranch = git(["branch", "--show-current"]).stdout.trim() || "HEAD";
+  const baseCommit = git(["rev-parse", "HEAD"]).stdout.trim();
+  const status = git(["status", "--short"]).stdout.trim().split(/\r?\n/).filter(Boolean);
+  const branch = `crewup/${runId}-${slug}`.slice(0, 180);
+  const created = git(["switch", "-c", branch]);
+  return {
+    available: true,
+    createdByHarness: created.status === 0,
+    branch: created.status === 0 ? branch : baseBranch,
+    plannedBranch: branch,
+    baseBranch,
+    baseCommit,
+    dirtyAtStart: status,
+    reason: created.status === 0
+      ? (status.length > 0 ? "branch created with existing uncommitted changes recorded" : "")
+      : "git branch creation failed"
+  };
+}
+
+function git(gitArgs) {
+  return spawnSync("git", gitArgs, { cwd: root, encoding: "utf8" });
 }
 
 function valueOf(prefix) {
@@ -205,4 +303,3 @@ function valueOf(prefix) {
 function positionalText() {
   return args.filter((arg) => !arg.startsWith("--")).join(" ").trim();
 }
-

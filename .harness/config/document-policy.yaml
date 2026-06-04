@@ -31,7 +31,7 @@ document_policy:
       summary: "只有在测试、评审和发布摘要完成后，才允许同步到产品长期文档目录；用户确认完成/归档并推进到 done 时视为同意沉淀。"
 
   rules:
-    - "主 agent 收到正式需求后，必须先创建或选择 backlog/run，规划产物写入 run artifacts。"
+    - "主 agent 收到正式 CrewUp 需求后，必须先创建或选择 run，规划产物写入 run artifacts。"
     - "PM、Requirements、Architect 不得把需求规划、设计方案或实施路线图直接写入产品长期文档目录。"
     - "Release Agent 默认只写 artifacts/release-summary.md；产品文档同步由 main agent 在用户确认完成/归档后通过 done transition 自动执行，也可手动重跑 product-sync。"
     - "产品长期文档目录不是需求规划草稿区；它是确认后的产品沉淀区。"

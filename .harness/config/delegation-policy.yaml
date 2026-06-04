@@ -13,9 +13,9 @@ delegation_policy:
   must_delegate:
     - trigger: "new_feature"
       agents:
-        - "pm"
+        - "requirements-plan"
         - "requirements"
-      description: "用户提出新功能、正式迭代或 MVP 目标时，先交给 PM/Requirements 整理范围。"
+      description: "用户提出新功能、正式迭代或 MVP 目标时，先由 Requirements Plan 澄清，再由 Requirements 生成正式需求。"
     - trigger: "requirements_or_acceptance"
       agents:
         - "requirements"
@@ -57,7 +57,7 @@ delegation_policy:
     - "处理子 agent 之间的冲突和阻塞。"
     - "在需求和方案阶段结束后请求用户审核，确认后再进入开发。"
     - "运行 verify、gate-check、dashboard；只有 release 完成且用户确认沉淀后才运行 product-sync。"
-    - "用中文向用户汇总结果和待确认事项。"
+    - "使用用户的主要语言向用户汇总结果和待确认事项。"
     - "控制上下文体量：只给子 agent 必要 artifact、相关文件和明确任务，不转发无关长日志。"
 
   escalation_rules:

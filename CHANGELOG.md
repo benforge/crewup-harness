@@ -1,6 +1,22 @@
 # Changelog
 
-## Unreleased
+## 0.3.9
+
+- Replaced the default backlog-first intake flow with a Run-only lifecycle: `crewup run` now directly creates a formal run as the core work unit.
+- Added run lifecycle status files and commands: `RUN_STATUS.md`, `RUN_SUMMARY.md`, `crewup status`, `crewup runs`, `crewup archive`, `crewup cancel`, and `crewup continue`.
+- Clarified that archive is evidence organization, not success; runs can archive `success`, `partial`, `blocked`, `canceled`, or `failed` outcomes.
+- Added run branch metadata and best-effort run branch creation; dirty worktrees now create the run branch when Git permits it and record pre-existing changes in `git.dirtyAtStart`.
+- Removed default backlog scripts and intake policy from the core workflow.
+- Changed formal CrewUp runs to always start from requirements planning: `lite` now means shorter artifacts/context, not skipping `requirements-plan`, `requirements`, or `architect`.
+- Blocked implementation agents when `artifacts/implementation-plan.md` is missing; development agents now require an architect-owned implementation plan that assigns exact agent ids.
+- Removed `pm` from the default requirements chain so `requirements-plan -> requirements -> architect` stays sequential; `pm` is optional coordination only and cannot own `requirement.md`.
+- Added a dedicated `requirements-plan` agent contract for interactive clarification, structured `clarificationQuestions`, and `needs_input` handoff before final requirements.
+- Tightened clarification UX: requirements planning now asks at most 3 concise questions per round, Codex should prefer native Plan-mode choice UI when available, and non-Codex hosts use `crewup clarify --interactive` instead of long chat questionnaires.
+- Added a Markdown `Clarification Card` section to `requirement-plan.md` so users can review confirmed facts, decisions, non-goals, and acceptance previews in a more scannable way before answering.
+- Updated requirements clarification language rules so user-facing card content, questions, option labels, summaries, blockers, tests, and handoff notes follow the user's primary language while machine-checked headings and JSON fields stay English.
+- Localized `RUN_STATUS.md` for Chinese user requests while keeping machine status values, artifact headings, paths, and JSON contracts in English.
+- Added bilingual runbooks explaining healthy runs, completion criteria, blocked/partial/canceled closeout, and continuation runs.
+- Updated workflow docs and pack-install tests so small formal runs still begin with `requirements-plan` and implementation waits for architecture assignment.
 
 ## 0.3.8
 

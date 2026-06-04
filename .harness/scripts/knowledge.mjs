@@ -9,7 +9,6 @@ const root = process.cwd();
 const knowledgeDir = path.join(root, ".harness", "knowledge");
 const reportsDir = path.join(root, ".harness", "reports");
 const runsRoot = path.join(root, ".harness", "runs");
-const backlogRoot = path.join(root, ".harness", "backlog");
 
 await mkdir(knowledgeDir, { recursive: true });
 await mkdir(reportsDir, { recursive: true });
@@ -114,33 +113,11 @@ function buildModuleIndex({ scopes, packages, overlay }) {
 }
 
 async function collectBoard() {
-  const queues = ["new", "ready", "in-progress", "review", "done"];
-  const backlog = {};
-  for (const queue of queues) {
-    backlog[queue] = await listBacklog(queue);
-  }
   const runs = await listRuns();
   return {
     generatedAt: new Date().toISOString(),
-    backlog,
     runs
   };
-}
-
-async function listBacklog(queue) {
-  const dir = path.join(backlogRoot, queue);
-  const entries = await readdir(dir, { withFileTypes: true }).catch(() => []);
-  const files = entries.filter((entry) => entry.isFile() && entry.name.endsWith(".md")).map((entry) => entry.name).sort();
-  const items = [];
-  for (const file of files) {
-    const content = await readFile(path.join(dir, file), "utf8");
-    items.push({
-      file,
-      title: titleFromMarkdown(content) ?? file.replace(/\.md$/, ""),
-      path: `.harness/backlog/${queue}/${file}`
-    });
-  }
-  return items;
 }
 
 async function listRuns() {
@@ -269,35 +246,24 @@ function renderDevMap(index) {
 
 function renderTaskBoard(board) {
   const lines = [
-    "# Harness 任务看板",
+    "# Harness Run 看板",
     "",
-    "> 本文件由 `npm run harness:knowledge` 自动生成，是给 PM、requirements、reviewer 和 release agent 使用的轻量项目记忆。",
+    "> 本文件由 `npm run harness:knowledge` 自动生成，是给 PM、requirements、reviewer 和 release agent 使用的轻量 run 记忆。",
     "",
     `- 生成时间：${board.generatedAt}`,
     "",
-    "## 需求池（Backlog）",
-    ""
+    "## 运行记录（Runs）",
+    "",
+    "| run | 状态 | 阶段 | 原生子 agent |",
+    "| --- | --- | --- | --- |"
   ];
-
-  for (const [queue, items] of Object.entries(board.backlog)) {
-    lines.push(`### ${queueLabel(queue)}`, "");
-    if (!items.length) {
-      lines.push("- 暂无", "");
-      continue;
-    }
-    for (const item of items.slice(0, 20)) lines.push(`- ${item.file}: ${item.title}`);
-    if (items.length > 20) lines.push(`- 另有 ${items.length - 20} 项未展开`);
-    lines.push("");
-  }
-
-  lines.push("## 运行记录（Runs）", "", "| run | 状态 | 阶段 | 原生子 agent |", "| --- | --- | --- | --- |");
   for (const run of board.runs.slice(-25).reverse()) {
     const native = run.native.fallback
       ? `降级原因：${run.native.fallback}`
       : `计划 ${run.native.planned}，运行中 ${run.native.running}，待复查 ${run.native.waitingReview}，已关闭 ${run.native.closed}`;
     lines.push(`| ${run.id} | ${run.status} | ${run.stage} | ${native} |`);
   }
-  lines.push("", "## 看板使用方式", "", "- 创建新 backlog 前先看本看板，避免重复需求。", "- 规划相邻需求前先看最近 runs，理解近期变更。", "- 如果 run 卡在 fallback/running agent 状态，先处理生命周期状态，再启动重叠工作。", "");
+  lines.push("", "## 看板使用方式", "", "- 规划相邻需求前先看最近 runs，理解近期变更。", "- 如果 run 卡在 fallback/running agent 状态，先处理生命周期状态，再启动重叠工作。", "- blocked/partial/canceled/failed run 可以作为历史上下文，但不能默认当作已完成事实。", "");
   return `${lines.join("\n")}\n`;
 }
 
@@ -362,8 +328,6 @@ function renderRefreshReport(index, board) {
     `- 生成时间：${new Date().toISOString()}`,
     `- 包数量：${index.packageCount}`,
     `- scope 数量：${index.scopeCount}`,
-    `- backlog/new：${board.backlog.new.length}`,
-    `- backlog/ready：${board.backlog.ready.length}`,
     `- runs：${board.runs.length}`,
     "",
     "生成文件：",

@@ -6,7 +6,7 @@
 
 - `.harness/config/`, `.harness/agents/`, `.harness/rules/`, `.harness/contracts/`, `.harness/templates/`, and `.harness/scripts/` are reusable workflow core.
 - `.harness/project/` is generated target-project adaptation.
-- `.harness/runs/`, `.harness/reports/`, `.harness/knowledge/`, `.harness/dashboard/`, and `.harness/backlog/` are runtime/state directories.
+- `.harness/runs/`, `.harness/reports/`, `.harness/knowledge/`, and `.harness/dashboard/` are runtime/state directories.
 - Project source code, product docs, application directories, package directories, and historical run output are not part of the reusable template.
 
 ## Initialize In A Target Project

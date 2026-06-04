@@ -103,13 +103,15 @@ When the user explicitly asks for CrewUp in chat, the main agent should run `npx
 After you have a runId:
 
 ```bash
+npx crewup status <run-id>
 npx crewup next-agent <run-id>
 npx crewup audit <run-id>
 npx crewup gate-check <run-id>
 npx crewup report <run-id>
 ```
 
-- `next-agent` shows which subagent is actually runnable now
+- `status` reads `.harness/runs/<run-id>/RUN_STATUS.md` and shows the current status, stage, owner, next command, blockers, and reusable artifacts
+- `next-agent` shows which subagent is actually runnable now; a formal run should initially expose only `requirements-plan`
 - `audit` checks orchestration stability: premature starts, main-agent overreach, missing owner provenance, context pressure, and repair loops
 - `gate-check` decides whether the current stage passes the quality gate
 - `report` summarizes agent results, artifacts, context/token budgets, repair lineage, and archive status
@@ -128,6 +130,8 @@ requirements-plan
 
 Implementation agents are candidates at run creation time. The actual implementation dispatch should be decided by the architect-owned `artifacts/implementation-plan.md`.
 
+`lite` only means shorter requirements/architecture artifacts and smaller context budgets. It does not skip `requirements-plan -> requirements -> architect`. When `implementation-plan.md` is missing, implementation agents must remain blocked/skipped.
+
 ## Tool Fallback
 
 If Context7, an MCP server, a plugin, or another optional tool is unavailable, record it in the run instead of only mentioning it in chat:
@@ -140,10 +144,49 @@ This is evidence only. It does not authorize the main agent to take over work ow
 
 ## Finish And Archive
 
+Every formal task closes as a run. Common statuses:
+
+| Status | Meaning |
+| --- | --- |
+| `active` | Work is in progress |
+| `waiting_user` | Waiting for user confirmation or selection |
+| `blocked` | Blocked, with evidence preserved |
+| `partial` | Partially complete and reusable, but not done |
+| `done` | Fully complete |
+| `canceled` | Canceled by the user |
+| `failed` | Execution failed |
+
+Successful completion:
+
 ```bash
 npx crewup report <run-id>
 npx crewup finish <run-id>
 ```
+
+If a run is blocked, partially complete, or canceled, do not leave it hanging:
+
+```bash
+npx crewup archive <run-id> --outcome=blocked --reason="local database is unavailable"
+npx crewup archive <run-id> --outcome=partial --reason="frontend done, backend blocked"
+npx crewup cancel <run-id> --reason="scope changed"
+```
+
+Archive creates or refreshes:
+
+- `.harness/runs/<run-id>/RUN_STATUS.md`
+- `.harness/runs/<run-id>/RUN_SUMMARY.md`
+- `.harness/runs/<run-id>/logs/archive/archive-summary.md`
+- `.harness/reports/<run-id>.md`
+
+Archive does not mean success. Only `finish` or `archive --outcome=success` represents a successful outcome.
+
+To continue from a blocked/partial/canceled run:
+
+```bash
+npx crewup continue <run-id> "Continue from the previous blocker and reuse the existing requirement and architecture."
+```
+
+This creates a new run and includes the source run's `RUN_STATUS.md`, `RUN_SUMMARY.md`, requirements, and architecture artifacts in the new input context.
 
 If the run started a preview service:
 
@@ -171,7 +214,7 @@ Not in a formal CrewUp run. The main agent orchestrates, registers, checks, and 
 
 ### What about Chinese encoding?
 
-Machine-checked contracts use English headings, JSON fields, status values, and commands to reduce false gate failures. Human-facing summaries, handoffs, and blockers can be Chinese by default.
+Machine-checked contracts use English headings, JSON fields, status values, and commands to reduce false gate failures. Human-facing summaries, handoffs, and blockers should match the user's primary language.
 
 Run:
 

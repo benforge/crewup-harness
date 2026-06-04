@@ -17,10 +17,11 @@ const scriptByCommand = {
   check: "check.mjs",
   run: "run.mjs",
   finish: "finish.mjs",
+  archive: "archive.mjs",
+  cancel: "cancel.mjs",
+  continue: "continue-run.mjs",
   status: "status.mjs",
-  intake: "intake.mjs",
-  "backlog-item": "backlog-item.mjs",
-  "new-run": "new-run.mjs",
+  runs: "status.mjs",
   "prepare-run": "prepare-run.mjs",
   next: "next.mjs",
   report: "report.mjs",
@@ -30,6 +31,7 @@ const scriptByCommand = {
   "context-pack": "context-pack.mjs",
   "agent-plan": "native-plan.mjs",
   "next-agent": "next-agent.mjs",
+  clarify: "clarify.mjs",
   "native-plan": "native-plan.mjs",
   "native-state": "native-state.mjs",
   "repair-artifacts": "repair-artifacts.mjs",
@@ -162,7 +164,6 @@ function shouldSkipInstallPath(rel) {
   if (normalized === "reports/knowledge-refresh.md") return true;
   if (normalized === "dashboard/index.html") return true;
   if (normalized.startsWith("runs/") && normalized !== "runs/.gitkeep") return true;
-  if (normalized.startsWith("backlog/") && normalized.endsWith(".md")) return true;
   if (normalized.startsWith("reports/") && normalized !== "reports/.gitkeep") return true;
   if (normalized.startsWith("dashboard/") && normalized !== "dashboard/.gitkeep") return true;
   if (normalized.startsWith("knowledge/") && !["knowledge/.gitkeep", "knowledge/README.md", "knowledge/lessons-learned.md"].includes(normalized)) return true;
@@ -177,7 +178,6 @@ function shouldPreserveExistingStatePath(rel) {
     "reports/",
     "dashboard/",
     "knowledge/",
-    "backlog/",
     "project/"
   ].some((prefix) => normalized === prefix.slice(0, -1) || normalized.startsWith(prefix));
 }
@@ -215,7 +215,7 @@ node_modules/
 
 async function ensureGitkeepForRuntimeDir(rel, targetPath) {
   const normalized = rel.replaceAll("\\", "/");
-  const runtimeDirs = new Set(["runs", "reports", "dashboard", "knowledge", "backlog/new", "backlog/ready", "backlog/in-progress", "backlog/review", "backlog/done"]);
+  const runtimeDirs = new Set(["runs", "reports", "dashboard", "knowledge"]);
   if (!runtimeDirs.has(normalized)) return;
   const marker = path.join(targetPath, ".gitkeep");
   if (!existsSync(marker)) await writeFile(marker, "", "utf8");
@@ -253,12 +253,18 @@ Usage:
   crewup inspect --no-ai                 # optional for existing/complex repositories
   crewup check
   crewup run "use CrewUp to ..."
+  crewup status [run-id]
+  crewup runs
   crewup next-agent <run-id>
+  crewup clarify <run-id>
   crewup native-state <run-id> diagnose
   crewup tool-fallback <run-id> --tool <name> --reason <reason> --fallback <method>
   crewup audit <run-id>
   crewup gate-check <run-id>
   crewup report <run-id>
+  crewup archive <run-id> --outcome=<success|partial|blocked|canceled|failed>
+  crewup cancel <run-id> --reason <reason>
+  crewup continue <run-id> "continue from the previous run"
   crewup finish <run-id>
 
 Core workflow:
@@ -267,12 +273,18 @@ Core workflow:
   inspect          Optional: generate project snapshot and adaptation plan for existing or complex repositories
   init             Generate .harness/project/ adaptation layer; prompts for Codex/Claude/Cursor/Trae/Manual by default
   check            Validate harness config and core scripts
-  run              Create and prepare a formal run
+  run              Create and prepare a formal run; formal runs are the core CrewUp work unit
+  status           Show one run status card, or list runs when no run id is provided
+  runs             Alias for status list
   next-agent       Show currently runnable subagents; implementation agents are gated by architecture plan assignments
+  clarify          Render requirements-plan clarification questions for user confirmation
   native-state     Register/diagnose native subagent handles and results
   audit            Audit dispatch order, owner boundaries, repair loops, and context pressure
   gate-check       Run quality gates and ownership checks
   report           Generate a run summary report
+  archive          Archive any run outcome; archive means organized evidence, not necessarily success
+  cancel           Mark a run canceled and archive that outcome without discarding files
+  continue         Create a new run using a previous run as historical context
   finish           Move a run to done and auto-commit by archive policy
 
 Subagent planning:
@@ -282,7 +294,6 @@ Subagent planning:
   repair-plan      Convert tester/reviewer findings into owner repair tasks
 
 Runtime support:
-  status           Show current run status
   next             Suggest the next step for a run
   dashboard        Generate or refresh .harness/dashboard/index.html
   dev-service      Start, stop, or inspect a run-scoped preview/dev service

@@ -45,7 +45,8 @@ export function analyzeWorkload(inputText, { requestedProfile = "auto" } = {}) {
   const inferredProfile = profileForScore(complexityScore, signals);
   const workflowProfile = chooseRequestedProfile(requestedProfile, inferredProfile, signals);
   const runType = runTypeForProfile(workflowProfile, signals);
-  const needsRequirementsPlan = signals.ambiguous || signals.deepPlanning || signals.discovery || signals.planOnly || workflowProfile !== "lite";
+  const needsRequirementsPlan = true;
+  const primaryLanguage = detectPrimaryLanguage(text);
 
   return {
     workflowProfile,
@@ -54,6 +55,7 @@ export function analyzeWorkload(inputText, { requestedProfile = "auto" } = {}) {
     requestedProfile,
     complexityScore,
     complexityLevel: complexityLevel(complexityScore),
+    primaryLanguage,
     needsRequirementsPlan,
     signals,
     reasons: reasonsFor(signals, complexityScore, workflowProfile)
@@ -74,6 +76,7 @@ export function renderWorkloadAnalysisMarkdown(analysis) {
     `- requested_profile: ${analysis.requestedProfile}`,
     `- complexity_score: ${analysis.complexityScore}`,
     `- complexity_level: ${analysis.complexityLevel}`,
+    `- primary_language: ${analysis.primaryLanguage ?? "unknown"}`,
     `- needs_requirements_plan: ${analysis.needsRequirementsPlan ? "true" : "false"}`,
     "",
     "## Signals",
@@ -92,6 +95,14 @@ export function renderWorkloadAnalysisMarkdown(analysis) {
     ...analysis.reasons.map((item) => `- ${item}`),
     ""
   ].join("\n");
+}
+
+export function detectPrimaryLanguage(text) {
+  const value = String(text ?? "");
+  const cjk = (value.match(/[\u3400-\u9fff]/g) ?? []).length;
+  const latin = (value.match(/[A-Za-z]/g) ?? []).length;
+  if (cjk >= 4 && cjk >= latin / 2) return "zh-CN";
+  return "en";
 }
 
 function chooseRequestedProfile(requested, inferred, signals) {
@@ -161,7 +172,7 @@ function reasonsFor(signals, score, workflowProfile) {
   if (signals.planOnly) reasons.push("planning-only/no-code signal detected; do not enter implementation.");
   if (signals.deepPlanning) reasons.push("architecture/system/module-boundary signal detected; use formal planning artifacts.");
   if (signals.ambiguous) reasons.push("ambiguous requirement signal detected; requirements-plan should clarify scope first.");
-  if (signals.lite && !signals.highRisk && !signals.deepPlanning && !signals.strictWorkflow) reasons.push("small-change signal detected; lite is allowed only when strict workflow is not requested.");
+  if (signals.lite && !signals.highRisk && !signals.deepPlanning && !signals.strictWorkflow) reasons.push("small-change signal detected; use shorter artifacts, but keep formal requirements and architecture gates.");
   if (signals.multiSentence) reasons.push("input contains multiple goals; keep requirements traceability.");
   if (signals.longInput) reasons.push("input is long; use artifacts and context packs instead of pasting full context.");
   return reasons;

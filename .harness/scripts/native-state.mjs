@@ -3,6 +3,7 @@ import { existsSync, unlinkSync } from "node:fs";
 import path from "node:path";
 import { implementationPlanSkipReason, isImplementationAgentUnassigned } from "./lib/implementation-plan-scope.mjs";
 import { writeOwnerAgentIds } from "./lib/agent-roles.mjs";
+import { readRunState, writeRunState, writeRunStatus } from "./lib/run-lifecycle.mjs";
 
 const root = process.cwd();
 const [runId, command, agentId, value, ...rest] = process.argv.slice(2);
@@ -83,6 +84,7 @@ switch (command) {
         console.error(`Cannot capture result for ${agentId}: JSON status (${parsedJson.status}) does not match mark-result status (${value}).`);
         process.exit(1);
       }
+      enforceRequirementsPlanConfirmation({ status: value, resultJsonPath, parsedJson });
       if (
         agent.result_captured_at
         && agent.result_status === value
@@ -106,6 +108,7 @@ switch (command) {
       });
     }
     await save(state);
+    await syncRunLifecycleFromNativeResult(agentId, value);
     break;
   case "mark-ready-to-close":
     requireAgent(agentId);
@@ -155,6 +158,44 @@ switch (command) {
     console.error(`Unknown command: ${command}`);
     usage();
     process.exit(1);
+}
+
+function enforceRequirementsPlanConfirmation({ status, resultJsonPath, parsedJson }) {
+  if (agentId !== "requirements-plan") return;
+  const jsonExists = resultJsonPath && existsSync(resolveWorkspacePath(resultJsonPath));
+  if (!jsonExists) {
+    console.error("Cannot capture requirements-plan result: result JSON is required for clarification gating.");
+    console.error(`Expected: ${resultJsonPath}`);
+    process.exit(1);
+  }
+
+  if (status === "needs_input") {
+    const questions = Array.isArray(parsedJson.clarificationQuestions) ? parsedJson.clarificationQuestions : [];
+    if (questions.length === 0) {
+      console.error("Cannot capture requirements-plan needs_input: clarificationQuestions must contain at least one user-facing question.");
+      console.error("The requirements-plan agent must ask the user instead of self-answering.");
+      process.exit(1);
+    }
+    if (questions.length > 3) {
+      console.error("Cannot capture requirements-plan needs_input: ask at most 3 clarification questions per round.");
+      console.error("Split large questionnaires into multiple short rounds so Codex can use native choice UI when available.");
+      process.exit(1);
+    }
+    const oversized = questions.find((question) => Array.isArray(question.options) && question.options.length > 3);
+    if (oversized) {
+      console.error(`Cannot capture requirements-plan needs_input: ${oversized.id ?? "a question"} has more than 3 options.`);
+      console.error("Keep each clarification question concise enough for native choice UI, or move details into requirement-plan.md.");
+      process.exit(1);
+    }
+    return;
+  }
+
+  if (status === "completed" && parsedJson.userConfirmed !== true) {
+    console.error("Cannot complete requirements-plan before user confirmation.");
+    console.error("Ask the user to answer or accept the clarification questions, then resume requirements-plan.");
+    console.error("The resumed result JSON must set userConfirmed: true and record confirmationSource.");
+    process.exit(1);
+  }
 }
 
 function printStatus(current, { includeRecommendations = true } = {}) {
@@ -454,6 +495,37 @@ async function save(current) {
   await writeFile(statePath, `${JSON.stringify(current, null, 2)}\n`, "utf8");
   await releaseLock.release();
   printStatus(current);
+}
+
+async function syncRunLifecycleFromNativeResult(currentAgentId, resultStatus) {
+  const runState = await readRunState(root, runId);
+  if (!runState) return;
+  if (resultStatus === "needs_input") {
+    await writeRunState(root, runId, {
+      ...runState,
+      status: "waiting_user",
+      health: { level: "ok", reason: "" },
+      nextAction: {
+        type: "user",
+        description: `${currentAgentId} needs user input.`,
+        command: currentAgentId === "requirements-plan" ? `npx crewup clarify ${runId} --interactive` : ""
+      }
+    });
+    return;
+  }
+  if (runState.status === "waiting_user" && resultStatus === "completed") {
+    await writeRunState(root, runId, {
+      ...runState,
+      status: "active",
+      nextAction: {
+        type: "agent",
+        description: "Run the next allowed CrewUp agent or transition gate.",
+        command: `npx crewup next-agent ${runId}`
+      }
+    });
+    return;
+  }
+  await writeRunStatus(root, runId, runState);
 }
 
 function usage() {

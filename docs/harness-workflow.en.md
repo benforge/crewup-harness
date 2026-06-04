@@ -25,9 +25,9 @@ If native tools or model access are unavailable, record fallback and stop formal
 
 ## Language And Contracts
 
-- Human-facing coordination is Chinese by default: status updates, blockers, handoffs, subagent summaries, and final user-facing explanations.
+- Human-facing coordination follows the user's primary language: status updates, blockers, handoffs, subagent summaries, and final user-facing explanations.
 - Harness-owned contracts stay English: artifact headings, JSON fields, file paths, commands, status values, and schema-owned labels.
-- This split keeps the user experience Chinese while avoiding encoding drift and false gate failures in machine-checked artifacts.
+- This split keeps the user experience natural while avoiding encoding drift and false gate failures in machine-checked artifacts.
 
 ## Operating Model
 
@@ -44,9 +44,66 @@ intake -> requirements_plan -> requirements_confirm -> plan
   -> implement -> verify -> review -> release -> done
 ```
 
-Explicit strict/full-loop requests stay on the full workflow. The harness does not reduce cost by skipping roles; it reduces repeated work through clearer task contracts, narrower generated prompts, and stricter result schemas.
+Explicit strict/full-loop requests stay on the full workflow. The harness does not reduce cost by skipping roles; it reduces repeated work through clearer task contracts, narrower generated prompts, and stricter result schemas. `lite` means shorter artifacts and smaller context budgets; it does not mean skipping requirements confirmation, architecture planning, or owner assignment.
 
 Negation-aware routing only removes false-positive scope. If the user says `no backend/database/auth/routing` or `不需要 backend、database、auth、routing`, CrewUp should not spawn backend/database owner agents just to confirm they are irrelevant. This does not weaken the strict workflow for the remaining real scope.
+
+## Run Lifecycle
+
+CrewUp's only default work unit is a `Run`. Backlog is not part of the core workflow.
+
+Each run has:
+
+- `.harness/runs/<run-id>/state.json`
+- `.harness/runs/<run-id>/RUN_STATUS.md`
+- `.harness/runs/<run-id>/RUN_SUMMARY.md` after archive
+- `.harness/reports/<run-id>.md` after report/archive
+
+Run statuses:
+
+| Status | Meaning |
+| --- | --- |
+| `active` | Work is in progress |
+| `waiting_user` | Waiting for user confirmation |
+| `blocked` | Blocked but evidence is preserved |
+| `partial` | Partially useful but not done |
+| `done` | Fully completed |
+| `canceled` | User canceled |
+| `failed` | Execution failed |
+
+Archive does not mean success. `archive` only organizes evidence and reports for `success`, `partial`, `blocked`, `canceled`, or `failed` outcomes.
+
+```bash
+npx crewup status
+npx crewup status <run-id>
+npx crewup archive <run-id> --outcome=blocked --reason="..."
+npx crewup cancel <run-id> --reason="..."
+npx crewup continue <run-id> "continue from the previous blocker"
+```
+
+A formal run has a stable front door:
+
+```text
+requirements-plan first, always
+```
+
+Implementation agents must not start just because the request looks small.
+
+`requirements-plan` owns interactive clarification. It should first write a Markdown clarification card in `requirement-plan.md`, using compact tables and short lists for confirmed facts, needed decisions, non-goals, and acceptance preview. If key decisions are missing, it returns `needs_input` with structured `clarificationQuestions`. The main agent is only the interaction transport: it should guide the user to review the card and use `crewup clarify --interactive` instead of pasting a long questionnaire into chat. Compact text choices are allowed only when the user explicitly asks to answer in chat. The main agent must not silently choose defaults or write requirement artifacts.
+
+Use this command to render the questions:
+
+```bash
+npx crewup clarify <run-id>
+```
+
+For a real terminal, use keyboard interaction:
+
+```bash
+npx crewup clarify <run-id> --interactive
+```
+
+This writes `.harness/runs/<run-id>/logs/clarifications/answers.json` and `answers.md`. Hosts with native Plan-mode choice UI, such as Codex when available, can map `clarificationQuestions` directly to that UI. Cursor, Claude, Trae, manual, and bridge environments use the same JSON contract through `clarify --interactive`. Text-choice chat fallback should be the last resort, not the default Codex experience.
 
 ## Owner Artifacts
 
@@ -85,6 +142,8 @@ requirements-plan -> requirements -> architect -> implementation agents -> teste
 ```
 
 The main agent may prepare tasks and native plans ahead of time, but it must not start downstream agents before their prerequisite results are captured.
+
+Implementation agents require `artifacts/implementation-plan.md` to exist and assign their exact agent id. A missing implementation plan is a blocker, not permission to start coding.
 
 `gate-check` also audits owner artifacts. If `artifacts/requirement-plan.md`, `artifacts/requirement.md`, `artifacts/architecture.md`, or other owner artifacts appear before the owner agent has completed and reported them through `artifactUpdates`, the gate fails. This keeps the main agent in an orchestration role instead of letting it fill formal artifacts directly.
 

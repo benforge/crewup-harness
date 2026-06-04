@@ -32,12 +32,12 @@ export function implementationPlanAssignsAgent(content, agentId) {
 export function isImplementationAgentUnassigned(agentId, { root = process.cwd(), runId = "" } = {}) {
   if (!implementationAgentIds.has(agentId)) return false;
   const plan = readImplementationPlan(root, runId);
-  if (plan === null) return false;
+  if (plan === null) return true;
   return !implementationPlanAssignsAgent(plan, agentId);
 }
 
 export function implementationPlanSkipReason(agentId) {
-  return `${agentId} is not assigned by artifacts/implementation-plan.md`;
+  return `artifacts/implementation-plan.md is missing or does not assign ${agentId}`;
 }
 
 function escapeRegExp(value) {

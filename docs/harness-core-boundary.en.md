@@ -47,7 +47,7 @@ After `crewup init`, target projects typically keep:
 
 ## Reset Rule
 
-`runs/`, `reports/`, `dashboard/`, `backlog/`, `project/`, and `knowledge/` should not be deleted during normal upgrades.
+`runs/`, `reports/`, `dashboard/`, `project/`, and `knowledge/` should not be deleted during normal upgrades.
 
-- `crewup install --force` is a safe upgrade: it updates the reusable core while preserving existing runtime state, knowledge, backlog items, and project adaptation.
+- `crewup install --force` is a safe upgrade: it updates the reusable core while preserving existing runtime state, knowledge, and project adaptation.
 - `crewup install --reset` is a clean reinstall: it deletes the old `.harness/` and should be used only when the user explicitly wants to reset.

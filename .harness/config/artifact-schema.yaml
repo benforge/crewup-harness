@@ -4,10 +4,15 @@ artifacts:
     required_headings:
       - "Original Request Summary"
       - "Historical Context"
+      - "Clarification Card"
+      - "Requirement Expansion"
       - "Goals"
       - "Non-Goals"
+      - "Boundary Decisions"
       - "Acceptance Criteria Draft"
       - "Impact Scope Candidates"
+      - "Clarification Questions"
+      - "Selected Clarifications"
       - "Open Questions"
 
   requirement.md:

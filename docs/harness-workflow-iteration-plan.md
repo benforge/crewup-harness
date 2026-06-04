@@ -55,7 +55,7 @@ For `discovery` and `plan_only`:
 - Do not auto-commit without archive policy and finish gates.
 - Do not make planning-only runs create product source files.
 
-## Backlog
+## Historical TODOs
 
 - Add explicit activation policy so installing CrewUp does not make every AI chat enter harness mode.
 - Add harness scope policy for large-project formal work only.

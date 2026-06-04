@@ -25,7 +25,7 @@ CrewUp 可以在没有 API key 的情况下创建 run、任务、context pack、
 
 ## 语言和契约
 
-- 面向用户的状态、阻塞、交接、总结默认用中文。
+- 面向用户的状态、阻塞、交接、总结跟随用户主要语言。
 - Harness 机器契约保持英文：artifact heading、JSON 字段、文件路径、命令、状态值和 schema label。
 - 读取本地中文文件时使用显式 UTF-8，避免 Windows 终端编码导致误判。
 
@@ -36,9 +36,66 @@ intake -> requirements_plan -> requirements_confirm -> plan
   -> implement -> verify -> review -> release -> done
 ```
 
-严格流程不靠跳过角色省 token，而是通过更窄的任务、更清楚的 result schema、更少的重复返工来降低浪费。
+严格流程不靠跳过角色省 token，而是通过更窄的任务、更清楚的 result schema、更少的重复返工来降低浪费。`lite` 只能表示短文档和较低上下文预算，不能表示跳过需求确认、架构计划或 owner 分配。
 
 需求里明确排除的范围只会移除误判候选。例如用户说 `no backend/database/auth/routing`，CrewUp 不应为了确认无关而启动 backend/database agent。但是否需要 backend、database、auth、routing，应该主要由需求和 architect 的 `implementation-plan.md` 决定，而不是由主 agent 主观接管。
+
+## Run Lifecycle
+
+CrewUp 的唯一默认工作单元是 `Run`。不再把 backlog 作为核心流程的一环。
+
+每个 run 都有：
+
+- `.harness/runs/<run-id>/state.json`
+- `.harness/runs/<run-id>/RUN_STATUS.md`
+- `.harness/runs/<run-id>/RUN_SUMMARY.md`（归档后）
+- `.harness/reports/<run-id>.md`（report/归档后）
+
+run 状态包括：
+
+| Status | Meaning |
+| --- | --- |
+| `active` | 正在执行 |
+| `waiting_user` | 等用户确认 |
+| `blocked` | 卡住但可保留现场 |
+| `partial` | 部分完成，可复用但未达 done |
+| `done` | 完整完成 |
+| `canceled` | 用户取消 |
+| `failed` | 执行失败 |
+
+归档不等于成功。`archive` 只是整理这次 run 的证据和报告，可用于 `success`、`partial`、`blocked`、`canceled` 或 `failed`。
+
+```bash
+npx crewup status
+npx crewup status <run-id>
+npx crewup archive <run-id> --outcome=blocked --reason="..."
+npx crewup cancel <run-id> --reason="..."
+npx crewup continue <run-id> "继续处理上次阻塞的问题"
+```
+
+正式 run 的稳定入口是：
+
+```text
+requirements-plan first, always
+```
+
+开发 agent 不能因为需求看起来很小就直接启动。
+
+`requirements-plan` 负责交互式澄清。它应先在 `requirement-plan.md` 里生成一张 Markdown 需求确认卡，用表格和短列表展示已确认事实、待决策项、非目标和验收预览；如果关键决策缺失，再返回 `needs_input` 和结构化 `clarificationQuestions`。主 agent 只负责交互转交：不在聊天窗粘贴长问卷，而是引导用户查看确认卡并使用 `crewup clarify --interactive`。只有用户明确要求在聊天里回答时，才展示紧凑文本选项。主 agent 不替用户静默选择默认项，也不代写需求产物。
+
+可用命令查看这些问题：
+
+```bash
+npx crewup clarify <run-id>
+```
+
+如果用户在真实终端中操作，可以使用键盘交互：
+
+```bash
+npx crewup clarify <run-id> --interactive
+```
+
+该命令会保存 `.harness/runs/<run-id>/logs/clarifications/answers.json` 和 `answers.md`。Codex 等支持原生 Plan mode/选择 UI 的宿主可以直接把 `clarificationQuestions` 映射成 UI；Cursor、Claude、Trae 或 manual/bridge 环境则使用同一份 JSON 契约，通过 `clarify --interactive` 收集答案。文本选项只作为最后 fallback，不作为 Codex 的默认体验。
 
 ## Owner Artifacts
 
@@ -74,7 +131,7 @@ npx crewup native-state <run-id> status
 requirements-plan -> requirements -> architect -> implementation agents -> tester -> reviewer -> release
 ```
 
-`architect` 完成后，implementation candidates 只有被 `artifacts/implementation-plan.md` 用精确 agent id 分配，才能真正启动。`next-agent` 和 `native-state` 会执行这个架构归属规则。
+`architect` 完成后，implementation candidates 只有在 `artifacts/implementation-plan.md` 存在，并且用精确 agent id 分配后，才能真正启动。缺少 `implementation-plan.md` 本身就是阻塞原因。`next-agent` 和 `native-state` 会执行这个架构归属规则。
 
 ## 工具降级日志
 

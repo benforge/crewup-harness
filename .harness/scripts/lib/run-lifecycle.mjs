@@ -1,0 +1,371 @@
+import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import path from "node:path";
+
+export const finalStatuses = new Set(["done", "canceled", "failed"]);
+
+export function normalizeRunState(state = {}) {
+  const status = state.status ?? "active";
+  const outcome = state.outcome ?? (status === "done" ? "success" : "none");
+  return {
+    ...state,
+    status,
+    outcome,
+    archived: Boolean(state.archived),
+    health: state.health ?? healthForStatus(status, outcome),
+    nextAction: state.nextAction ?? nextActionForState({ ...state, status, outcome })
+  };
+}
+
+export function healthForStatus(status, outcome = "none", reason = "") {
+  if (status === "blocked" || outcome === "blocked") return { level: "blocked", reason };
+  if (status === "failed" || outcome === "failed") return { level: "failed", reason };
+  if (status === "partial" || outcome === "partial") return { level: "warning", reason };
+  return { level: "ok", reason };
+}
+
+export function nextActionForState(state = {}) {
+  if (state.status === "waiting_user") {
+    return {
+      type: "user",
+      description: "Review and answer the clarification card or requested approval.",
+      command: state.runId ? `npx crewup clarify ${state.runId} --interactive` : ""
+    };
+  }
+  if (state.status === "blocked") return { type: "blocked", description: state.reason ?? state.health?.reason ?? "Run is blocked.", command: "" };
+  if (state.status === "done" || state.status === "canceled" || state.status === "failed") return { type: "none", description: "No active next action.", command: "" };
+  return { type: "agent", description: "Run the next allowed CrewUp agent or gate command.", command: state.runId ? `npx crewup next-agent ${state.runId}` : "" };
+}
+
+export async function readRunState(root, runId) {
+  const statePath = path.join(root, ".harness", "runs", runId, "state.json");
+  if (!existsSync(statePath)) return null;
+  return normalizeRunState(JSON.parse(await readFile(statePath, "utf8")));
+}
+
+export async function writeRunState(root, runId, state) {
+  const runDir = path.join(root, ".harness", "runs", runId);
+  const normalized = normalizeRunState({ ...state, runId, updatedAt: new Date().toISOString() });
+  await writeFile(path.join(runDir, "state.json"), `${JSON.stringify(normalized, null, 2)}\n`, "utf8");
+  await writeRunStatus(root, runId, normalized);
+  return normalized;
+}
+
+export async function writeRunStatus(root, runId, stateArg = null) {
+  const runDir = path.join(root, ".harness", "runs", runId);
+  const state = normalizeRunState(stateArg ?? JSON.parse(await readFile(path.join(runDir, "state.json"), "utf8")));
+  const locale = localeForState(state);
+  const text = labelsFor(locale);
+  const artifacts = await existingArtifacts(path.join(runDir, "artifacts"));
+  const blockers = await readBlockers(runDir, state);
+  const progress = progressFor({ state, artifacts, runDir });
+  const owner = currentOwnerFor(state.stage);
+  const nextCommand = state.nextAction?.command || "";
+  const completion = completionFor({ state, progress });
+  const lines = [
+    text.title,
+    "",
+    text.atAGlance,
+    "",
+    `**${text.run}:** \`${runId}\``,
+    "",
+    `**${text.state}:** ${statusBadge(state.status)} / ${text.stageLabel} \`${state.stage ?? "unknown"}\` / ${text.outcomeLabel} \`${state.outcome ?? "none"}\``,
+    "",
+    `**${text.ownerNow}:** ${owner}`,
+    "",
+    `**${text.next}:** ${localizedNextDescription(state, locale)}`,
+    "",
+    nextCommand ? `**${text.command}:** \`${nextCommand}\`` : `**${text.command}:** ${text.none}`,
+    "",
+    `**${text.done}:** ${completion.done ? text.yes : text.no}${completion.reason ? ` - ${localizeReason(completion.reason, locale)}` : ""}`,
+    "",
+    text.currentDecision,
+    "",
+    ...decisionLinesFor({ state, blockers, nextCommand, locale }),
+    "",
+    "| Field | Value |",
+    "| --- | --- |",
+    `| Run | ${runId} |`,
+    `| Status | ${state.status ?? "unknown"} |`,
+    `| Stage | ${state.stage ?? "unknown"} |`,
+    `| Outcome | ${state.outcome ?? "none"} |`,
+    `| Health | ${state.health?.level ?? "unknown"}${state.health?.reason ? `: ${state.health.reason}` : ""} |`,
+    `| Branch | ${state.git?.branch ?? "(none)"} |`,
+    `| Current Owner | ${owner} |`,
+    `| Next Action | ${localizedNextDescription(state, locale)} |`,
+    `| Next Command | ${nextCommand ? `\`${nextCommand}\`` : "(none)"} |`,
+    `| Archived | ${state.archived ? "yes" : "no"} |`,
+    "",
+    text.progress,
+    "",
+    ...progress.map((item) => `- [${item.done ? "x" : " "}] ${localizeProgressLabel(item.label, locale)}`),
+    "",
+    text.blockers,
+    "",
+    ...(blockers.length ? blockers.map((item) => `- ${item}`) : [`- ${text.none}`]),
+    "",
+    text.reusableArtifacts,
+    "",
+    ...(artifacts.length ? artifacts.map((item) => `- artifacts/${item}`) : [`- ${text.none}`]),
+    ""
+  ];
+  await writeFile(path.join(runDir, "RUN_STATUS.md"), `${lines.join("\n")}\n`, "utf8");
+}
+
+export async function writeRunSummary(root, runId, { reason = "", archiveOutcome = "" } = {}) {
+  const runDir = path.join(root, ".harness", "runs", runId);
+  const state = await readRunState(root, runId);
+  const artifacts = await existingArtifacts(path.join(runDir, "artifacts"));
+  const blockers = await readBlockers(runDir, state ?? {});
+  const lines = [
+    `# Run Summary: ${runId}`,
+    "",
+    "| Field | Value |",
+    "| --- | --- |",
+    `| Status | ${state?.status ?? "unknown"} |`,
+    `| Stage | ${state?.stage ?? "unknown"} |`,
+    `| Outcome | ${archiveOutcome || state?.outcome || "none"} |`,
+    `| Archived | ${state?.archived ? "yes" : "no"} |`,
+    `| Reason | ${reason || state?.reason || state?.health?.reason || "none"} |`,
+    `| Branch | ${state?.git?.branch ?? "(none)"} |`,
+    "",
+    "## Reusable Artifacts",
+    "",
+    ...(artifacts.length ? artifacts.map((item) => `- artifacts/${item}`) : ["- none"]),
+    "",
+    "## Blockers Or Open Issues",
+    "",
+    ...(blockers.length ? blockers.map((item) => `- ${item}`) : ["- none"]),
+    ""
+  ];
+  await writeFile(path.join(runDir, "RUN_SUMMARY.md"), `${lines.join("\n")}\n`, "utf8");
+}
+
+export async function listRuns(root) {
+  const runsRoot = path.join(root, ".harness", "runs");
+  if (!existsSync(runsRoot)) return [];
+  const entries = await readdir(runsRoot, { withFileTypes: true });
+  const rows = [];
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const state = await readRunState(root, entry.name);
+    rows.push({ runId: entry.name, state });
+  }
+  return rows.sort((a, b) => b.runId.localeCompare(a.runId));
+}
+
+async function existingArtifacts(artifactsDir) {
+  if (!existsSync(artifactsDir)) return [];
+  const entries = await readdir(artifactsDir, { withFileTypes: true });
+  return entries.filter((entry) => entry.isFile() && entry.name.endsWith(".md")).map((entry) => entry.name).sort();
+}
+
+async function readBlockers(runDir, state) {
+  const blockers = [];
+  if (state?.reason) blockers.push(state.reason);
+  if (state?.health?.reason) blockers.push(state.health.reason);
+  const blockerFile = path.join(runDir, "logs", "blockers.md");
+  if (existsSync(blockerFile)) {
+    const text = await readFile(blockerFile, "utf8").catch(() => "");
+    for (const line of text.split(/\r?\n/).filter((item) => /^-\s+\S/.test(item))) blockers.push(line.replace(/^-\s+/, ""));
+  }
+  return [...new Set(blockers.filter(Boolean))];
+}
+
+function progressFor({ state, artifacts, runDir }) {
+  const stage = state.stage ?? "";
+  const order = ["requirements_plan", "requirements_confirm", "plan", "implement", "verify", "review", "release", "done"];
+  const stageIndex = order.indexOf(stage);
+  const doneStage = (name) => state.status === "done" || stageIndex > order.indexOf(name);
+  return [
+    { label: "Run created", done: true },
+    { label: "Branch recorded", done: Boolean(state.git?.branch || state.git?.available === false) },
+    { label: "Clarification card generated", done: artifacts.includes("requirement-plan.md") },
+    { label: "User confirmed requirements", done: doneStage("requirements_plan") },
+    { label: "Requirements completed", done: artifacts.includes("requirement.md") },
+    { label: "Architecture completed", done: artifacts.includes("architecture.md") && artifacts.includes("implementation-plan.md") },
+    { label: "Implementation completed", done: doneStage("implement") },
+    { label: "Tester passed", done: artifacts.includes("test-report.md") && doneStage("verify") },
+    { label: "Reviewer passed", done: artifacts.includes("review-report.md") && doneStage("review") },
+    { label: "Release summary written", done: artifacts.includes("release-summary.md") },
+    { label: "Report generated", done: Boolean(state.reportGeneratedAt) || existsSync(path.join(runDir, "logs", "run-report.md")) },
+    { label: "Archived", done: Boolean(state.archived) }
+  ];
+}
+
+function currentOwnerFor(stage) {
+  return {
+    intake: "main",
+    requirements_plan: "requirements-plan",
+    requirements_confirm: "requirements",
+    plan: "architect",
+    implement: "implementation agents",
+    verify: "tester",
+    review: "reviewer",
+    release: "release",
+    done: "main"
+  }[stage] ?? "unknown";
+}
+
+function statusBadge(status) {
+  return {
+    active: "`active`",
+    waiting_user: "`waiting_user`",
+    blocked: "`blocked`",
+    partial: "`partial`",
+    done: "`done`",
+    canceled: "`canceled`",
+    failed: "`failed`"
+  }[status] ?? `\`${status ?? "unknown"}\``;
+}
+
+function completionFor({ state, progress }) {
+  if (state.status === "done" && state.outcome === "success") return { done: true, reason: "success outcome recorded" };
+  if (state.status === "canceled") return { done: false, reason: "canceled outcome" };
+  if (state.status === "failed") return { done: false, reason: "failed outcome" };
+  if (state.status === "blocked") return { done: false, reason: "blocked" };
+  const missing = progress.find((item) => !item.done);
+  return { done: false, reason: missing ? `next incomplete step: ${missing.label}` : "not marked success" };
+}
+
+function decisionLinesFor({ state, blockers, nextCommand, locale = "en" }) {
+  const zh = locale === "zh-CN";
+  if (state.status === "waiting_user") {
+    return zh
+      ? [
+          "- 正在等待用户确认或选择。",
+          nextCommand ? `- 使用 \`${nextCommand}\`，或通过宿主选择界面回答。` : "- 继续前先查看需求澄清请求。",
+          "- 答案写入前，不要启动下游 agent。"
+        ]
+      : [
+          "- Waiting for user input.",
+          nextCommand ? `- Use \`${nextCommand}\` or answer through the host choice UI.` : "- Review the clarification request before continuing.",
+          "- Do not start downstream agents until the answer is recorded."
+        ];
+  }
+  if (state.status === "blocked") {
+    return zh
+      ? [
+          "- 这个 run 当前被阻塞。",
+          ...(blockers.length ? blockers.map((item) => `- 阻塞原因：${item}`) : ["- 阻塞原因：未记录。"]),
+          "- 可以归档为 blocked，或准备好后创建 continuation run。"
+        ]
+      : [
+          "- This run is blocked.",
+          ...(blockers.length ? blockers.map((item) => `- Blocker: ${item}`) : ["- Blocker: none recorded."]),
+          "- Archive as blocked or create a continuation run when ready."
+        ];
+  }
+  if (state.status === "partial") {
+    return zh
+      ? ["- 这个 run 部分完成。", "- 可复用产物见下方列表。", "- 可以归档为 partial，或基于这个 run 继续。"]
+      : ["- This run is partially complete.", "- Reusable artifacts are listed below.", "- Archive as partial or continue from this run."];
+  }
+  if (state.status === "done") {
+    if (zh) return state.archived ? ["- 这个 run 已完成并归档。"] : ["- 这个 run 已完成。如尚未收口，请生成 report/archive。"];
+    return state.archived ? ["- This run is complete and archived."] : ["- This run is complete. Run report/archive closeout if not already done."];
+  }
+  if (state.status === "canceled") return zh ? ["- 这个 run 已取消。如需恢复，使用 `crewup continue`。"] : ["- This run was canceled. Use `crewup continue` if the work should resume later."];
+  if (state.status === "failed") return zh ? ["- 这个 run 执行失败。重试前先查看阻塞和归档摘要。"] : ["- This run failed. Review blockers and archive summary before retrying."];
+  return zh
+    ? [
+        "- 继续执行下一个允许的 CrewUp 步骤。",
+        nextCommand ? `- 使用 \`${nextCommand}\`，并且只启动 runnable 列表里的 agent。` : "- 当前没有记录命令；诊断后重新运行 `npx crewup status <run-id>`。",
+        "- 主 agent 只汇报状态和路径，不粘贴完整子 agent 输出。"
+      ]
+    : [
+        "- Continue with the next allowed CrewUp step.",
+        nextCommand ? `- Use \`${nextCommand}\` and start only agents listed as runnable.` : "- No command recorded; run `npx crewup status <run-id>` again after diagnostics.",
+        "- Main agent should report paths and status only, not paste full subagent output."
+      ];
+}
+
+function localeForState(state) {
+  return state.primaryLanguage === "zh-CN" ? "zh-CN" : "en";
+}
+
+function labelsFor(locale) {
+  if (locale === "zh-CN") {
+    return {
+      title: "# Run 状态",
+      atAGlance: "## 一眼看懂",
+      run: "Run",
+      state: "状态",
+      stageLabel: "阶段",
+      outcomeLabel: "结局",
+      ownerNow: "当前 Owner",
+      next: "下一步",
+      command: "命令",
+      done: "完成",
+      currentDecision: "## 当前决策",
+      progress: "## 进度",
+      blockers: "## 阻塞",
+      reusableArtifacts: "## 可复用产物",
+      yes: "是",
+      no: "否",
+      none: "无"
+    };
+  }
+  return {
+    title: "# Run Status",
+    atAGlance: "## At A Glance",
+    run: "Run",
+    state: "State",
+    stageLabel: "stage",
+    outcomeLabel: "outcome",
+    ownerNow: "Owner Now",
+    next: "Next",
+    command: "Command",
+    done: "Done",
+    currentDecision: "## Current Decision",
+    progress: "## Progress",
+    blockers: "## Blockers",
+    reusableArtifacts: "## Reusable Artifacts",
+    yes: "yes",
+    no: "no",
+    none: "none"
+  };
+}
+
+function localizedNextDescription(state, locale) {
+  const text = state.nextAction?.description ?? "";
+  if (locale !== "zh-CN") return text || "No next action recorded.";
+  if (!text) return "未记录下一步。";
+  if (text === "Review and answer the clarification card or requested approval.") return "查看并回答需求澄清卡或确认请求。";
+  if (text === "Run the next allowed CrewUp agent or gate command.") return "运行下一个允许的 CrewUp agent 或 gate 命令。";
+  if (text === "No active next action.") return "没有活跃的下一步。";
+  if (/needs user input/i.test(text)) return "requirements-plan 需要用户输入。";
+  return text;
+}
+
+function localizeProgressLabel(label, locale) {
+  if (locale !== "zh-CN") return label;
+  return {
+    "Run created": "Run 已创建",
+    "Branch recorded": "分支已记录",
+    "Clarification card generated": "需求澄清卡已生成",
+    "User confirmed requirements": "用户已确认需求",
+    "Requirements completed": "正式需求已完成",
+    "Architecture completed": "架构方案已完成",
+    "Implementation completed": "实现已完成",
+    "Tester passed": "测试已通过",
+    "Reviewer passed": "评审已通过",
+    "Release summary written": "发布摘要已写入",
+    "Report generated": "报告已生成",
+    "Archived": "已归档"
+  }[label] ?? label;
+}
+
+function localizeReason(reason, locale) {
+  if (locale !== "zh-CN") return reason;
+  if (reason.startsWith("next incomplete step: ")) {
+    return `下一个未完成步骤：${localizeProgressLabel(reason.replace("next incomplete step: ", ""), locale)}`;
+  }
+  return {
+    "success outcome recorded": "已记录成功结局",
+    "canceled outcome": "已取消",
+    "failed outcome": "已失败",
+    blocked: "被阻塞",
+    "not marked success": "尚未标记成功"
+  }[reason] ?? reason;
+}

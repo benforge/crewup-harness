@@ -29,15 +29,17 @@ These scripts are core pipeline implementation details used by `crewup run` or l
 
 | Script | Responsibility |
 | --- | --- |
-| `intake.mjs` | Decide no-harness / backlog / direct run |
-| `backlog-item.mjs` | Create backlog items |
-| `new-run.mjs` | Create run directory and initial state |
+| `run.mjs` | Create or continue a formal run and prepare tasks/context/native plan |
+| `status.mjs` | Show one run status card or the run list |
 | `prepare-run.mjs` | Generate tasks, candidate agents, and artifact scaffolds |
 | `spec-freeze.mjs` | Freeze the requirement summary |
 | `context-pack.mjs` | Generate agent context packs |
 | `native-plan.mjs` | Generate native/bridge agent plans |
 | `transition.mjs` | Stage transitions and stage gates |
 | `changed-files.mjs` | Changed-files ownership guard |
+| `archive.mjs` | Archive success/partial/blocked/canceled/failed outcomes |
+| `cancel.mjs` | Cancel a run and archive the cancellation reason |
+| `continue-run.mjs` | Create a continuation run from a previous run |
 | `archive-commit.mjs` | Archive commit after done |
 
 ## Subagent And Repair Support
@@ -74,7 +76,8 @@ Agent role sets and execution order are centralized in `.harness/scripts/lib/age
 
 | Group | Agents |
 | --- | --- |
-| Planning | `pm`, `requirements-plan`, `requirements`, `architect` |
+| Planning | `requirements-plan`, `requirements`, `architect` |
+| Optional coordination | `pm` |
 | Implementation | `frontend`, `docs`, `backend`, `database`, `devops` |
 | Code implementation | `frontend`, `backend`, `database`, `devops` |
 | Write owner | `frontend`, `docs`, `backend`, `database`, `devops`, `tester` |

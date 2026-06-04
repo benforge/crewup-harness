@@ -14,7 +14,6 @@ const productDocsRel = productDocsPath(projectProfile);
 
 const data = {
   generatedAt: new Date().toISOString(),
-  backlog: await readBacklog(),
   runs: await readRuns(),
   productDocs: await readProductDocs()
 };
@@ -22,17 +21,6 @@ const data = {
 await writeFile(dashboardPath, renderHtml(data), "utf8");
 if (process.env.HARNESS_DASHBOARD_QUIET !== "1") {
   console.log(`Dashboard 已生成：${path.relative(root, dashboardPath)}`);
-}
-
-async function readBacklog() {
-  const queues = ["new", "ready", "in-progress", "review", "done"];
-  const result = [];
-  for (const queue of queues) {
-    const dir = path.join(root, ".harness", "backlog", queue);
-    const files = existsSync(dir) ? (await readdir(dir)).filter((name) => name.endsWith(".md")) : [];
-    result.push({ queue, count: files.length, files });
-  }
-  return result;
 }
 
 async function readRuns() {
@@ -261,7 +249,7 @@ function renderHtml(payload) {
     <div class="sub">生成时间：${escapeHtml(payload.generatedAt)}</div>
   </header>
   <main>
-    ${renderBacklog(payload.backlog)}
+    ${renderRunOverview(payload.runs)}
     ${renderProductDocs(payload.productDocs)}
     ${currentRun ? renderRun(currentRun) : "<section class=\"panel section\"><h2>暂无 run</h2></section>"}
     ${renderRuns(payload.runs)}
@@ -270,10 +258,20 @@ function renderHtml(payload) {
 </html>`;
 }
 
-function renderBacklog(backlog) {
+function renderRunOverview(runs) {
+  const counts = countRunsByStatus(runs);
   return `<section class="grid cols-4">
-    ${backlog.map((item) => `<div class="panel"><h3>backlog/${escapeHtml(item.queue)}</h3><div class="metric">${item.count}</div><div class="sub">${item.files.map(escapeHtml).join(", ") || "无"}</div></div>`).join("")}
+    ${["active", "waiting_user", "blocked", "done", "canceled", "failed"].map((status) => `<div class="panel"><h3>${escapeHtml(status)}</h3><div class="metric">${counts[status] ?? 0}</div><div class="sub">runs</div></div>`).join("")}
   </section>`;
+}
+
+function countRunsByStatus(runs) {
+  const result = {};
+  for (const run of runs) {
+    const status = run.state?.status ?? "unknown";
+    result[status] = (result[status] ?? 0) + 1;
+  }
+  return result;
 }
 
 function renderProductDocs(productDocs) {

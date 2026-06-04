@@ -1,4 +1,4 @@
-import { readdir, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 
@@ -119,8 +119,21 @@ const lines = [
 ];
 
 const target = path.join(logsDir, "run-report.md");
-await writeFile(target, `${lines.join("\n")}\n`, "utf8");
+const content = `${lines.join("\n")}\n`;
+await writeFile(target, content, "utf8");
+await mkdir(path.join(root, ".harness", "reports"), { recursive: true });
+await writeFile(path.join(root, ".harness", "reports", `${runId}.md`), content, "utf8");
+await markReportGenerated();
 console.log(`Run report written to: ${path.relative(root, target).replaceAll("\\", "/")}`);
+console.log(`Global report written to: .harness/reports/${runId}.md`);
+
+async function markReportGenerated() {
+  const statePath = path.join(runDir, "state.json");
+  if (!existsSync(statePath)) return;
+  const current = await readJson(statePath, {});
+  current.reportGeneratedAt = new Date().toISOString();
+  await writeFile(statePath, `${JSON.stringify(current, null, 2)}\n`, "utf8");
+}
 
 async function buildAgentRows(native, taskNames) {
   const rows = [];

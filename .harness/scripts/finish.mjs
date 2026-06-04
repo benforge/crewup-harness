@@ -28,4 +28,17 @@ const result = spawnSync(process.execPath, transitionArgs, {
   env: process.env
 });
 
-process.exit(result.status ?? 1);
+if ((result.status ?? 1) !== 0) process.exit(result.status ?? 1);
+
+const archive = spawnSync(process.execPath, [
+  resolveScriptPath(root, "archive.mjs"),
+  runId,
+  "--outcome=success",
+  "--reason=run reached done"
+], {
+  cwd: root,
+  stdio: "inherit",
+  env: process.env
+});
+
+process.exit(archive.status ?? 1);

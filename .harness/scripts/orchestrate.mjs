@@ -68,7 +68,7 @@ const AgentOutput = z.object({
   handoff: z.string().default("")
 });
 
-const executionOrder = ["pm", "requirements", "architect", "frontend", "backend", "database", "devops", "tester", "reviewer", "release"];
+const executionOrder = ["requirements-plan", "requirements", "architect", "frontend", "backend", "database", "devops", "tester", "reviewer", "release", "pm"];
 
 await mkdir(agentLogsDir, { recursive: true });
 
@@ -89,7 +89,7 @@ const promptBudgets = contextPolicy.context?.prompt_budgets ?? {};
 const writeEnabledAgents = new Set(writePolicy.code_write?.write_enabled_agents ?? []);
 const artifactOwners = {
   "requirement-plan.md": new Set(["requirements-plan"]),
-  "requirement.md": new Set(["pm", "requirements", "requirements-plan"]),
+  "requirement.md": new Set(["requirements"]),
   "architecture.md": new Set(["architect"]),
   "implementation-plan.md": new Set(["architect"]),
   "api-change.md": new Set(["backend"]),
@@ -248,7 +248,7 @@ async function runAgent({ agentId, profile, task, context, canWriteCode, allowed
       "你是项目 harness 中的一个独立子 agent。",
       "你拥有独立上下文，只处理当前 task 指定的职责范围。",
       "如果需要人工确认或缺少上下文，把 status 设为 needs_input 或 blocked。",
-      "所有输出必须使用中文。",
+      "面向用户的输出必须跟随用户主要语言；机器契约、JSON 字段、状态值、命令和文件路径保持英文。",
       codeWriteInstruction,
       context.instructions
     ].join("\n\n")

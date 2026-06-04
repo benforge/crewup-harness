@@ -18,8 +18,9 @@ try {
   assertPlaceholderDetector();
 
   runNpm(["init", "-y"], appDir);
+  runGit(["init"], appDir);
   const tarball = packPackage(packDir);
-  runNpm(["install", tarball], appDir);
+  runNpm(["install", "--no-audit", "--no-fund", "--prefer-offline", tarball], appDir, { timeoutMs: 120000 });
 
   runCli(appDir, ["install"]);
   await seedExistingHarnessState(appDir);
@@ -31,6 +32,10 @@ try {
   runCli(appDir, ["check"]);
   const mainAgentDoc = await readFile(path.join(appDir, ".harness", "orchestrator", "main-agent.md"), "utf8");
   assertIncludes(mainAgentDoc, "Do not ask the user to open a terminal just to create a runId", "chat entry run creation rule");
+  assertIncludes(mainAgentDoc, "`next-agent` is the only dispatch authority", "next-agent dispatch authority rule");
+  assertIncludes(mainAgentDoc, "After an agent finishes, register its result first, then run `next-agent` again", "post-result next-agent rule");
+  assertIncludes(mainAgentDoc, "Do not paste full subagent result files into the main window", "no long subagent paste rule");
+  assertIncludes(mainAgentDoc, "Status card: .harness/runs/<run-id>/RUN_STATUS.md", "path-based status reporting rule");
   assertIncludes(mainAgentDoc, "run `next-agent` and start only agents listed as runnable", "next-agent spawn rule");
   assertIncludes(mainAgentDoc, "record optional tool/plugin/MCP fallback with `tool-fallback`", "tool fallback logging rule");
   assertIncludes(mainAgentDoc, "Run `npx crewup audit <run-id>`", "audit before close rule");
@@ -56,6 +61,38 @@ try {
   ]);
   assertIncludes(strictLoopOutput, "workflow_profile: full", "explicit strict workflow stays full");
 
+  const tinyLiteOutput = runCli(appDir, [
+    "run",
+    "--dry-run",
+    "\u4f7f\u7528 CrewUp \u4fee\u4e00\u4e2a\u5f88\u5c0f\u7684\u524d\u7aef UI \u95ee\u9898\uff0c\u8dd1 harness \u6d41\u7a0b"
+  ]);
+  assertIncludes(tinyLiteOutput, "workflow_profile: lite", "tiny formal run may stay lite");
+  assertIncludes(tinyLiteOutput, "needs_requirements_plan: true", "lite still keeps requirements planning");
+
+  const naturalCounterRunOutput = runCli(appDir, [
+    "run",
+    "使用 CrewUp 做一个最小 counter web app，跑完整 workflow。页面显示一个计数器，默认是 0，可以加一、减一、重置，刷新后数字还在。"
+  ]);
+  const naturalCounterRunId = extractRunId(naturalCounterRunOutput);
+  if (!naturalCounterRunId) throw new Error(`Failed to detect natural counter runId from output: ${naturalCounterRunOutput}`);
+  const naturalCounterRunDir = path.join(appDir, ".harness", "runs", naturalCounterRunId);
+  const naturalCounterTaskNames = sortByExecutionOrder(await listTaskNames(path.join(naturalCounterRunDir, "tasks")));
+  assertNotIncludes(naturalCounterTaskNames.join(","), "pm", "natural counter excludes pm from default chain");
+  assertSameArray(
+    naturalCounterTaskNames.filter((agent) => ["requirements-plan", "requirements", "architect"].includes(agent)),
+    ["requirements-plan", "requirements", "architect"],
+    "natural counter starts with sequential requirements chain"
+  );
+  const naturalCounterNextAgent = JSON.parse(runCli(appDir, ["next-agent", naturalCounterRunId, "--json"]));
+  assertSameArray(naturalCounterNextAgent.runnable.map((item) => item.agent), ["requirements-plan"], "natural counter initial runnable only requirements-plan");
+  const naturalCounterState = JSON.parse(await readFile(path.join(naturalCounterRunDir, "state.json"), "utf8"));
+  if (naturalCounterState.primaryLanguage !== "zh-CN") throw new Error(`Expected zh-CN primaryLanguage, got ${naturalCounterState.primaryLanguage}`);
+  if (!naturalCounterState.git?.createdByHarness) throw new Error(`Expected run branch to be created even with install/init dirty state:\n${JSON.stringify(naturalCounterState.git, null, 2)}`);
+  assertIncludes(naturalCounterState.git.branch, "crewup/", "run branch name");
+  if (!naturalCounterState.git.dirtyAtStart?.length) throw new Error("Expected dirtyAtStart to record existing install/init files");
+  const naturalCounterStatus = runCli(appDir, ["status", naturalCounterRunId]);
+  assertIncludes(naturalCounterStatus, "# Run 状态", "natural counter localized run status");
+
   const planOnlyRunOutput = runCli(appDir, [
     "run",
     "\u7528 CrewUp \u89c4\u5212\u4e00\u4e2a\u5168\u6808\u535a\u5ba2\u7cfb\u7edf\u3002\u5f53\u524d\u9636\u6bb5\u53ea\u505a\u9700\u6c42\u6f84\u6e05\u3001\u6280\u672f\u9009\u578b\u5efa\u8bae\u3001\u76ee\u5f55\u7ed3\u6784\u8bbe\u8ba1\u3001\u6a21\u5757\u8fb9\u754c\u3001\u5f00\u53d1\u9636\u6bb5\u62c6\u5206\u548c\u9a8c\u6536\u6807\u51c6\uff0c\u4e0d\u5199\u4e1a\u52a1\u4ee3\u7801\u3002\u7cfb\u7edf\u5305\u542b C \u7aef\u535a\u5ba2\u524d\u53f0\u3001Admin \u540e\u53f0\u3001\u540e\u7aef API\u3001\u6570\u636e\u5e93\u3002"
@@ -72,9 +109,14 @@ try {
 
   const requirementPlanTask = await readFile(path.join(planOnlyRunDir, "tasks", "requirements-plan.task.md"), "utf8");
   assertIncludes(requirementPlanTask, "Original Request Summary", "requirements-plan English heading");
+  assertIncludes(requirementPlanTask, "Clarification Card", "requirements-plan clarification card heading");
   assertIncludes(requirementPlanTask, "Impact Scope Candidates", "requirements-plan impact heading");
-  assertIncludes(requirementPlanTask, "Human-facing summaries, handoff notes, blockers, and coordination comments should be written in Chinese", "Chinese human-facing language rule");
+  assertIncludes(requirementPlanTask, "Human-facing summaries, handoff notes, blockers, and coordination comments should match the user's primary language", "human-facing language-following rule");
+  assertIncludes(requirementPlanTask, "question text, option labels, option descriptions", "requirements-plan clarification wording rule");
   assertIncludes(requirementPlanTask, "## Artifact Scaffold", "artifact scaffold section");
+  assertIncludes(requirementPlanTask, "Clarification Questions", "requirements-plan clarification heading");
+  assertIncludes(requirementPlanTask, "clarificationQuestions", "requirements-plan structured clarification JSON");
+  assertIncludes(requirementPlanTask, "return `needs_input`", "requirements-plan needs-input contract");
   assertIncludes(requirementPlanTask, "artifactUpdates", "task result contract requires artifactUpdates");
   assertIncludes(requirementPlanTask, "do not use `artifacts`", "task result contract rejects artifacts alias");
 
@@ -94,8 +136,40 @@ try {
   assertIncludes(counterRunId, "build-counter-web-app", "semantic counter run id ignores negated auth");
   const counterTaskNames = sortByExecutionOrder(await listTaskNames(path.join(appDir, ".harness", "runs", counterRunId, "tasks")));
   assertSameMembers(counterTaskNames, ["requirements-plan", "requirements", "architect", "frontend", "tester", "reviewer", "release"], "counter task assignment excludes negated scopes");
+  assertNotIncludes(counterTaskNames.join(","), "pm", "counter excludes pm from default strict chain");
   assertNotIncludes(counterTaskNames.join(","), "backend", "counter excludes backend");
   assertNotIncludes(counterTaskNames.join(","), "database", "counter excludes database");
+  const counterNextAgent = JSON.parse(runCli(appDir, ["next-agent", counterRunId, "--json"]));
+  assertSameArray(counterNextAgent.runnable.map((item) => item.agent), ["requirements-plan"], "counter starts with requirements-plan");
+  assertSameMembers(counterNextAgent.skipped.map((item) => item.agent), ["frontend"], "counter implementation waits for architecture assignment");
+  const counterStatusOutput = runCli(appDir, ["status", counterRunId]);
+  assertIncludes(counterStatusOutput, "# Run 状态", "single run localized status card");
+  assertIncludes(counterStatusOutput, "## 一眼看懂", "status card localized at a glance");
+  assertIncludes(counterStatusOutput, "## 当前决策", "status card localized current decision");
+  assertIncludes(counterStatusOutput, "**当前 Owner:** requirements-plan", "status card current owner");
+  assertIncludes(counterStatusOutput, "**命令:** `npx crewup next-agent", "status card next command");
+  assertIncludes(counterStatusOutput, `| Run | ${counterRunId} |`, "single run status id");
+  assertExists(path.join(appDir, ".harness", "runs", counterRunId, "RUN_STATUS.md"), "run status markdown");
+  const runsListOutput = runCli(appDir, ["runs"]);
+  assertIncludes(runsListOutput, "# CrewUp Runs", "runs list heading");
+  assertIncludes(runsListOutput, counterRunId, "runs list includes counter run");
+  const cancelOutput = runCli(appDir, ["cancel", counterRunId, "--reason=test lifecycle cancellation"]);
+  assertIncludes(cancelOutput, "Run archived", "cancel archives run");
+  assertIncludes(cancelOutput, "- outcome: canceled", "cancel outcome");
+  assertExists(path.join(appDir, ".harness", "runs", counterRunId, "RUN_SUMMARY.md"), "canceled run summary");
+  assertExists(path.join(appDir, ".harness", "runs", counterRunId, "logs", "archive", "archive-summary.md"), "canceled archive summary");
+  assertExists(path.join(appDir, ".harness", "reports", `${counterRunId}.md`), "global canceled run report");
+  const canceledStatusOutput = runCli(appDir, ["status", counterRunId]);
+  assertIncludes(canceledStatusOutput, "| Status | canceled |", "canceled status card");
+  const continueOutput = runCli(appDir, ["continue", counterRunId, "Continue the counter MVP after cancellation with the same tiny scope."]);
+  const continuationRunId = extractRunId(continueOutput);
+  if (!continuationRunId) throw new Error(`Failed to detect continuation runId from output: ${continueOutput}`);
+  const continuationInput = await readFile(path.join(appDir, ".harness", "runs", continuationRunId, "input.md"), "utf8");
+  assertIncludes(continuationInput, `# Continuation Request From ${counterRunId}`, "continuation input links source run");
+  const continuationState = JSON.parse(await readFile(path.join(appDir, ".harness", "runs", continuationRunId, "state.json"), "utf8"));
+  if (continuationState.source !== "continue_run" || continuationState.sourceRunId !== counterRunId) {
+    throw new Error(`Continuation state mismatch:\n${JSON.stringify(continuationState, null, 2)}`);
+  }
   const counterRunDir = path.join(appDir, ".harness", "runs", counterRunId);
   await writeFile(path.join(counterRunDir, "artifacts", "test-report.md"), "# Test Report\n", "utf8");
   const blockedArtifactRepair = runCliWithStatus(appDir, ["repair-artifacts", counterRunId], { expectedStatus: 1 });
@@ -120,7 +194,7 @@ try {
   assertSameArray(architectureNextAgent.runnable.map((item) => item.agent), ["frontend"], "implementation dispatch follows architecture plan assignment");
   assertSameMembers(architectureNextAgent.skipped.map((item) => item.agent), ["backend", "database", "devops"], "unassigned implementation candidates are skipped");
   const unassignedBackendSpawn = runCliWithStatus(appDir, ["native-state", architectureDispatchRunId, "mark-spawned", "backend", "backend-handle"], { expectedStatus: 1 });
-  assertIncludes(unassignedBackendSpawn, "not assigned by artifacts/implementation-plan.md", "unassigned backend spawn is blocked");
+  assertIncludes(unassignedBackendSpawn, "implementation-plan.md is missing or does not assign backend", "unassigned backend spawn is blocked");
 
   const planOnlyPlan = JSON.parse(await readFile(path.join(planOnlyRunDir, "logs", "native-subagents", "native-subagent-plan.json"), "utf8"));
   assertSameArray(
@@ -179,6 +253,23 @@ try {
   assertIncludes(prematureArchitectSpawn, "Cannot spawn architect", "architect spawn prerequisite guard");
   const dirtyHandleSpawn = runCliWithStatus(appDir, ["native-state", planOnlyRunId, "mark-spawned", "requirements-plan", "--handle=dirty"], { expectedStatus: 1 });
   assertIncludes(dirtyHandleSpawn, "Invalid native handle", "dirty handle guard");
+
+  await seedRequirementsPlanResult(planOnlyRunDir, { status: "completed", userConfirmed: false });
+  runCli(appDir, ["native-state", planOnlyRunId, "mark-spawned", "requirements-plan", "requirements-plan-handle"]);
+  const unconfirmedRequirementsPlan = runCliWithStatus(appDir, ["native-state", planOnlyRunId, "mark-result", "requirements-plan", "completed"], { expectedStatus: 1 });
+  assertIncludes(unconfirmedRequirementsPlan, "Cannot complete requirements-plan before user confirmation", "requirements-plan requires user confirmation");
+
+  await seedRequirementsPlanResult(planOnlyRunDir, { status: "needs_input", userConfirmed: false });
+  const clarificationCapture = runCli(appDir, ["native-state", planOnlyRunId, "mark-result", "requirements-plan", "needs_input"]);
+  assertIncludes(clarificationCapture, "requirements-plan: needs_input", "requirements-plan needs_input captured");
+  const clarifyOutput = runCli(appDir, ["clarify", planOnlyRunId]);
+  assertIncludes(clarifyOutput, "Q-01", "clarify renders question id");
+  assertIncludes(clarifyOutput, "Options:", "clarify renders options");
+  const clarifyAnswersOutput = runCli(appDir, ["clarify", planOnlyRunId, "--answers=Q-01:A"]);
+  assertIncludes(clarifyAnswersOutput, "Clarification answers saved", "clarify saves answers");
+  assertExists(path.join(planOnlyRunDir, "logs", "clarifications", "answers.json"), "clarification answers json");
+  const requirementPlanTaskAfterAnswers = await readFile(path.join(planOnlyRunDir, "tasks", "requirements-plan.task.md"), "utf8");
+  assertIncludes(requirementPlanTaskAfterAnswers, "logs/clarifications/answers.json", "requirements-plan answer input");
 
   await writeFile(path.join(planOnlyRunDir, "artifacts", "requirement-plan.md"), renderValidRequirementPlanArtifact(), "utf8");
   const ownerArtifactAudit = runCliWithStatus(appDir, ["audit", planOnlyRunId], { expectedStatus: 1 });
@@ -242,12 +333,26 @@ function packPackage(packDir) {
   return path.join(packDir, file);
 }
 
-function runNpm(args, cwd) {
+function runNpm(args, cwd, { timeoutMs = 120000 } = {}) {
   const result = process.platform === "win32"
-    ? spawnSync(process.env.ComSpec || "cmd.exe", ["/d", "/c", "npm", ...args], { cwd, encoding: "utf8" })
-    : spawnSync("npm", args, { cwd, encoding: "utf8" });
+    ? spawnSync(process.env.ComSpec || "cmd.exe", ["/d", "/c", "npm", ...args], { cwd, encoding: "utf8", timeout: timeoutMs })
+    : spawnSync("npm", args, { cwd, encoding: "utf8", timeout: timeoutMs });
+  if (process.platform === "win32" && result.error?.code === "ETIMEDOUT") {
+    throw new Error(`npm ${args.join(" ")} timed out after ${timeoutMs}ms`);
+  }
+  if (result.error?.code === "ETIMEDOUT") {
+    throw new Error(`npm ${args.join(" ")} timed out after ${timeoutMs}ms`);
+  }
   if (result.status !== 0) {
     throw new Error((result.stdout || "") + (result.stderr || "") || `npm ${args.join(" ")} failed`);
+  }
+  return result;
+}
+
+function runGit(args, cwd, { timeoutMs = 30000 } = {}) {
+  const result = spawnSync("git", args, { cwd, encoding: "utf8", timeout: timeoutMs });
+  if (result.status !== 0) {
+    throw new Error((result.stdout || "") + (result.stderr || "") || `git ${args.join(" ")} failed`);
   }
   return result;
 }
@@ -297,7 +402,7 @@ function assertPlaceholderDetector() {
 }
 
 function extractRunId(output) {
-  const match = /Harness run .*?[:\uFF1A]\s*(.+)/.exec(output);
+  const match = /(?:Harness run .*?|CrewUp run prepared)[:\uFF1A]\s*(.+)/.exec(output);
   return match?.[1]?.trim() ?? "";
 }
 
@@ -315,8 +420,7 @@ async function seedExistingHarnessState(appDir) {
     [".harness/knowledge/custom-note.md", "keep knowledge\n"],
     [".harness/project/custom-state.md", "keep project state\n"],
     [".harness/reports/custom-report.md", "keep report\n"],
-    [".harness/dashboard/index.html", "<html>keep dashboard</html>\n"],
-    [".harness/backlog/ready/001-custom-item.md", "keep backlog\n"]
+    [".harness/dashboard/index.html", "<html>keep dashboard</html>\n"]
   ];
   for (const [relPath, content] of files) {
     const target = path.join(appDir, relPath);
@@ -331,8 +435,7 @@ function assertExistingHarnessStatePreserved(appDir) {
     ".harness/knowledge/custom-note.md",
     ".harness/project/custom-state.md",
     ".harness/reports/custom-report.md",
-    ".harness/dashboard/index.html",
-    ".harness/backlog/ready/001-custom-item.md"
+    ".harness/dashboard/index.html"
   ]) {
     assertExists(path.join(appDir, relPath), `preserved ${relPath}`);
   }
@@ -395,11 +498,17 @@ Plan a fullstack blog system.
 ## Historical Context
 No historical context.
 
+## Requirement Expansion
+- Expand the request.
+
 ## Goals
 - Clarify scope.
 
 ## Non-Goals
 - Do not write business code.
+
+## Boundary Decisions
+- none
 
 ## Acceptance Criteria Draft
 - Planning artifacts are clear.
@@ -409,6 +518,12 @@ No historical context.
 - Admin
 - API
 - Database
+
+## Clarification Questions
+- none
+
+## Selected Clarifications
+- none
 
 ## Open Questions
 - Confirm deployment target.
@@ -450,4 +565,44 @@ async function markNativeAgentsCompleted(runDir, agentIds) {
     agent.result_captured_at = new Date().toISOString();
   }
   await writeFile(statePath, JSON.stringify(state, null, 2), "utf8");
+}
+
+async function seedRequirementsPlanResult(runDir, { status, userConfirmed }) {
+  const resultDir = path.join(runDir, "logs", "native-subagents");
+  await writeFile(path.join(resultDir, "requirements-plan.result.md"), [
+    "Agent: requirements-plan",
+    `Status: ${status}`,
+    "Summary: clarification required",
+    "Files changed:",
+    "Artifacts updated:",
+    "Tests:",
+    "Blockers:",
+    "Handoff:"
+  ].join("\n"), "utf8");
+  await writeFile(path.join(resultDir, "requirements-plan.result.json"), `${JSON.stringify({
+    agent: "requirements-plan",
+    status,
+    summary: "clarification required",
+    artifactUpdates: [{ path: "artifacts/requirement-plan.md" }],
+    artifactsUpdated: ["artifacts/requirement-plan.md"],
+    clarificationQuestions: [
+      {
+        id: "Q-01",
+        question: "Which scope should this run use?",
+        type: "single_choice",
+        required: true,
+        recommendedOptionIds: ["A"],
+        options: [
+          { id: "A", label: "Tiny frontend only", description: "Smallest scope." },
+          { id: "B", label: "Full stack", description: "Requires backend and database." }
+        ]
+      }
+    ],
+    selectedClarifications: [],
+    userConfirmationRequired: true,
+    userConfirmed,
+    confirmationSource: userConfirmed ? "user accepted Q-01:A" : "",
+    tests: [],
+    blockers: []
+  }, null, 2)}\n`, "utf8");
 }

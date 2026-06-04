@@ -32,20 +32,22 @@ intake -> requirements_plan -> requirements_confirm -> plan
   -> implement -> verify -> review -> release -> done
 ```
 
-CrewUp 不靠跳过角色省成本，而是通过更清楚的任务契约、更准确的 agent 路由、更少的重复返工来减少浪费。
+CrewUp 不靠跳过角色省成本，而是通过更清楚的任务契约、更准确的 agent 路由、更少的重复返工来减少浪费。即使是 `lite`，也只是更短的需求/架构产物，不是绕过需求确认和架构分配直接开发。
 
 ## 核心能力
 
 - 显式启用：只有 `npx crewup run` 或聊天中明确要求 CrewUp / harness 流程时才进入正式工作流。
 - 主 agent 边界：主 agent 只调度、检查、汇总，不代写 owner artifact 或业务代码。
 - 顺序调度：`next-agent` 只返回当前依赖已满足的子 agent，避免 requirements 和 architect 并行乱跑。
+- 稳定前置：正式 run 的第一个 runnable agent 始终应是 `requirements-plan`，开发 agent 不应直接启动。
+- 交互澄清：`requirements-plan` 先生成 Markdown 需求确认卡，再返回少量结构化问题；其他环境使用 `crewup clarify --interactive`。
 - 架构分配：implementation agents 只是候选；真正启动哪些实现 agent，由 architect 的 `implementation-plan.md` 决定。
 - 产物归属：`requirement.md`、`architecture.md`、`implementation-plan.md`、`test-report.md` 等必须由对应角色写入。
 - 反馈回路：tester/reviewer 的问题必须回派给 owner agent，主 agent 不直接修业务代码。
 - 可审计降级：Context7、MCP、插件等可选工具不可用时，用 `tool-fallback` 写入 run logs。
 - 返修 lineage：返修结果保留 `repairOf`、`repairReason`、`previousResultPath`，减少重复返工。
-- 中英分层：面向用户的沟通默认中文，机器契约和 artifact headings 保持英文以降低编码误判。
-- 安全升级：`install --force` 更新 harness core，同时保留 runs、knowledge、project adapter、reports、dashboard 和 backlog。
+- 语言跟随：面向用户的沟通跟随用户主要语言，机器契约和 artifact headings 保持英文以降低编码误判。
+- 安全升级：`install --force` 更新 harness core，同时保留 runs、knowledge、project adapter、reports 和 dashboard。
 
 ## 安装
 
@@ -69,7 +71,7 @@ npx crewup init --agent codex --yes
 npx crewup install --force
 ```
 
-`--force` 会更新 `.harness` 核心文件，但保留 `.harness/runs/`、`.harness/knowledge/`、`.harness/project/`、`.harness/reports/`、`.harness/dashboard/` 和 backlog。只有明确想删除旧运行态时才使用：
+`--force` 会更新 `.harness` 核心文件，但保留 `.harness/runs/`、`.harness/knowledge/`、`.harness/project/`、`.harness/reports/` 和 `.harness/dashboard/`。只有明确想删除旧运行态时才使用：
 
 ```bash
 npx crewup install --reset
@@ -134,12 +136,19 @@ npx crewup report <run-id>
 | `npx crewup check` | 校验 harness 配置、脚本和模板 |
 | `npx crewup run "..."` | 创建正式 run |
 | `npx crewup run --dry-run "..."` | 预览命名、profile 和 agent 路由 |
-| `npx crewup next-agent <run-id>` | 查看当前可启动子 agent 和阻塞原因 |
+| `npx crewup status` / `npx crewup status <run-id>` | 查看所有 run 或单个 run 的状态卡 |
+| `npx crewup runs` | `status` 列表视图别名 |
+| `npx crewup next-agent <run-id>` | 查看当前可启动子 agent 和阻塞原因；正式 run 初始应只有 `requirements-plan` |
+| `npx crewup clarify <run-id>` | 展示 `requirements-plan` 生成的澄清问题和选择项 |
+| `npx crewup clarify <run-id> --interactive` | 在真实终端里用键盘上下选择并保存答案 |
 | `npx crewup native-state <run-id> diagnose` | 诊断 native 子 agent handle、结果和状态缺口 |
 | `npx crewup tool-fallback <run-id> --tool Context7 --reason "..." --fallback "..."` | 记录可选工具降级证据 |
 | `npx crewup audit <run-id>` | 审计调度顺序、owner 边界、修复回路和上下文压力 |
 | `npx crewup gate-check <run-id>` | 检查 gate、产物归属和越权风险 |
 | `npx crewup report <run-id>` | 生成结构化交付报告 |
+| `npx crewup archive <run-id> --outcome=blocked --reason="..."` | 归档非成功结局，保存现场和报告 |
+| `npx crewup cancel <run-id> --reason="..."` | 取消 run 并归档取消原因，不自动丢弃文件 |
+| `npx crewup continue <run-id> "..."` | 基于历史 run 创建新的延续 run |
 | `npx crewup finish <run-id>` | 完成 run 并按策略归档 |
 | `npx crewup dashboard` | 生成或刷新 dashboard |
 | `npx crewup integrations status` | 查看可选集成状态，例如 CodeGraph |
@@ -152,7 +161,7 @@ npx crewup report <run-id>
 2. `requirements-plan` 写 `artifacts/requirement-plan.md`。
 3. `requirements` 在前置结果完成后写 `artifacts/requirement.md`。
 4. `architect` 在需求完成后写 `artifacts/architecture.md` 和 `artifacts/implementation-plan.md`。
-5. `frontend`、`backend`、`database`、`devops`、`docs` 等实现 agent 只在 architecture plan 精确分配后启动。
+5. `frontend`、`backend`、`database`、`devops`、`docs` 等实现 agent 只在 `implementation-plan.md` 存在且精确分配后启动。
 6. `tester` 验证实现结果并写 `artifacts/test-report.md`。
 7. `reviewer` 审查实现、产物、风险和测试证据。
 8. `release` 写 `artifacts/release-summary.md`，然后 run 可以 report / finish / archive。
@@ -162,6 +171,7 @@ npx crewup report <run-id>
 | 文档 | 内容 |
 | --- | --- |
 | [Workflow](./docs/harness-workflow.md) | 工作流、owner artifact、tool fallback、audit/gate |
+| [Runbook](./docs/runbook.md) | 判断 run 是否正常、怎么算完成、卡住/取消/继续怎么办 |
 | [Getting Started](./docs/getting-started.md) | 安装、API key、第一次 run 和排错 |
 | [Local Testing](./docs/local-testing.md) | 用 `npm pack` 和临时项目本地测试 CrewUp |
 | [Universal Agent Bridge](./docs/universal-agent-bridge.md) | 外部 agent handoff 和 result JSON 契约 |

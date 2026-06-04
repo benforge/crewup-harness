@@ -183,12 +183,11 @@ export function requiredNativeAgentsForStageCompletion(targetStage, { root = pro
 export function completedNativePrerequisitesForAgent(agentId, { root = process.cwd(), runId = "", taskAgents = null } = {}) {
   const tasks = normalizeTaskAgents(taskAgents ?? readTaskAgents(root, runId));
   if (agentId === "pm" || agentId === "requirements-plan") return [];
-  if (agentId === "requirements") return ["pm", "requirements-plan"].filter((agent) => tasks.has(agent));
-  if (agentId === "architect") return ["pm", "requirements-plan", "requirements"].filter((agent) => tasks.has(agent));
-  if (implementationAgentIds.has(agentId)) return ["pm", "requirements-plan", "requirements", "architect"].filter((agent) => tasks.has(agent));
+  if (agentId === "requirements") return ["requirements-plan"].filter((agent) => tasks.has(agent));
+  if (agentId === "architect") return ["requirements-plan", "requirements"].filter((agent) => tasks.has(agent));
+  if (implementationAgentIds.has(agentId)) return ["requirements-plan", "requirements", "architect"].filter((agent) => tasks.has(agent));
   if (agentId === "tester") {
     return [
-      "pm",
       "requirements-plan",
       "requirements",
       "architect",
@@ -199,7 +198,6 @@ export function completedNativePrerequisitesForAgent(agentId, { root = process.c
     const testerPrerequisites = ["tester"].filter((agent) => tasks.has(agent));
     if (testerPrerequisites.length > 0) return testerPrerequisites;
     return [
-      "pm",
       "requirements-plan",
       "requirements",
       "architect",

@@ -13,12 +13,14 @@ agents:
 
   requirements-plan:
     title: "Requirements Plan Agent"
-    owner: ".harness/agents/requirements.md"
+    owner: ".harness/agents/requirements-plan.md"
     category: "planning"
     default_stage: "requirements_plan"
     model_profile: "requirements_planning"
     scope:
+      - "interactive requirement clarification"
       - "natural-language requirement expansion"
+      - "boundary choices"
       - "goals and non-goals"
       - "acceptance criteria draft"
       - "open questions"

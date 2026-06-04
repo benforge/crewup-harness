@@ -36,7 +36,7 @@ npm pack
 生成类似：
 
 ```text
-crewup-harness-0.3.7.tgz
+crewup-harness-0.3.8.tgz
 ```
 
 ## 创建临时测试项目
@@ -45,7 +45,7 @@ crewup-harness-0.3.7.tgz
 mkdir C:\Users\Administrator.SKY-20260324MFW\Documents\crewup-local-test
 cd C:\Users\Administrator.SKY-20260324MFW\Documents\crewup-local-test
 npm init -y
-npm install -D "C:\Users\Administrator.SKY-20260324MFW\Documents\New project\crewup-harness-0.3.7.tgz"
+npm install -D "C:\Users\Administrator.SKY-20260324MFW\Documents\New project\crewup-harness-0.3.8.tgz"
 ```
 
 ## 初始化 CrewUp
@@ -70,7 +70,6 @@ npx crewup install --force
 - `.harness/project/`
 - `.harness/reports/`
 - `.harness/dashboard/`
-- `.harness/backlog/`
 
 ## 最小完整开发案例
 
@@ -96,6 +95,7 @@ npx crewup install --force
 
 ```bash
 npx crewup next-agent <run-id>
+npx crewup status <run-id>
 npx crewup audit <run-id>
 npx crewup gate-check <run-id>
 npx crewup report <run-id>
@@ -106,11 +106,32 @@ npx crewup report <run-id>
 - 初始 runnable 只有 `requirements-plan`
 - `requirements` 等 `requirements-plan` 完成后才可启动
 - `architect` 等 `requirements` 完成后才可启动
-- 实现 agent 由 `implementation-plan.md` 决定
+- 实现 agent 由 `implementation-plan.md` 决定；缺少该文件时不能启动开发 agent
+- `lite` 也不能直接启动开发 agent，只能生成更短的需求/架构产物
 - 主 agent 没有代写 owner artifact
 - tester/reviewer 问题被回派给 owner agent
 - audit 没有 `owner_artifact_before_owner_done`、`downstream_started_before_prerequisite`、`unassigned_implementation_started`
 - 关闭 retained subagents 前已经跑过 audit/gate/report，除非容量不足
+
+## Run 生命周期测试
+
+测试 blocked/partial/canceled 这些非成功结局时，确认 run 也能闭环：
+
+```bash
+npx crewup status
+npx crewup status <run-id>
+npx crewup archive <run-id> --outcome=blocked --reason="local dependency unavailable"
+npx crewup cancel <run-id> --reason="test cancellation"
+npx crewup continue <run-id> "继续上一次未完成的 counter MVP"
+```
+
+重点确认：
+
+- `.harness/runs/<run-id>/RUN_STATUS.md` 始终存在
+- 归档后存在 `.harness/runs/<run-id>/RUN_SUMMARY.md`
+- 归档后存在 `.harness/runs/<run-id>/logs/archive/archive-summary.md`
+- 归档或 report 后存在 `.harness/reports/<run-id>.md`
+- `continue` 会创建新的 run，并在新 run 的 `input.md` 中包含来源 run 的状态和摘要
 
 ## 工具降级测试
 
@@ -143,6 +164,8 @@ npm run harness:test-flow
 - native-state 提前启动拦截
 - repair-artifacts owner guard
 - tool-fallback 写日志
+- status/runs 状态卡
+- cancel/archive/continue 生命周期闭环
 - audit 越界拦截
 - gate-check owner artifact 拦截
 

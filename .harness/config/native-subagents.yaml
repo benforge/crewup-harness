@@ -111,7 +111,6 @@ native_subagents:
     requirements_planning:
       parallel: false
       agents:
-        - "pm"
         - "requirements-plan"
     requirements_confirmation:
       parallel: false

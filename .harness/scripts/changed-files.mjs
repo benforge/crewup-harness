@@ -158,7 +158,7 @@ async function inferChangedFiles() {
 
 function classify(file, { initialDirty, sourceRequirement }) {
   if (initialDirty.has(file)) return { include: false, reason: "run started with this dirty file" };
-  if (file === sourceRequirement) return { include: false, reason: "source backlog file is staged automatically" };
+  if (file === sourceRequirement) return { include: false, reason: "source requirement file is staged automatically" };
   if (file === `.harness/runs/${runId}` || file.startsWith(`.harness/runs/${runId}/`)) {
     return { include: false, reason: "current run directory is staged automatically" };
   }

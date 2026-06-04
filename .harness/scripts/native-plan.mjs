@@ -47,6 +47,8 @@ const contextPolicy = parseYaml(await readFile(path.join(root, ".harness", "conf
 const agentEnvironment = await readAgentEnvironment(root);
 const { project_profile: projectProfile } = await loadProjectProfile(root);
 const projectOverlay = await loadProjectOverlay(root, projectProfile.ai_overlay?.profile, { projectProfile });
+const runState = await readJson(path.join(runDir, "state.json"), {});
+const primaryLanguage = runState.primaryLanguage ?? projectProfile.language?.communication ?? "en";
 const runInput = await readOptional(path.join(runDir, "input.md"));
 const specFreeze = await readOptional(path.join(runDir, "artifacts", "spec-freeze.md"));
 const artifactIndex = await readOptional(path.join(runDir, "logs", "context", "artifact-index.md"));
@@ -90,6 +92,7 @@ for (const taskFile of taskFiles) {
     agentId,
     agentType,
     profile,
+    primaryLanguage,
     prerequisites,
     task,
     specFreeze,
@@ -285,7 +288,7 @@ async function mergeNativeState(plan) {
   };
 }
 
-function renderSpawnPrompt({ agentId, agentType, profile, prerequisites = [], task, specFreeze, allowedPatterns, contextPack, projectOverlayContext, artifactIndex, contextDecision, budgets = {} }) {
+function renderSpawnPrompt({ agentId, agentType, profile, primaryLanguage = "en", prerequisites = [], task, specFreeze, allowedPatterns, contextPack, projectOverlayContext, artifactIndex, contextDecision, budgets = {} }) {
   const taskText = limitText(task, budgets.task_chars ?? 1200);
   const frozenText = limitText(specFreeze, budgets.document_policy_chars ?? 1200);
   const artifactText = limitText(artifactIndex, budgets.artifact_index_chars ?? 900);
@@ -301,13 +304,15 @@ function renderSpawnPrompt({ agentId, agentType, profile, prerequisites = [], ta
     `- agent_type: ${agentType}`,
     `- model_hint: ${profile.codex_model_hint ?? profile.model}`,
     `- reasoning_effort: ${profile.reasoning_effort}`,
+    `- user_primary_language: ${primaryLanguage}`,
     `- context_mode: ${contextDecision.mode}`,
     `- context_reasons: ${contextDecision.reasons.join("; ")}`,
     `- requires_completed_agents: ${prerequisites.length ? prerequisites.join(", ") : "(none)"}`,
     "",
     "## Runtime Rules",
     "",
-    "- Use Chinese for human-facing summaries, handoff notes, blockers, and coordination comments unless the user requested another language.",
+    `- Match the user's primary language (${primaryLanguage}) for human-facing summaries, handoff notes, blockers, and coordination comments unless the user requested another language.`,
+    `- For requirements clarification, write user-facing card content, question text, option labels, and option descriptions in the user's primary language (${primaryLanguage}) unless the user requested another language.`,
     "- Keep artifact headings, JSON field names, file paths, commands, and status values in English exactly as required by the schema.",
     "- If requires_completed_agents is not `(none)`, the main agent must confirm those agents are completed and captured with `native-state mark-result` before starting you.",
     "- You are not the only agent working in this repository; other agents or the main agent may be progressing orchestration metadata in parallel.",
@@ -323,6 +328,10 @@ function renderSpawnPrompt({ agentId, agentType, profile, prerequisites = [], ta
     "- If you are tester/reviewer and feedback requires code changes, write clear `targetAgents` and `requiredFixes`; do not edit business code directly.",
     "- If you are an implementation agent handling tester/reviewer feedback, fix only issues inside your own scope and cite the feedback source.",
     "- If context is insufficient, return `needs_input` and name the exact missing file or decision.",
+    "- If you are requirements-plan and user decisions are missing, return `needs_input` with structured `clarificationQuestions`; the main agent will transport those options to the user.",
+    "- If you are requirements-plan on the first pass, return `needs_input` unless prior user answers and `userConfirmed: true` are already present; do not answer your own questions.",
+    "- If you are requirements-plan, return at most 3 clarification questions per round, with 2-3 concise options where possible, so Codex can render them through native Plan-mode choice UI when available.",
+    "- If you are requirements-plan, make `artifacts/requirement-plan.md` include a scannable `Clarification Card` with compact tables for confirmed facts, needed decisions, non-goals, acceptance preview, and ready-to-continue status.",
     "- Keep the final result concise and follow the output contract.",
     "",
     "## Allowed Write Scope",
@@ -376,6 +385,11 @@ function renderSpawnPrompt({ agentId, agentType, profile, prerequisites = [], ta
       artifactUpdates: [{ path: "artifacts/<owned-artifact>.md" }],
       artifactsUpdated: ["artifacts/<owned-artifact>.md"],
       tests: [],
+      clarificationQuestions: [],
+      selectedClarifications: [],
+      userConfirmationRequired: false,
+      userConfirmed: false,
+      confirmationSource: "",
       repairOf: [],
       repairReason: "",
       previousResultPath: "",
@@ -409,7 +423,7 @@ function renderBridgeHandoff({ task, bridgeTask, agentEnvironment }) {
     "- Stay inside the allowed write scope.",
     "- Do not revert or overwrite unrelated user or agent changes.",
     "- Write the final result as JSON to the exact result_path above.",
-    "- Use Chinese for human-facing summaries unless the user requested another language.",
+    "- Match the user's primary language for human-facing summaries unless the user requested another language.",
     "",
     "## Required JSON Shape",
     "",
@@ -422,6 +436,11 @@ function renderBridgeHandoff({ task, bridgeTask, agentEnvironment }) {
       fileChanges: [{ path: "src/example.ts", mode: "update", reason: "why", content: "full file content" }],
       recommendedCodeChanges: [{ path: "src/example.ts", reason: "why", change: "patch or explanation" }],
       tests: ["command or manual verification"],
+      clarificationQuestions: [],
+      selectedClarifications: [],
+      userConfirmationRequired: false,
+      userConfirmed: false,
+      confirmationSource: "",
       repairOf: [],
       repairReason: "",
       previousResultPath: "",
@@ -563,6 +582,15 @@ function unique(items) {
 async function readOptional(target) {
   if (!existsSync(target)) return "";
   return readFile(target, "utf8");
+}
+
+async function readJson(target, fallback = {}) {
+  if (!target || !existsSync(target)) return fallback;
+  try {
+    return JSON.parse(await readFile(target, "utf8"));
+  } catch {
+    return fallback;
+  }
 }
 
 

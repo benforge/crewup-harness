@@ -14,7 +14,6 @@
 | `.harness/scripts/` | CLI 实现 | 可复用 |
 | `.harness/project/` | 目标项目生成的适配层 | 每个项目重新生成 |
 | `.harness/runs/` | run 状态和产物 | 运行态 |
-| `.harness/backlog/` | 运行态需求队列 | 运行态 |
 | `.harness/knowledge/` | 生成的索引和经验 | 运行态 |
 | `.harness/reports/` | 生成的报告 | 运行态 |
 | `.harness/dashboard/` | 生成的 dashboard 输出 | 运行态 |

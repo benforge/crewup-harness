@@ -99,13 +99,15 @@ npx crewup run "使用 CrewUp 做一个最小 counter web app，跑完整 workfl
 拿到 runId 后：
 
 ```bash
+npx crewup status <run-id>
 npx crewup next-agent <run-id>
 npx crewup audit <run-id>
 npx crewup gate-check <run-id>
 npx crewup report <run-id>
 ```
 
-- `next-agent` 告诉你现在真正能启动哪个子 agent。
+- `status` 读取 `.harness/runs/<run-id>/RUN_STATUS.md`，告诉你当前状态、stage、owner、下一步命令、阻塞和可复用产物。
+- `next-agent` 告诉你现在真正能启动哪个子 agent；正式 run 初始应只有 `requirements-plan`。
 - `audit` 检查流程有没有乱：提前启动、主 agent 越界、owner artifact 缺 provenance、上下文压力、重复返工等。
 - `gate-check` 判断当前阶段能否通过质量门禁。
 - `report` 汇总 agent 结果、artifact、token/context budget、返修 lineage 和归档状态。
@@ -124,6 +126,8 @@ requirements-plan
 
 实现类 agent 在 run 创建时只是候选。真正启动哪些实现 agent，应由 `architect` 写出的 `artifacts/implementation-plan.md` 决定。
 
+`lite` 只表示需求/架构产物更短、上下文预算更小，不表示可以跳过 `requirements-plan -> requirements -> architect`。缺少 `implementation-plan.md` 时，开发 agent 必须保持 blocked/skipped。
+
 ## 工具降级
 
 如果 Context7、MCP、插件或其他可选工具不可用，不要只在聊天里说明，应记录到 run：
@@ -136,10 +140,49 @@ npx crewup tool-fallback <run-id> --tool Context7 --reason "not available in thi
 
 ## 完成与归档
 
+每个正式工作都以一个 run 为单位闭环。常用状态：
+
+| 状态 | 含义 |
+| --- | --- |
+| `active` | 正在执行 |
+| `waiting_user` | 等用户确认或选择 |
+| `blocked` | 卡住，但现场和证据仍保留 |
+| `partial` | 部分完成，可复用但未达到 done |
+| `done` | 完整完成 |
+| `canceled` | 用户取消 |
+| `failed` | 执行失败 |
+
+成功完成：
+
 ```bash
 npx crewup report <run-id>
 npx crewup finish <run-id>
 ```
+
+卡住、部分完成或取消时，不要让 run 永远悬空：
+
+```bash
+npx crewup archive <run-id> --outcome=blocked --reason="local database is unavailable"
+npx crewup archive <run-id> --outcome=partial --reason="frontend done, backend blocked"
+npx crewup cancel <run-id> --reason="scope changed"
+```
+
+归档会生成或刷新：
+
+- `.harness/runs/<run-id>/RUN_STATUS.md`
+- `.harness/runs/<run-id>/RUN_SUMMARY.md`
+- `.harness/runs/<run-id>/logs/archive/archive-summary.md`
+- `.harness/reports/<run-id>.md`
+
+归档不等于成功。只有 `finish` 或 `archive --outcome=success` 表示成功结局。
+
+如果后续要继续处理一个 blocked/partial/canceled run：
+
+```bash
+npx crewup continue <run-id> "继续处理上次阻塞的问题，复用已有 requirement 和 architecture"
+```
+
+这会创建新的 run，并把旧 run 的 `RUN_STATUS.md`、`RUN_SUMMARY.md`、需求和架构产物写入新 run 的输入上下文。
 
 如果 run 里启动了预览服务：
 
