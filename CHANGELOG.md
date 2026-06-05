@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.11
+
+- Re-audited the CLI/package/check entry surface and kept public scripts stable instead of deleting exposed commands.
+- Rewrote the script boundary docs as current maintainer guidance and added a canonical English `harness-script-map.en.md` while keeping the old English path as a compatibility note.
+- Removed stale historical workflow iteration and hardening roadmap docs from the published documentation set.
+- Restored `.harness/config/workflow.yaml` display text to clean UTF-8-safe English while preserving the strict stage/order/gate contract.
+- Extended `harness:check` so the template package scans public README/docs for suspicious mojibake, while installed user projects only scan harness-owned files and local AI rule files.
+- Updated the test matrix docs to reflect install-flow, full-flow, sealed core, and documentation encoding checks.
+
 ## 0.3.10
 
 - Added sealed CrewUp core verification: `crewup install` now writes `.harness/core-lock.json`, and `check`, `doctor`, and `gate-check` detect local `.harness` core drift inside user projects.

@@ -15,7 +15,7 @@ Covers:
 
 - harness config, script, and template integrity
 - YAML / JSON parsing
-- suspicious UTF-8/mojibake checks
+- suspicious UTF-8/mojibake checks for `.harness/` and, in the template package, public `docs/` / README files
 - minimal example smoke test
 
 ## Install And Upgrade Matrix

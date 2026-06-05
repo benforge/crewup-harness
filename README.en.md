@@ -175,7 +175,7 @@ If Chinese text appears garbled in a Windows terminal, run `npx crewup doctor` a
 
 Prefer `npx crewup ...` in target projects because the user's `package.json` may not include `npm run harness:*` scripts.
 
-For internal pipeline and maintenance commands, see [Script Map](./docs/script-map.en.md). Regular developers do not need to memorize every `.harness/scripts` file.
+For internal pipeline and maintenance commands, see [Script Map](./docs/harness-script-map.en.md). Regular developers do not need to memorize every `.harness/scripts` file.
 
 ## Workflow Profiles
 
@@ -258,7 +258,7 @@ See the full matrix in [Test Matrix](./docs/test-matrix.en.md).
 | [Agent Selection](./docs/harness-agent-selection.en.md) | Agent selection and adapter generation |
 | [Agent Capabilities](./docs/harness-agent-capabilities.en.md) | Support levels, capability boundaries, and claims |
 | [Core Boundary](./docs/harness-core-boundary.en.md) | Core, project adapter, and runtime boundaries |
-| [Script Map](./docs/script-map.en.md) | Core entries, internal pipeline scripts, optional scripts, and consolidation direction |
+| [Script Map](./docs/harness-script-map.en.md) | Core entries, internal pipeline scripts, optional scripts, and consolidation direction |
 | [Optional Integrations](./docs/optional-integrations.en.md) | Optional providers such as CodeGraph |
 | [Extension Guide](./docs/harness-extension-guide.en.md) | Skills, policies, rules, and templates |
 

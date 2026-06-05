@@ -1,5 +1,5 @@
 workflow:
-  name: "通用 AI 协作工作流"
+  name: "CrewUp formal AI engineering workflow"
   version: "0.2.0"
   language: "zh-CN"
   primary_runner: "native-subagents"
@@ -13,65 +13,65 @@ workflow:
 
   stages:
     - id: "intake"
-      name: "需求入口判断"
+      name: "Intake"
       owner: "main"
-      input: "用户原始请求"
+      input: "Original user request"
       output: "new run or existing run"
       gate: "intake_decision"
 
     - id: "requirements_plan"
-      name: "需求扩写"
+      name: "Requirements planning"
       owner: "requirements-plan"
       input: ".harness/runs/<run>/input.md"
       output: ".harness/runs/<run>/artifacts/requirement-plan.md"
       gate: "requirement_plan_created"
 
     - id: "requirements_confirm"
-      name: "需求确认"
-      owner: "main"
+      name: "Requirements confirmation"
+      owner: "requirements"
       input: ".harness/runs/<run>/artifacts/requirement-plan.md"
       output: ".harness/runs/<run>/artifacts/requirement.md"
       gate: "requirement_promoted_or_confirmed"
 
     - id: "plan"
-      name: "架构与实施计划"
+      name: "Architecture and implementation planning"
       owner: "architect"
       input: ".harness/runs/<run>/artifacts/requirement.md"
-      output: ".harness/runs/<run>/artifacts/architecture.md 和 implementation-plan.md"
+      output: ".harness/runs/<run>/artifacts/architecture.md and implementation-plan.md"
       gate: "planning_artifacts_ready"
 
     - id: "implement"
-      name: "实现"
+      name: "Implementation"
       owner: "implementation_agents"
       input: ".harness/runs/<run>/artifacts/implementation-plan.md"
-      output: "业务代码、测试和变更说明 artifacts"
+      output: "Business code, tests, and implementation notes"
       gate: "user_approved_implementation"
 
     - id: "verify"
-      name: "验证"
+      name: "Verification"
       owner: "tester"
-      input: "业务代码和测试计划"
+      input: "Business code and test plan"
       output: ".harness/runs/<run>/artifacts/test-report.md"
       gate: "verification_recorded"
 
     - id: "review"
-      name: "审查"
+      name: "Review"
       owner: "reviewer"
-      input: "代码 diff、run artifacts、测试报告"
+      input: "Code diff, run artifacts, and test report"
       output: ".harness/runs/<run>/artifacts/review-report.md"
       gate: "review_passed"
 
     - id: "release"
-      name: "发布准备"
+      name: "Release preparation"
       owner: "release"
-      input: "已通过审查的变更"
+      input: "Reviewed changes"
       output: ".harness/runs/<run>/artifacts/release-summary.md"
       gate: "release_summary_ready"
 
     - id: "done"
-      name: "完成归档"
+      name: "Done and archived"
       owner: "main"
-      input: "通过测试、审查和发布门禁的 run"
+      input: "Run that passed tests, review, and release gates"
       output: "RUN_SUMMARY.md, report, archive summary, optional product sync"
       gate: "done_definition_met"
 
@@ -112,7 +112,7 @@ workflow:
     before_product_sync:
       required: true
       evidence_field: "confirmations.product_sync_approved_at"
-      note: "transition --to=done 会自动记录该确认并执行 product-sync。"
+      note: "transition --to=done records this confirmation and runs product-sync when product sync is enabled."
 
   stage_entry_gates:
     requirements_confirm:
@@ -171,7 +171,7 @@ workflow:
 
   workflow_profiles:
     discovery:
-      description: "新项目、目录结构、技术选型、模块边界和阶段路线规划；只产出规划，不写业务代码。"
+      description: "Formal no-code discovery for a new project, directory structure, technology choices, module boundaries, and phased roadmap."
       run_type: "discovery"
       no_code: true
       default_agents:
@@ -185,7 +185,7 @@ workflow:
         - "next_runs_suggested"
         - "no_business_code_changes"
     plan_only:
-      description: "明确要求只做方案、需求、架构或实施计划；不进入业务代码实现。"
+      description: "Formal no-code flow for requirements, architecture, or implementation planning without business-code implementation."
       run_type: "plan_only"
       no_code: true
       default_agents:
@@ -199,7 +199,7 @@ workflow:
         - "review_recorded"
         - "no_business_code_changes"
     lite:
-      description: "小范围正式变更的严格短路径，不是 quick mode；仍保留实现 agent、tester、reviewer、release、gate-check、report 和 finish。"
+      description: "Narrow formal implementation run, not quick mode; still keeps delegated implementation agents, tester, reviewer, release, gate-check, report, and finish."
       run_type: "implementation"
       no_code: false
       default_agents:
@@ -211,7 +211,7 @@ workflow:
         - "verification_recorded"
         - "review_recorded"
     standard:
-      description: "常规功能迭代；需求、方案、实现、验证、审查、发布摘要闭环。"
+      description: "Normal formal feature/change run with requirements, architecture, implementation, verification, review, and release summary."
       run_type: "feature"
       no_code: false
       default_agents:
@@ -227,7 +227,7 @@ workflow:
         - "review_passed"
         - "release_summary_ready"
     full:
-      description: "高风险或跨模块变更；完整需求澄清/需求/架构/实现/测试/审查/发布流程。"
+      description: "High-risk or cross-module formal run with full requirements clarification, architecture, implementation, testing, review, and release flow."
       run_type: "feature"
       no_code: false
       default_agents:

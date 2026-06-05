@@ -129,11 +129,16 @@ const requiredPaths = [
   ".harness/scripts/lib/workload-analysis.mjs",
   "docs/harness-core-boundary.md",
   "docs/harness-extension-guide.md",
-  "docs/harness-hardening-roadmap.md",
+  "docs/harness-script-map.md",
+  "docs/harness-script-map.en.md",
   "docs/harness-agent-selection.md",
   "docs/harness-agent-capabilities.md",
   "docs/universal-agent-bridge.md",
   "docs/harness-workflow.md",
+  "docs/runbook.md",
+  "docs/runbook.en.md",
+  "docs/local-testing.md",
+  "docs/local-testing.en.md",
   "docs/test-matrix.md",
   "docs/test-matrix.en.md",
   "docs/optional-integrations.md",
@@ -182,6 +187,15 @@ const textRootsToScan = [
   ".harness/rules",
   ".harness/scripts",
   ".harness/templates"
+];
+
+const templateTextRootsToScan = [
+  "README.md",
+  "README.en.md",
+  "CONTRIBUTING.md",
+  "SECURITY.md",
+  "CHANGELOG.md",
+  "docs"
 ];
 
 const errors = [];
@@ -262,7 +276,7 @@ async function checkJson(rel, { optional = false } = {}) {
 
 async function checkTextEncoding() {
   const files = [];
-  for (const rel of textRootsToScan) {
+  for (const rel of isTemplatePackage ? [...textRootsToScan, ...templateTextRootsToScan] : textRootsToScan) {
     const target = path.join(root, rel);
     if (!existsSync(target)) continue;
     const statFiles = await collectTextFiles(target);
@@ -270,7 +284,21 @@ async function checkTextEncoding() {
   }
   files.push(...await collectLocalAiRuleFiles(root, await resolveConfiguredLocalRuleFile()));
 
-  const suspicious = /[\uFFFD]|(?:\u951B|\u9286|\u59AB|\u7F02|\u701B|\u6FEE|\u7459|\u7487|\u9225|\u20AC)/;
+  const suspicious = new RegExp(`[\\uFFFD${[
+    0x6D93,
+    0x9474,
+    0x9354,
+    0x93C2,
+    0x4E63,
+    0x4E7C,
+    0x4E76,
+    0x4E7A,
+    0x9286,
+    0x951B,
+    0x9225,
+    0x7039,
+    0x20AC
+  ].map((code) => `\\u${code.toString(16).padStart(4, "0")}`).join("")}]`);
   for (const file of files) {
     const content = await readFile(file, "utf8");
     if (suspicious.test(content)) {
@@ -637,7 +665,7 @@ async function checkWorkflow() {
   }
 
   const liteDescription = workflow?.workflow_profiles?.lite?.description ?? "";
-  if (!/不是 quick mode/i.test(liteDescription)) {
+  if (!/not quick mode/i.test(liteDescription)) {
     errors.push("workflow_profiles.lite.description must state that lite is not quick mode");
   }
   const liteAgents = new Set(workflow?.workflow_profiles?.lite?.default_agents ?? []);
