@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.10
+
+- Added sealed CrewUp core verification: `crewup install` now writes `.harness/core-lock.json`, and `check`, `doctor`, and `gate-check` detect local `.harness` core drift inside user projects.
+- Blocked project feature runs from treating `.harness/scripts`, `.harness/config`, `.harness/orchestrator`, agents, templates, contracts, or rules as normal project-run changed files.
+- Clarified in the runbook and core-boundary docs that harness product bugs should be fixed in the CrewUp source repository, not patched during a user project's business run.
+- Added a dedicated install/upgrade/reset test matrix through `npm run test:install-flow` / `npm run test:local-install`, and documented when to run each verification path.
+- Rewrote the Chinese README as clean UTF-8 with a more polished open-source project structure, quickstart, workflow explanation, commands, validation, and docs navigation.
+
 ## 0.3.9
 
 - Replaced the default backlog-first intake flow with a Run-only lifecycle: `crewup run` now directly creates a formal run as the core work unit.

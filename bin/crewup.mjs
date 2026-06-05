@@ -4,6 +4,7 @@ import { existsSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { writeCoreLock } from "../.harness/scripts/lib/core-lock.mjs";
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const cwd = process.cwd();
@@ -115,9 +116,11 @@ async function installHarness({ force, reset }) {
   }
 
   const gitignoreUpdated = await ensureGitignore();
+  await writeCoreLock(cwd, { source: reset ? "crewup install --reset" : force ? "crewup install --force" : "crewup install" });
 
   console.log("CrewUp installed into the current project.");
   console.log("- .harness/");
+  console.log("- .harness/core-lock.json");
   if (force && hadHarness && !reset) console.log("- preserved .harness runtime/project state");
   if (reset) console.log("- reset existing .harness/ before install");
   console.log(!hadAgents || force || reset ? "- AGENTS.md" : "- AGENTS.md (already existed, not overwritten)");
@@ -158,6 +161,7 @@ function shouldSkipInstallPath(rel) {
   const normalized = rel.replaceAll("\\", "/");
   if (!normalized) return false;
   if (normalized === "project/inspect.json" || normalized === "project/adapter-plan.json") return true;
+  if (normalized === "core-lock.json") return true;
   if (normalized === "reports/project-inspection.md") return true;
   if (normalized === "reports/intake-decision.md") return true;
   if (normalized === "reports/last-harness-run.md") return true;

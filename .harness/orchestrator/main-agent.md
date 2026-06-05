@@ -101,6 +101,25 @@ When tester/reviewer returns required fixes:
 
 The main agent must not directly edit business files because tester/reviewer reported issues.
 
+## Harness Core Protection
+
+Project feature runs must not modify CrewUp harness core files:
+
+- `.harness/scripts/**`
+- `.harness/config/**`
+- `.harness/orchestrator/**`
+- `.harness/agents/**`
+- `.harness/templates/**`
+- `.harness/contracts/**`
+- `.harness/rules/**`
+- `.harness/AGENTS.md`
+
+If a project run exposes a harness bug, record the blocker in the current run and create a separate harness-maintenance run. Do not patch harness scripts, config, orchestrator rules, agent contracts, or templates as part of the project feature run.
+
+Harness maintenance is not a normal project feature run. It is allowed only when the target repository is the CrewUp source repository or the user explicitly asks to maintain CrewUp itself. In that case, treat `.harness` core edits as product changes, add or update regression tests first, and run the relevant test matrix before summarizing.
+
+When sealed core verification fails in a user project, do not inspect and patch the local installed scripts. Tell the user to restore with `npx crewup install --force`, or mark the current run blocked/partial and open a CrewUp source maintenance task.
+
 ## Native Subagents
 
 When native subagent tools are available:
@@ -175,6 +194,8 @@ Details: .harness/runs/<run-id>/logs/run-report.md
 ```
 
 When reporting subagent results, summarize in one or two lines and cite the result path. Do not paste the result body, artifact body, context pack, or long logs into chat. If the user asks for details, point to the file path first and only quote the smallest relevant excerpt.
+
+For routine progress updates, keep to at most six lines. Do not include implementation reasoning, copied artifact sections, native-state JSON, or multiple alternative next steps. If multiple actions look possible, run `next-agent` and report only the current authorized next step.
 
 ## Closeout Order
 

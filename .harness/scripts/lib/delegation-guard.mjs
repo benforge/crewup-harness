@@ -16,6 +16,18 @@ let activeBusinessPathPatterns = [
   ".github/workflows/**"
 ];
 let activeProductDocsPath = "";
+const harnessCorePathPatterns = [
+  ".harness/AGENTS.md",
+  ".harness/README.md",
+  ".harness/HARNESS-*.md",
+  ".harness/scripts/**",
+  ".harness/config/**",
+  ".harness/orchestrator/**",
+  ".harness/agents/**",
+  ".harness/templates/**",
+  ".harness/contracts/**",
+  ".harness/rules/**"
+];
 
 export function configureDelegationGuard(projectProfile = {}) {
   const configuredBusinessPaths = businessPathPatterns(projectProfile);
@@ -73,11 +85,16 @@ export function evaluateDelegationGuard({ root, runId, state = {}, workspaceFile
   const workspace = unique(workspaceFiles.map(filePathOf).map(normalizeRelPath).filter(Boolean));
   const manifest = unique(manifestFiles.map(filePathOf).map(normalizeRelPath).filter(Boolean));
   const combined = unique([...workspace, ...manifest]);
+  const harnessCoreFiles = combined.filter(isHarnessCorePath);
+  const problems = [];
+  if (harnessCoreFiles.length > 0) {
+    problems.push(`Harness core files changed during a project run: ${harnessCoreFiles.join(", ")}`);
+    problems.push("Project runs must not repair .harness core scripts/config/orchestrator files. Open a separate CrewUp harness-maintenance run instead.");
+  }
   const businessFiles = combined.filter(isBusinessCodePath);
-  if (businessFiles.length === 0) return [];
+  if (businessFiles.length === 0) return problems;
 
   const stage = String(targetStage || state.stage || "");
-  const problems = [];
   const workspaceBusiness = workspace.filter(isBusinessCodePath);
   const manifestBusiness = new Set(manifest.filter(isBusinessCodePath));
   const unrecorded = workspaceBusiness.filter((file) => !manifestBusiness.has(file));
@@ -157,6 +174,12 @@ export function isBusinessCodePath(file) {
   const normalized = normalizeRelPath(file);
   if (!normalized) return false;
   return activeBusinessPathPatterns.some((pattern) => matchPattern(normalized, pattern));
+}
+
+export function isHarnessCorePath(file) {
+  const normalized = normalizeRelPath(file);
+  if (!normalized) return false;
+  return harnessCorePathPatterns.some((pattern) => matchPattern(normalized, pattern));
 }
 
 export function requiredNativeAgentsForStageEntry(targetStage, { root = process.cwd(), runId = "", state = {}, taskAgents = null } = {}) {

@@ -7,6 +7,7 @@ import {
   configureDelegationGuard,
   evaluateDelegationGuard,
   isBusinessCodePath,
+  isHarnessCorePath,
   readNativeState
 } from "./lib/delegation-guard.mjs";
 
@@ -87,6 +88,14 @@ if (!manifest.files.length) {
 }
 
 async function guardManifestWrite(nextFiles) {
+  const harnessCoreFiles = nextFiles.filter(isHarnessCorePath);
+  if (harnessCoreFiles.length > 0) {
+    console.error("changed-files guard failed:");
+    console.error(`- Harness core files cannot be recorded as project-run changed files: ${harnessCoreFiles.join(", ")}`);
+    console.error("- Open a separate CrewUp harness-maintenance run if .harness scripts/config/orchestrator files need changes.");
+    process.exit(1);
+  }
+
   const state = await readState();
   const nativeState = await readNativeState(root, runId);
   const issues = evaluateDelegationGuard({
@@ -167,6 +176,9 @@ function classify(file, { initialDirty, sourceRequirement }) {
   }
   if (file.startsWith(".harness/runs/") || file.startsWith(".harness/reports/")) {
     return { include: false, reason: "harness generated state outside current run" };
+  }
+  if (isHarnessCorePath(file)) {
+    return { include: false, reason: "harness core files are not project-run changed files" };
   }
   return { include: true, reason: "changed after run baseline" };
 }

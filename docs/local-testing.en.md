@@ -1,165 +1,64 @@
-# Local Testing Guide
+# Local Testing CrewUp
 
 [中文](./local-testing.md) | English
 
-Use this guide to test the CrewUp package itself. The recommended path is to create a local tarball with `npm pack`, then install it into a temporary project. This is closer to a real user install than running only inside the source repository.
+Use this guide to test CrewUp before publishing. The recommended path is to create a local tarball with `npm pack`, then install it into a temporary project. This is closer to a real user install than running only inside the source repository.
 
-## What You Can Test
+## What To Test
 
-Without an API key, you can test:
+Local testing should cover:
 
 - install / init / check
-- run creation, naming, profile selection, and task generation
-- native plan and next-agent ordering constraints
-- architecture-owned implementation dispatch
-- tool-fallback logging
-- repair-artifacts owner guard
+- `install --force` safe upgrade and runtime-state preservation
+- `install --reset` clean reinstall
+- sealed core / `.harness/core-lock.json`
+- run creation and semantic runId generation
+- native plan and `next-agent` ordering constraints
+- implementation agents waiting for architecture assignment
 - audit / gate-check overreach detection
-- pack-install flow
+- archive / cancel / continue lifecycle
 
-After Codex or API access is configured, you can also test:
+## Fast Commands
 
-- native subagents actually starting
-- requirements-plan / requirements / architect owner artifacts being written by the owning subagents
-- frontend/backend/database/devops/docs dispatch from `implementation-plan.md`
-- tester/reviewer feedback delegation
-- release / finish / archive closeout
-
-## Pack From The Source Repository
+Inside the source repository:
 
 ```bash
-cd "C:\Users\Administrator.SKY-20260324MFW\Documents\New project"
+npm run harness:check
+npm test
+npm run test:install-flow
+npm run harness:test-flow
 npm run release:preflight
-npm pack
 ```
 
-This creates something like:
+## Install Flow Test
 
-```text
-crewup-harness-0.3.8.tgz
-```
-
-## Create A Temporary Project
+To test only install, upgrade, `--force`, `--reset`, and sealed core:
 
 ```bash
-mkdir C:\Users\Administrator.SKY-20260324MFW\Documents\crewup-local-test
-cd C:\Users\Administrator.SKY-20260324MFW\Documents\crewup-local-test
-npm init -y
-npm install -D "C:\Users\Administrator.SKY-20260324MFW\Documents\New project\crewup-harness-0.3.8.tgz"
+npm run test:install-flow
 ```
 
-## Initialize CrewUp
+This creates a temporary project, installs the local tarball, and validates:
 
-```bash
-npx crewup install
-npx crewup init --agent codex --yes
-npx crewup doctor
-npx crewup check
-```
+- `crewup install` writes `.harness/core-lock.json`
+- `crewup install --force` updates core while preserving runs, knowledge, project, reports, and dashboard
+- `crewup install --reset` deletes old `.harness/` before reinstall
+- editing installed `.harness/scripts/check.mjs` makes `crewup check` detect sealed core drift
+- `doctor` and `check` work in a target project
 
-To test safe upgrade behavior:
-
-```bash
-npx crewup install --force
-```
-
-`--force` should preserve:
-
-- `.harness/runs/`
-- `.harness/knowledge/`
-- `.harness/project/`
-- `.harness/reports/`
-- `.harness/dashboard/`
-
-## Minimal Full Development Case
-
-Paste this into the chat window:
-
-```text
-Use CrewUp to build a tiny counter web app and run the full workflow. Acceptance criteria: page shows counter, initial value is 0, +1/-1/reset work, value persists after refresh, build/test pass. Scope: tiny frontend only; no backend, database, auth, or routing.
-```
-
-This case is small but covers:
-
-- requirements-plan
-- requirements
-- architect
-- frontend
-- tester
-- reviewer
-- release
-
-## Key Check Commands
-
-After you have a runId:
-
-```bash
-npx crewup next-agent <run-id>
-npx crewup status <run-id>
-npx crewup audit <run-id>
-npx crewup gate-check <run-id>
-npx crewup report <run-id>
-```
-
-Check that:
-
-- initial runnable agent is only `requirements-plan`
-- `requirements` waits for `requirements-plan`
-- `architect` waits for `requirements`
-- implementation agents are decided by `implementation-plan.md`; missing plan means implementation agents cannot start
-- `lite` cannot start implementation agents directly; it only shortens planning artifacts
-- the main agent did not author owner artifacts
-- tester/reviewer issues are delegated back to owner agents
-- audit does not report `owner_artifact_before_owner_done`, `downstream_started_before_prerequisite`, or `unassigned_implementation_started`
-- audit/gate/report run before retained subagents are closed unless capacity forces earlier closure
-
-## Run Lifecycle Test
-
-When testing blocked, partial, or canceled outcomes, make sure the run still closes cleanly:
-
-```bash
-npx crewup status
-npx crewup status <run-id>
-npx crewup archive <run-id> --outcome=blocked --reason="local dependency unavailable"
-npx crewup cancel <run-id> --reason="test cancellation"
-npx crewup continue <run-id> "Continue the previous unfinished counter MVP"
-```
-
-Check that:
-
-- `.harness/runs/<run-id>/RUN_STATUS.md` always exists
-- `.harness/runs/<run-id>/RUN_SUMMARY.md` exists after archive
-- `.harness/runs/<run-id>/logs/archive/archive-summary.md` exists after archive
-- `.harness/reports/<run-id>.md` exists after report or archive
-- `continue` creates a new run whose `input.md` includes the source run status and summary
-
-## Tool Fallback Test
-
-```bash
-npx crewup tool-fallback <run-id> --tool Context7 --reason "not available in local test" --fallback "use checked-in docs"
-```
-
-Check that these files were generated:
-
-```text
-.harness/runs/<run-id>/logs/tool-fallbacks.json
-.harness/runs/<run-id>/logs/tool-fallbacks.md
-```
-
-## Script-Only Flow Test
-
-In the CrewUp source repository:
+## Full Workflow Test
 
 ```bash
 npm run harness:test-flow
 ```
 
-It creates a temporary project, installs the local package, and validates:
+This creates a temporary project, installs the local package, and validates:
 
 - run creation
 - plan-only routing
 - strict/full workflow routing
-- next-agent ordering
+- `requirements-plan -> requirements -> architect` ordering
+- `next-agent` runnable / blocked output
 - architecture-owned implementation dispatch
 - native-state premature-start blocking
 - repair-artifacts owner guard
@@ -168,6 +67,36 @@ It creates a temporary project, installs the local package, and validates:
 - cancel/archive/continue lifecycle closeout
 - audit overreach blocking
 - gate-check owner artifact blocking
+
+## Manual Tarball Test
+
+PowerShell example:
+
+```powershell
+npm pack
+mkdir C:\tmp\crewup-app
+cd C:\tmp\crewup-app
+npm init -y
+npm install -D "C:\path\to\crewup-harness-0.3.9.tgz"
+npx crewup install
+npx crewup init --agent codex --yes
+npx crewup check
+```
+
+## Minimal Run Case
+
+```bash
+npx crewup run "Use CrewUp to build a tiny counter web app and run the full workflow. Acceptance criteria: page shows counter, initial value is 0, +1/-1/reset work, value persists after refresh, build/test pass. Scope: tiny frontend only."
+```
+
+Then inspect:
+
+```bash
+npx crewup status <run-id>
+npx crewup next-agent <run-id>
+npx crewup audit <run-id>
+npx crewup gate-check <run-id>
+```
 
 ## API Key Check
 
@@ -183,23 +112,23 @@ SDK/API mode or `inspect --ai` requires:
 $env:OPENAI_API_KEY="sk-..."
 ```
 
-Codex Desktop native subagents depend on the Codex Desktop login state and available native tools. CrewUp generates spawn prompts, native-state, and gates; it does not log into model services for you.
+Codex Desktop native subagents depend on Codex Desktop login state and tool capability. CrewUp only generates spawn prompts, native-state records, and gates. It does not log into model services for the user.
 
 ## Common Failures
 
-### `next-agent` does not return the next agent
+### `next-agent` Does Not Return The Next Agent
 
-The upstream result may not be captured, or native-state is incomplete:
+The upstream result is probably not registered, or native-state is incomplete:
 
 ```bash
 npx crewup native-state <run-id> diagnose
 ```
 
-### `gate-check` reports owner artifact provenance
+### `gate-check` Reports Owner Artifact Provenance
 
-The artifact may have been written by the main agent, or the subagent did not declare `artifactUpdates` in result JSON. Resume the owner agent instead of copying content in the main window.
+The artifact may have been written by the main agent, or the subagent did not declare `artifactUpdates` in result JSON. Resume the owner agent; do not let the main agent copy content into the artifact.
 
-### `repair-artifacts` refuses to modify an artifact
+### `repair-artifacts` Refuses To Modify An Artifact
 
 This is expected protection. In an active native run, owner artifacts should be repaired by the owner agent first. Use this only for explicit maintenance or legacy normalization:
 
@@ -207,12 +136,12 @@ This is expected protection. In an active native run, owner artifacts should be 
 npx crewup repair-artifacts <run-id> --allow-owner-artifacts
 ```
 
-### `audit` reports too many retained agents
+### Sealed Core Drift
 
-Run:
+User projects should not patch `.harness` core scripts. Restore installed core:
 
 ```bash
-npx crewup native-state <run-id> recommend-close
+npx crewup install --force
 ```
 
-Then release subagents that are no longer needed.
+If it is a CrewUp product bug, add a regression test, fix it, and publish from the CrewUp source repository.

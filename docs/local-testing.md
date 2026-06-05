@@ -1,173 +1,102 @@
-# 本地测试指南
+# 本地测试 CrewUp
 
 [English](./local-testing.en.md) | 中文
 
-这份文档用于测试 CrewUp 包本身。推荐使用 `npm pack` 生成本地 tarball，再安装到临时项目里，这比只在源码仓库里跑更接近真实用户体验。
+这份文档用于在发包前测试 CrewUp 本身。推荐使用本地 `npm pack` 生成 tarball，再安装到临时项目里测试，这比只在源码仓库里跑脚本更接近真实用户路径。
 
-## 可以测试什么
+## 测试什么
 
-不配置 API key 时，可以测试：
+本地测试应覆盖：
 
 - install / init / check
-- run 创建、命名、profile、任务生成
-- native plan 和 next-agent 的顺序约束
-- architecture-owned implementation dispatch
-- tool-fallback 日志
-- repair-artifacts owner guard
-- audit / gate-check 越界拦截
-- pack-install 流程
+- `install --force` 安全升级和运行态保留
+- `install --reset` 清空重装
+- sealed core / `.harness/core-lock.json`
+- run 创建和语义化 runId
+- native plan 和 `next-agent` 顺序约束
+- implementation agents 等架构分配后才启动
+- audit / gate-check 越权拦截
+- archive / cancel / continue 生命周期
 
-配置好 Codex 或 API key 后，可以继续测试：
+## 快速命令
 
-- native 子 agent 是否真实启动
-- requirements-plan / requirements / architect 是否由对应子 agent 写 owner artifact
-- frontend/backend/database/devops/docs 是否按 `implementation-plan.md` 分配
-- tester/reviewer 反馈是否回派修复
-- release / finish / archive 是否完整闭环
-
-## 在源码仓库打包
+源码仓库内：
 
 ```bash
-cd "C:\Users\Administrator.SKY-20260324MFW\Documents\New project"
+npm run harness:check
+npm test
+npm run test:install-flow
+npm run harness:test-flow
 npm run release:preflight
-npm pack
 ```
 
-生成类似：
+## 安装链路测试
 
-```text
-crewup-harness-0.3.8.tgz
-```
-
-## 创建临时测试项目
+只测试安装、升级、`--force`、`--reset` 和 sealed core：
 
 ```bash
-mkdir C:\Users\Administrator.SKY-20260324MFW\Documents\crewup-local-test
-cd C:\Users\Administrator.SKY-20260324MFW\Documents\crewup-local-test
-npm init -y
-npm install -D "C:\Users\Administrator.SKY-20260324MFW\Documents\New project\crewup-harness-0.3.8.tgz"
+npm run test:install-flow
 ```
 
-## 初始化 CrewUp
+这个测试会创建临时项目，安装本地 tarball，并验证：
 
-```bash
-npx crewup install
-npx crewup init --agent codex --yes
-npx crewup doctor
-npx crewup check
-```
+- `crewup install` 会生成 `.harness/core-lock.json`
+- `crewup install --force` 会更新 core，但保留 runs、knowledge、project、reports、dashboard
+- `crewup install --reset` 会删除旧 `.harness/` 后清空重装
+- 修改已安装 `.harness/scripts/check.mjs` 后，`crewup check` 会发现 sealed core 漂移
+- `doctor` 和 `check` 在目标项目可用
 
-测试安全升级：
-
-```bash
-npx crewup install --force
-```
-
-`--force` 应保留：
-
-- `.harness/runs/`
-- `.harness/knowledge/`
-- `.harness/project/`
-- `.harness/reports/`
-- `.harness/dashboard/`
-
-## 最小完整开发案例
-
-聊天窗口输入：
-
-```text
-使用 CrewUp 做一个最小 counter web app，跑完整 workflow。验收标准：页面显示 counter，初始值为 0；可以 +1、-1、reset；刷新后数值保留；build/test 通过。范围：只做一个很小的前端实现；不需要 backend、database、auth、routing。
-```
-
-这个案例足够小，但会覆盖：
-
-- requirements-plan
-- requirements
-- architect
-- frontend
-- tester
-- reviewer
-- release
-
-## 关键检查命令
-
-拿到 runId 后，每个阶段都可以跑：
-
-```bash
-npx crewup next-agent <run-id>
-npx crewup status <run-id>
-npx crewup audit <run-id>
-npx crewup gate-check <run-id>
-npx crewup report <run-id>
-```
-
-重点确认：
-
-- 初始 runnable 只有 `requirements-plan`
-- `requirements` 等 `requirements-plan` 完成后才可启动
-- `architect` 等 `requirements` 完成后才可启动
-- 实现 agent 由 `implementation-plan.md` 决定；缺少该文件时不能启动开发 agent
-- `lite` 也不能直接启动开发 agent，只能生成更短的需求/架构产物
-- 主 agent 没有代写 owner artifact
-- tester/reviewer 问题被回派给 owner agent
-- audit 没有 `owner_artifact_before_owner_done`、`downstream_started_before_prerequisite`、`unassigned_implementation_started`
-- 关闭 retained subagents 前已经跑过 audit/gate/report，除非容量不足
-
-## Run 生命周期测试
-
-测试 blocked/partial/canceled 这些非成功结局时，确认 run 也能闭环：
-
-```bash
-npx crewup status
-npx crewup status <run-id>
-npx crewup archive <run-id> --outcome=blocked --reason="local dependency unavailable"
-npx crewup cancel <run-id> --reason="test cancellation"
-npx crewup continue <run-id> "继续上一次未完成的 counter MVP"
-```
-
-重点确认：
-
-- `.harness/runs/<run-id>/RUN_STATUS.md` 始终存在
-- 归档后存在 `.harness/runs/<run-id>/RUN_SUMMARY.md`
-- 归档后存在 `.harness/runs/<run-id>/logs/archive/archive-summary.md`
-- 归档或 report 后存在 `.harness/reports/<run-id>.md`
-- `continue` 会创建新的 run，并在新 run 的 `input.md` 中包含来源 run 的状态和摘要
-
-## 工具降级测试
-
-```bash
-npx crewup tool-fallback <run-id> --tool Context7 --reason "not available in local test" --fallback "use checked-in docs"
-```
-
-确认生成：
-
-```text
-.harness/runs/<run-id>/logs/tool-fallbacks.json
-.harness/runs/<run-id>/logs/tool-fallbacks.md
-```
-
-## 脚本链路测试
-
-在 CrewUp 源码仓库：
+## 完整工作流测试
 
 ```bash
 npm run harness:test-flow
 ```
 
-它会创建临时项目、安装本地包，并验证：
+这个测试会创建临时项目，安装本地包，并验证：
 
 - run 创建
 - plan-only 路由
 - strict/full workflow 路由
-- next-agent 顺序
+- `requirements-plan -> requirements -> architect` 顺序
+- `next-agent` runnable / blocked 输出
 - architecture-owned implementation dispatch
 - native-state 提前启动拦截
 - repair-artifacts owner guard
-- tool-fallback 写日志
+- tool-fallback 日志
 - status/runs 状态卡
 - cancel/archive/continue 生命周期闭环
 - audit 越界拦截
 - gate-check owner artifact 拦截
+
+## 手动 tarball 测试
+
+PowerShell 示例：
+
+```powershell
+npm pack
+mkdir C:\tmp\crewup-app
+cd C:\tmp\crewup-app
+npm init -y
+npm install -D "C:\path\to\crewup-harness-0.3.9.tgz"
+npx crewup install
+npx crewup init --agent codex --yes
+npx crewup check
+```
+
+## 最小 run 案例
+
+```bash
+npx crewup run "使用 CrewUp 做一个最小 counter web app，跑完整 workflow。验收标准：页面显示 counter，初始值为 0；可以 +1、-1、reset；刷新后数值保留；build/test 通过。范围：只做很小的前端实现。"
+```
+
+随后检查：
+
+```bash
+npx crewup status <run-id>
+npx crewup next-agent <run-id>
+npx crewup audit <run-id>
+npx crewup gate-check <run-id>
+```
 
 ## API Key 检查
 
@@ -183,13 +112,13 @@ SDK/API 模式或 `inspect --ai` 需要：
 $env:OPENAI_API_KEY="sk-..."
 ```
 
-如果使用 Codex Desktop native 子 agent，则以 Codex Desktop 的登录态和工具能力为准。CrewUp 只负责生成 spawn prompt、native-state 和 gate，不负责替你登录模型服务。
+Codex Desktop native 子 agent 以 Codex Desktop 的登录态和工具能力为准。CrewUp 只负责生成 spawn prompt、native-state 和 gate，不替用户登录模型服务。
 
 ## 常见失败
 
 ### `next-agent` 没有返回下一个 agent
 
-说明上游 result 没登记，或者 native-state 不完整。运行：
+说明上游 result 没登记，或者 native-state 不完整：
 
 ```bash
 npx crewup native-state <run-id> diagnose
@@ -197,7 +126,7 @@ npx crewup native-state <run-id> diagnose
 
 ### `gate-check` 报 owner artifact provenance
 
-说明 artifact 可能是主 agent 写的，或者子 agent 没在 result JSON 里声明 `artifactUpdates`。应恢复 owner agent 执行，不要让主 agent 复制内容。
+artifact 可能是主 agent 写的，或者子 agent 没在 result JSON 里声明 `artifactUpdates`。应恢复 owner agent 执行，不让主 agent 复制内容。
 
 ### `repair-artifacts` 拒绝修改 artifact
 
@@ -207,12 +136,12 @@ npx crewup native-state <run-id> diagnose
 npx crewup repair-artifacts <run-id> --allow-owner-artifacts
 ```
 
-### `audit` 报 retained agent 过多
+### sealed core 漂移
 
-运行：
+用户项目里不应该修 `.harness` 核心脚本。恢复安装态核心：
 
 ```bash
-npx crewup native-state <run-id> recommend-close
+npx crewup install --force
 ```
 
-然后按建议释放不再需要的子 agent。
+如果是 CrewUp 产品 bug，在 CrewUp 源码仓库补测试、修复并发布。

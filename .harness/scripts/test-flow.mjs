@@ -21,15 +21,20 @@ try {
   runGit(["init"], appDir);
   const tarball = packPackage(packDir);
   runNpm(["install", "--no-audit", "--no-fund", "--prefer-offline", tarball], appDir, { timeoutMs: 120000 });
+  await assertInstallResetPath(tmpRoot, tarball);
 
   runCli(appDir, ["install"]);
   await seedExistingHarnessState(appDir);
   runCli(appDir, ["install", "--force"]);
   assertExistingHarnessStatePreserved(appDir);
+  assertExists(path.join(appDir, ".harness", "core-lock.json"), "sealed core lock");
 
   runCli(appDir, ["inspect", "--no-ai"]);
   runCli(appDir, ["init", "--yes", "--agent", "codex"]);
   runCli(appDir, ["check"]);
+  await assertSealedCoreDriftDetected(appDir);
+  commitBaseline(appDir);
+  await writeFile(path.join(appDir, "baseline-dirty.txt"), "pre-run dirty file\n", "utf8");
   const mainAgentDoc = await readFile(path.join(appDir, ".harness", "orchestrator", "main-agent.md"), "utf8");
   assertIncludes(mainAgentDoc, "Do not ask the user to open a terminal just to create a runId", "chat entry run creation rule");
   assertIncludes(mainAgentDoc, "`next-agent` is the only dispatch authority", "next-agent dispatch authority rule");
@@ -142,6 +147,13 @@ try {
   const counterNextAgent = JSON.parse(runCli(appDir, ["next-agent", counterRunId, "--json"]));
   assertSameArray(counterNextAgent.runnable.map((item) => item.agent), ["requirements-plan"], "counter starts with requirements-plan");
   assertSameMembers(counterNextAgent.skipped.map((item) => item.agent), ["frontend"], "counter implementation waits for architecture assignment");
+  const protectedHarnessFile = path.join(appDir, ".harness", "scripts", "project-run-overreach.tmp");
+  await writeFile(protectedHarnessFile, "project run must not edit harness core\n", "utf8");
+  const protectedChangedFilesAdd = runCliWithStatus(appDir, ["changed-files", counterRunId, "add", ".harness/scripts/project-run-overreach.tmp"], { expectedStatus: 1 });
+  assertIncludes(protectedChangedFilesAdd, "Harness core files cannot be recorded", "changed-files blocks harness core edits");
+  const protectedGate = runCliWithStatus(appDir, ["gate-check", counterRunId], { expectedStatus: 1 });
+  assertIncludes(protectedGate, "Harness core files changed during a project run", "gate-check blocks harness core edits");
+  await rm(protectedHarnessFile, { force: true });
   const counterStatusOutput = runCli(appDir, ["status", counterRunId]);
   assertIncludes(counterStatusOutput, "# Run 状态", "single run localized status card");
   assertIncludes(counterStatusOutput, "## 一眼看懂", "status card localized at a glance");
@@ -325,6 +337,33 @@ async function createStrictFrontendRun(appDir) {
   };
 }
 
+async function assertInstallResetPath(tmpRoot, tarball) {
+  const resetDir = path.join(tmpRoot, "reset-app");
+  await mkdir(resetDir, { recursive: true });
+  runNpm(["init", "-y"], resetDir);
+  runGit(["init"], resetDir);
+  runNpm(["install", "--no-audit", "--no-fund", "--prefer-offline", tarball], resetDir, { timeoutMs: 120000 });
+  runCli(resetDir, ["install"]);
+
+  await mkdir(path.join(resetDir, ".harness", "runs", "old-run"), { recursive: true });
+  await mkdir(path.join(resetDir, ".harness", "knowledge"), { recursive: true });
+  await writeFile(path.join(resetDir, ".harness", "runs", "old-run", "state.json"), "{}\n", "utf8");
+  await writeFile(path.join(resetDir, ".harness", "knowledge", "custom.md"), "custom knowledge\n", "utf8");
+  await writeFile(path.join(resetDir, ".harness", "scripts", "local-drift.mjs"), "console.log('drift');\n", "utf8");
+
+  const output = runCli(resetDir, ["install", "--reset"]);
+  assertIncludes(output, "reset existing .harness/ before install", "install --reset reset notice");
+  assertNotExists(path.join(resetDir, ".harness", "runs", "old-run", "state.json"), "reset removed old run state");
+  assertNotExists(path.join(resetDir, ".harness", "knowledge", "custom.md"), "reset removed old knowledge state");
+  assertNotExists(path.join(resetDir, ".harness", "scripts", "local-drift.mjs"), "reset removed harness core drift");
+  assertExists(path.join(resetDir, ".harness", "core-lock.json"), "reset regenerated core lock");
+
+  const doctor = runCli(resetDir, ["doctor"]);
+  assertIncludes(doctor, "sealed core", "doctor reports sealed core after reset");
+  runCli(resetDir, ["init", "--yes", "--agent", "codex"]);
+  runCli(resetDir, ["check"]);
+}
+
 function packPackage(packDir) {
   const result = runNpm(["pack", "--json", "--pack-destination", packDir], root);
   const payload = JSON.parse(result.stdout.trim() || "[]");
@@ -355,6 +394,16 @@ function runGit(args, cwd, { timeoutMs = 30000 } = {}) {
     throw new Error((result.stdout || "") + (result.stderr || "") || `git ${args.join(" ")} failed`);
   }
   return result;
+}
+
+function commitBaseline(cwd) {
+  runGit(["config", "user.email", "crewup-test@example.local"], cwd);
+  runGit(["config", "user.name", "CrewUp Test"], cwd);
+  runGit(["add", "-A"], cwd);
+  const result = spawnSync("git", ["commit", "-m", "test baseline"], { cwd, encoding: "utf8", timeout: 30000 });
+  if (result.status !== 0 && !`${result.stdout}${result.stderr}`.includes("nothing to commit")) {
+    throw new Error((result.stdout || "") + (result.stderr || "") || "git commit baseline failed");
+  }
 }
 
 function runCli(cwd, args) {
@@ -439,6 +488,16 @@ function assertExistingHarnessStatePreserved(appDir) {
   ]) {
     assertExists(path.join(appDir, relPath), `preserved ${relPath}`);
   }
+}
+
+async function assertSealedCoreDriftDetected(appDir) {
+  const target = path.join(appDir, ".harness", "scripts", "check.mjs");
+  const original = await readFile(target, "utf8");
+  await writeFile(target, `${original}\n// simulated user-project core drift\n`, "utf8");
+  const output = runCliWithStatus(appDir, ["check"], { expectedStatus: 1 });
+  assertIncludes(output, "CrewUp sealed core files changed", "check detects sealed core drift");
+  await writeFile(target, original, "utf8");
+  runCli(appDir, ["check"]);
 }
 
 function assertIncludes(output, expected, label) {

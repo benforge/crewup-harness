@@ -40,6 +40,7 @@ A healthy run should satisfy:
 - `RUN_STATUS.md` exists and shows status, stage, owner, and next command.
 - If the current directory is a Git repository, the run attempts to create a `crewup/<run-id>-<slug>` branch; pre-existing uncommitted files are recorded in `state.json` under `git.dirtyAtStart`.
 - The initial `next-agent` result only allows `requirements-plan`.
+- `.harness/core-lock.json` exists after install, and `npx crewup check` verifies that the sealed CrewUp core has not drifted.
 - `requirements` waits until `requirements-plan` completes.
 - `architect` waits until `requirements` completes.
 - Implementation agents are candidates only until `implementation-plan.md` assigns exact agent ids.
@@ -70,6 +71,45 @@ Pause and fix orchestration if you see:
 - Subagent results not registered in native-state or bridge result JSON.
 - `RUN_STATUS.md` does not show a clear next action.
 - The chat window contains full logs, full context packs, or full subagent conversations.
+- The project feature run modifies harness core files such as `.harness/scripts/**`, `.harness/config/**`, or `.harness/orchestrator/**`.
+- `npx crewup check` reports `CrewUp sealed core files changed/added/removed`.
+
+If a project run exposes a harness bug, mark the current run blocked/partial and open a separate harness-maintenance run for CrewUp itself. Do not patch `.harness` core scripts inside the same project feature run.
+
+## Sealed Core Handling
+
+CrewUp writes this file after install or upgrade:
+
+```text
+.harness/core-lock.json
+```
+
+It records fingerprints for reusable core files. Normal project runs must not modify:
+
+```text
+.harness/scripts/**
+.harness/config/**
+.harness/orchestrator/**
+.harness/agents/**
+.harness/templates/**
+.harness/contracts/**
+.harness/rules/**
+```
+
+If verification fails:
+
+```bash
+npx crewup check
+npx crewup doctor
+```
+
+Handle it this way:
+
+- Core drift inside a user project: run `npx crewup install --force` to restore the installed core. runs/knowledge/project/reports/dashboard are preserved.
+- CrewUp product bug: fix it in the CrewUp source repository, test it, publish an upgrade, then let users upgrade.
+- Current project run cannot continue: archive as `blocked` or `partial`, then use `crewup continue` later.
+
+When maintaining CrewUp itself, work in the CrewUp source repository, not inside a user project's business run. Add a regression test first, then fix the implementation, then run the test matrix.
 
 ## What Complete Means
 
@@ -115,6 +155,7 @@ Common handling:
 | tester/reviewer requires fixes | Use `repair-plan` to assign owner implementation agents |
 | Local dependency/environment unavailable | Record blocker and archive as blocked if needed |
 | Only part of the work is done | Archive as partial and continue in a later run |
+| Sealed core drift | Restore with `npx crewup install --force`, or fix CrewUp in the source repository |
 
 ## Cancel, Fail, Or Partial
 
@@ -167,3 +208,5 @@ Details: .harness/runs/<run-id>/logs/run-report.md
 ```
 
 Do not paste full subagent output, full logs, or full context packs. Link to paths instead.
+
+Routine progress updates should stay within six lines. Do not include implementation reasoning, full artifact sections, native-state JSON, or several alternative next steps. If multiple actions look possible, run `next-agent` and report only the currently authorized next step.

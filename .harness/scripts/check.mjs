@@ -4,6 +4,7 @@ import path from "node:path";
 import { parse as parseYaml } from "yaml";
 import { loadProjectProfile } from "./lib/project-profile.mjs";
 import { planningAgentIds, verificationAgentIds, writeOwnerAgentIds } from "./lib/agent-roles.mjs";
+import { verifyCoreLock } from "./lib/core-lock.mjs";
 
 const root = process.cwd();
 const defaultLocalRuleFile = null;
@@ -28,6 +29,7 @@ const requiredPaths = [
   ".harness/project/agent-adapter.md",
   ".harness/project/agent-runtime.md",
   ".harness/AGENTS.md",
+  ".harness/core-lock.json",
   ".harness/HARNESS-ARCHITECTURE-AND-USAGE.md",
   ".harness/HARNESS-WORKFLOW.md",
   ".harness/config/agents.yaml",
@@ -109,6 +111,7 @@ const requiredPaths = [
   ".harness/scripts/lib/json.mjs",
   ".harness/scripts/next.mjs",
   ".harness/scripts/token-ledger.mjs",
+  ".harness/scripts/test-install-flow.mjs",
   ".harness/scripts/test-flow.mjs",
   ".harness/scripts/skills-report.mjs",
   ".harness/scripts/skills-resolve.mjs",
@@ -117,6 +120,7 @@ const requiredPaths = [
   ".harness/scripts/finish.mjs",
   ".harness/scripts/skills-audit.mjs",
   ".harness/scripts/lib/context-mode.mjs",
+  ".harness/scripts/lib/core-lock.mjs",
   ".harness/scripts/lib/project-profile.mjs",
   ".harness/scripts/lib/project-overlay.mjs",
   ".harness/scripts/lib/scope-negation.mjs",
@@ -130,6 +134,8 @@ const requiredPaths = [
   "docs/harness-agent-capabilities.md",
   "docs/universal-agent-bridge.md",
   "docs/harness-workflow.md",
+  "docs/test-matrix.md",
+  "docs/test-matrix.en.md",
   "docs/optional-integrations.md",
   ".harness/skills/build.md",
   ".harness/skills/test.md",
@@ -187,6 +193,7 @@ await checkYaml();
 await checkJson("package.json");
 await checkJson("skills-lock.json", { optional: true });
 await checkTextEncoding();
+await checkCoreLock();
 await checkSkills();
 await checkProjectOverlay();
 await checkAgentAdapter();
@@ -225,6 +232,12 @@ async function checkRequiredPaths() {
       errors.push(`Missing required path: ${rel}`);
     }
   }
+}
+
+async function checkCoreLock() {
+  if (isTemplatePackage) return;
+  const result = await verifyCoreLock(root);
+  if (!result.ok) errors.push(...result.problems);
 }
 
 async function checkYaml() {
@@ -382,7 +395,8 @@ function isProjectGeneratedPath(rel) {
   return rel === ".harness/project/profile.yaml"
     || rel === ".harness/project/overlay.yaml"
     || rel === ".harness/project/agent.yaml"
-    || rel === ".harness/project/agent-adapter.md";
+    || rel === ".harness/project/agent-adapter.md"
+    || rel === ".harness/core-lock.json";
 }
 
 function isTemplateOnlyPath(rel) {

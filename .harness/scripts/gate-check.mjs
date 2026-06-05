@@ -21,6 +21,7 @@ import {
 } from "./lib/delegation-guard.mjs";
 import { hasTemplatePlaceholder } from "./lib/placeholder-detector.mjs";
 import { isDocsOnlyAgentSet, isLiteImplementationOnlyAgentSet } from "./lib/agent-roles.mjs";
+import { verifyCoreLock } from "./lib/core-lock.mjs";
 
 const root = process.cwd();
 const args = process.argv.slice(2);
@@ -52,6 +53,7 @@ const state = existsSync(statePath) ? JSON.parse(await readFile(statePath, "utf8
 const artifactProvenance = await collectArtifactProvenance(root, runId);
 
 await checkArtifacts();
+await checkCoreLock();
 await checkArtifactProvenance();
 await checkOwnerArtifactAudit();
 await checkRequirementPlanGate();
@@ -109,6 +111,11 @@ async function checkArtifacts() {
       }
     }
   }
+}
+
+async function checkCoreLock() {
+  const result = await verifyCoreLock(root);
+  if (!result.ok) problems.push(...result.problems);
 }
 
 async function checkArtifactProvenance() {

@@ -1,6 +1,6 @@
 {
   "name": "crewup-harness",
-  "version": "0.3.9",
+  "version": "0.3.10",
   "description": "CrewUp: a reusable AI workflow harness for project-agnostic agent collaboration.",
   "author": "Ben",
   "license": "MIT",
@@ -59,7 +59,9 @@
   },
   "scripts": {
     "test": "npm run harness:check && npm --prefix examples/minimal-node test",
-    "test:pack-install": "node .harness/scripts/test-flow.mjs",
+    "test:install-flow": "node .harness/scripts/test-install-flow.mjs",
+    "test:local-install": "node .harness/scripts/test-install-flow.mjs",
+    "test:pack-install": "npm run test:install-flow && node .harness/scripts/test-flow.mjs",
     "release:preflight": "npm run harness:check && npm test && npm run test:pack-install && npm pack --dry-run",
     "test:flow": "node .harness/scripts/test-flow.mjs",
     "harness:check": "node .harness/scripts/check.mjs",
@@ -101,6 +103,7 @@
     "harness:token-ledger": "node .harness/scripts/token-ledger.mjs",
     "harness:dev-service": "node .harness/scripts/dev-service.mjs",
     "harness:test-flow": "node .harness/scripts/test-flow.mjs",
+    "harness:test-install-flow": "node .harness/scripts/test-install-flow.mjs",
     "harness:skills": "node .harness/scripts/skills-report.mjs",
     "harness:skills:resolve": "node .harness/scripts/skills-resolve.mjs",
     "harness:skills:install": "node .harness/scripts/skills-install.mjs",

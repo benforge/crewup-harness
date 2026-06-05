@@ -24,6 +24,30 @@ CrewUp 把可复用工作流核心和项目专属适配层分开。
 - 进入流程后不能临时绕过角色归属、产物 provenance 或阶段门禁。
 - 如果用户只要求规划或发现，`plan_only` / `discovery` 应禁止业务代码变更。
 
+## Sealed Core
+
+安装或升级后，CrewUp 会生成：
+
+```text
+.harness/core-lock.json
+```
+
+它记录可复用核心文件的指纹。正常业务 run 不能修改：
+
+```text
+.harness/scripts/**
+.harness/config/**
+.harness/orchestrator/**
+.harness/agents/**
+.harness/templates/**
+.harness/contracts/**
+.harness/rules/**
+```
+
+`npx crewup check`、`npx crewup doctor` 和 `npx crewup gate-check <run-id>` 会检查 sealed core。如果用户项目中的核心文件漂移，应使用 `npx crewup install --force` 恢复安装态核心；如果是 CrewUp 产品 bug，应在 CrewUp 源码仓库修复和发布升级。
+
+维护 CrewUp 本身时，`.harness` 核心文件可以作为产品源码修改，但必须发生在 CrewUp 源码仓库或明确的 CrewUp 维护任务中。用户项目的业务 run 不能把这些修改登记为业务变更。
+
 ## 不要混在一起
 
 项目业务资产不要放进可复用核心：
@@ -39,6 +63,7 @@ CrewUp 把可复用工作流核心和项目专属适配层分开。
 执行 `crewup init` 后，目标项目通常保留：
 
 - `.harness/`
+- `.harness/core-lock.json`
 - `.harness/project/profile.yaml`
 - `.harness/project/overlay.yaml`
 - `AGENTS.md`

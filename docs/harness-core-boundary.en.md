@@ -17,6 +17,30 @@ The core defines process protocols, role contracts, gates, and runtime structure
 | `.harness/knowledge/` | Rebuildable knowledge index | lessons, indexes, extracted project knowledge |
 | `.harness/dashboard/` | Runtime dashboard | generated dashboard artifacts |
 
+## Sealed Core
+
+After install or upgrade, CrewUp writes:
+
+```text
+.harness/core-lock.json
+```
+
+It records fingerprints for reusable core files. Normal project runs must not modify:
+
+```text
+.harness/scripts/**
+.harness/config/**
+.harness/orchestrator/**
+.harness/agents/**
+.harness/templates/**
+.harness/contracts/**
+.harness/rules/**
+```
+
+`npx crewup check`, `npx crewup doctor`, and `npx crewup gate-check <run-id>` verify the sealed core. If core files drift inside a user project, restore them with `npx crewup install --force`. If the issue is a CrewUp product bug, fix it in the CrewUp source repository and publish an upgrade.
+
+When maintaining CrewUp itself, `.harness` core files may be edited as product source files, but only in the CrewUp source repository or an explicit CrewUp maintenance task. A user project's business run must not record those edits as project feature changes.
+
 ## Activation Boundary
 
 - Normal chat, Q&A, and tiny edits should not enter the harness just because CrewUp is installed.
@@ -39,6 +63,7 @@ Keep project business assets out of the reusable core:
 After `crewup init`, target projects typically keep:
 
 - `.harness/`
+- `.harness/core-lock.json`
 - `.harness/project/profile.yaml`
 - `.harness/project/overlay.yaml`
 - `AGENTS.md`

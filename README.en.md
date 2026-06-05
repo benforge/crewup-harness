@@ -237,6 +237,14 @@ npm run release:preflight
 
 `release:preflight` runs harness validation, example tests, temporary-project pack-install flow tests, and `npm pack --dry-run`.
 
+Install/upgrade/reset paths can be tested independently:
+
+```bash
+npm run test:install-flow
+```
+
+See the full matrix in [Test Matrix](./docs/test-matrix.en.md).
+
 ## More Docs
 
 | Document | Topic |
@@ -245,6 +253,7 @@ npm run release:preflight
 | [Runbook](./docs/runbook.en.md) | How to judge health, completion, blockers, cancellation, and continuation |
 | [Getting Started](./docs/getting-started.en.md) | Install, API key setup, first run, and troubleshooting |
 | [Local Testing](./docs/local-testing.en.md) | Test CrewUp locally with `npm pack` and a temporary project |
+| [Test Matrix](./docs/test-matrix.en.md) | Which validation command covers each risk area |
 | [Universal Agent Bridge](./docs/universal-agent-bridge.en.md) | External-agent handoff and result JSON contract |
 | [Agent Selection](./docs/harness-agent-selection.en.md) | Agent selection and adapter generation |
 | [Agent Capabilities](./docs/harness-agent-capabilities.en.md) | Support levels, capability boundaries, and claims |
