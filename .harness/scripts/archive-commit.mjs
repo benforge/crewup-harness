@@ -11,33 +11,34 @@ const dryRun = process.argv.includes("--dry-run");
 const allowAllWorkspaceChanges = process.argv.includes("--allow-all-workspace-changes");
 
 if (!runId) {
-  console.error("请提供 runId，例如：npm run harness:archive-commit -- <run-id>");
+  console.error("Please provide runId, for example: npm run harness:archive-commit -- <run-id>");
   process.exit(1);
 }
 
 const runDir = path.join(root, ".harness", "runs", runId);
 const statePath = path.join(runDir, "state.json");
 if (!existsSync(statePath)) {
-  console.error(`缺少 state.json：${path.relative(root, statePath)}`);
+  console.error(`Missing state.json: ${path.relative(root, statePath)}`);
   process.exit(1);
 }
 
 const policy = parseYaml(await readFile(path.join(root, ".harness", "config", "archive-policy.yaml"), "utf8")).archive;
 const gitPolicy = policy.git ?? {};
 if (!gitPolicy.enabled || !gitPolicy.auto_commit_after_done) {
-  console.log("归档自动提交未启用，已跳过。");
+  console.log("Archive auto-commit is disabled; skipping git commit.");
   process.exit(0);
 }
 
 const state = await readJsonFile(statePath);
 if (state.stage !== "done" && !dryRun) {
-  console.error(`run 尚未进入 done，拒绝自动提交：${state.stage}`);
+  console.error(`Run is not at done stage; refusing archive commit. Current stage: ${state.stage}`);
   process.exit(1);
 }
 
 if (!isInsideGitWorkTree()) {
-  console.error("当前目录不是 git worktree，无法归档提交。");
-  process.exit(1);
+  await writeAudit({ status: "skipped", reason: "not a git worktree", commit: null, beforeLines: [] });
+  console.log("Archive commit skipped: current directory is not a git worktree.");
+  process.exit(0);
 }
 
 const beforeStatus = git(["status", "--short", "--untracked-files=all"]);
@@ -47,18 +48,25 @@ if (untrackedSetupFiles.length > 0) {
   console.warn("Warning: CrewUp setup files are still untracked. Archive commits only stage run-tracked files by default.");
   console.warn("Recommended: create a separate setup commit for .harness/, AGENTS.md, and .gitignore before relying on archive commits.");
 }
-if (beforeLines.length === 0 && gitPolicy.skip_when_no_changes !== false) {
-  await writeAudit({ status: "skipped", reason: "no workspace changes", beforeLines, commit: null });
-  console.log("归档提交跳过：git 工作区没有变更。");
+
+if (!hasInitialCommit()) {
+  await writeAudit({
+    status: "skipped",
+    reason: "repository has no initial git commit",
+    beforeLines,
+    selectedPaths: [],
+    unselectedNewChanges: beforeLines.map(statusPath).filter(Boolean),
+    commit: null
+  });
+  console.log("Archive commit skipped: this repository has no initial git commit.");
+  console.log("Create an initial setup commit, then rerun `npx crewup archive-commit <run-id>` if you need commit evidence.");
   process.exit(0);
 }
 
-function detectUntrackedSetupFiles(statusLines) {
-  const setupPrefixes = [".harness/AGENTS.md", ".harness/config/", ".harness/scripts/", ".harness/orchestrator/", "AGENTS.md", ".gitignore"];
-  return statusLines
-    .filter((line) => line.startsWith("?? "))
-    .map(statusPath)
-    .filter((file) => setupPrefixes.some((prefix) => file === prefix || file.startsWith(prefix)));
+if (beforeLines.length === 0 && gitPolicy.skip_when_no_changes !== false) {
+  await writeAudit({ status: "skipped", reason: "no workspace changes", beforeLines, commit: null });
+  console.log("Archive commit skipped: git worktree has no changes.");
+  process.exit(0);
 }
 
 const message = renderTemplate(gitPolicy.commit_message_template ?? "chore(harness): archive <run>");
@@ -66,7 +74,7 @@ const body = (gitPolicy.commit_body ?? []).map(renderTemplate).join("\n");
 const stagePlan = await buildStagePlan({ state, beforeLines });
 
 if (dryRun) {
-  console.log("归档提交预览：");
+  console.log("Archive commit dry run:");
   console.log(`- message: ${message}`);
   console.log(`- changed files: ${beforeLines.length}`);
   console.log(`- stage_mode: ${stagePlan.mode}`);
@@ -90,19 +98,20 @@ if (stagePlan.unselectedNewChanges.length > 0 && !allowAllWorkspaceChanges && gi
     message,
     body
   });
-  console.error("归档提交已阻塞：工作区存在未纳入本次 run 变更清单的文件。");
-  console.error("请先记录本次业务变更：");
+  console.error("Archive commit blocked: workspace has changes outside this run's changed-files manifest.");
+  console.error("Record run-owned business changes first:");
   console.error(`npm run harness:changed-files -- ${runId} add <file...>`);
-  console.error("如果你确认要提交整个工作区，可显式运行：");
+  console.error("If you intentionally want to commit the whole worktree, run:");
   console.error(`npm run harness:archive-commit -- ${runId} --allow-all-workspace-changes`);
   process.exit(1);
 }
 
 if (allowAllWorkspaceChanges || stagePlan.mode === "all_workspace_changes") {
   runGitOrFail(["add", "-A", "-f"]);
-} else {
+} else if (stagePlan.selectedPaths.length > 0) {
   runGitOrFail(["add", "-f", "--", ...stagePlan.selectedPaths]);
 }
+
 const stagedBeforeAudit = git(["diff", "--cached", "--name-only"]).stdout.trim().split(/\r?\n/).filter(Boolean);
 await writeAudit({
   status: "committed",
@@ -119,7 +128,7 @@ runGitOrFail(["add", "-f", "--", auditRelPath()]);
 const staged = git(["diff", "--cached", "--name-only"]).stdout.trim().split(/\r?\n/).filter(Boolean);
 if (staged.length === 0 && gitPolicy.skip_when_no_changes !== false) {
   await writeAudit({ status: "skipped", reason: "no staged changes after git add", beforeLines, selectedPaths: stagePlan.selectedPaths, commit: null, message, body });
-  console.log("归档提交跳过：没有可提交变更。");
+  console.log("Archive commit skipped: no staged changes.");
   process.exit(0);
 }
 
@@ -127,11 +136,15 @@ const commitArgs = ["commit", "-m", message];
 if (body.trim()) commitArgs.push("-m", body);
 runGitOrFail(commitArgs);
 const hash = git(["rev-parse", "--short", "HEAD"]).stdout.trim();
-console.log(`归档提交完成：${hash}`);
+console.log(`Archive commit completed: ${hash}`);
 
 function isInsideGitWorkTree() {
   const result = git(["rev-parse", "--is-inside-work-tree"], { fail: false });
   return result.status === 0 && result.stdout.trim() === "true";
+}
+
+function hasInitialCommit() {
+  return git(["rev-parse", "--verify", "HEAD"], { fail: false }).status === 0;
 }
 
 function git(args, { fail = true } = {}) {
@@ -150,10 +163,18 @@ function runGitOrFail(args) {
   try {
     return git(args);
   } catch (error) {
-    console.error(`git 命令失败：git ${args.join(" ")}`);
+    console.error(`git command failed: git ${args.join(" ")}`);
     console.error(error.message);
     process.exit(1);
   }
+}
+
+function detectUntrackedSetupFiles(statusLines) {
+  const setupPrefixes = [".harness/AGENTS.md", ".harness/config/", ".harness/scripts/", ".harness/orchestrator/", "AGENTS.md", ".gitignore"];
+  return statusLines
+    .filter((line) => line.startsWith("?? "))
+    .map(statusPath)
+    .filter((file) => setupPrefixes.some((prefix) => file === prefix || file.startsWith(prefix)));
 }
 
 async function buildStagePlan({ state, beforeLines }) {
@@ -198,12 +219,12 @@ async function writeAudit(data) {
   await assertInsideWorkspace(target);
   await mkdir(path.dirname(target), { recursive: true });
   const lines = [
-    "# 归档 Git 提交记录",
+    "# Archive Git Commit Audit",
     "",
     `- runId: ${runId}`,
     `- status: ${data.status}`,
-    `- reason: ${data.reason || "无"}`,
-    `- commit: ${data.commit ?? "未生成"}`,
+    `- reason: ${data.reason || "none"}`,
+    `- commit: ${data.commit ?? "not generated"}`,
     `- generatedAt: ${new Date().toISOString()}`,
     "",
     "## Commit Message",
@@ -212,23 +233,23 @@ async function writeAudit(data) {
     "",
     "## Commit Body",
     "",
-    data.body || "无",
+    data.body || "none",
     "",
-    "## 归档前工作区变更",
+    "## Workspace changes before archive",
     "",
-    data.beforeLines?.length ? data.beforeLines.map((line) => `- ${line}`).join("\n") : "- 无",
+    data.beforeLines?.length ? data.beforeLines.map((line) => `- ${line}`).join("\n") : "- none",
     "",
-    "## 选中暂存路径",
+    "## Selected staged paths",
     "",
-    data.selectedPaths?.length ? data.selectedPaths.map((line) => `- ${line}`).join("\n") : "- 未记录",
+    data.selectedPaths?.length ? data.selectedPaths.map((line) => `- ${line}`).join("\n") : "- none",
     "",
-    "## 未纳入的新变更",
+    "## Unselected new changes",
     "",
-    data.unselectedNewChanges?.length ? data.unselectedNewChanges.map((line) => `- ${line}`).join("\n") : "- 无",
+    data.unselectedNewChanges?.length ? data.unselectedNewChanges.map((line) => `- ${line}`).join("\n") : "- none",
     "",
-    "## 已暂存文件",
+    "## Staged files",
     "",
-    data.staged?.length ? data.staged.map((line) => `- ${line}`).join("\n") : "- 未记录",
+    data.staged?.length ? data.staged.map((line) => `- ${line}`).join("\n") : "- none",
     ""
   ];
   await writeFile(target, `${lines.join("\n")}\n`, "utf8");
@@ -241,7 +262,7 @@ function auditRelPath() {
 async function assertInsideWorkspace(target) {
   const resolved = path.resolve(target);
   if (resolved !== root && !resolved.startsWith(`${root}${path.sep}`)) {
-    throw new Error(`拒绝写入工作区外路径：${resolved}`);
+    throw new Error(`Refusing to write outside workspace: ${resolved}`);
   }
 }
 
@@ -294,4 +315,3 @@ function pathMatchesAny(file, selectedPaths) {
 function unique(items) {
   return [...new Set(items)];
 }
-

@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import readline from "node:readline";
+import { terminalEncodingWarning } from "./lib/terminal-encoding.mjs";
 
 const root = process.cwd();
 const args = process.argv.slice(2);
@@ -64,37 +65,51 @@ console.log(renderQuestions(questions));
 
 function renderQuestions(items) {
   const card = readClarificationCardSync();
+  const warning = terminalEncodingWarning({ cwd: root });
   const lines = [
-    `# Clarification Questions: ${runId}`,
+    `# 需求确认卡: ${runId}`,
     "",
-    "请先确认下面的需求确认卡和问题，再继续生成正式需求产物。",
+    "请先确认下面的关键选项，再继续生成正式需求产物。",
     ""
   ];
+  if (warning) {
+    lines.push(
+      "> Terminal encoding warning: this terminal may not render UTF-8 multilingual text correctly.",
+      `> Open the UTF-8 file instead: ${path.relative(root, requirementPlanPath).replaceAll("\\", "/")}`,
+      "> Help: npx crewup doctor --encoding-help",
+      ""
+    );
+  }
   if (card) {
     lines.push(card, "");
   }
 
+  lines.push("## 需要你选择", "");
+  lines.push("| 题号 | 问题 | 选项 | 推荐 |");
+  lines.push("| --- | --- | --- | --- |");
   for (const question of items) {
-    lines.push(`## ${question.id ?? "Q"} ${question.question ?? ""}`.trim(), "");
-    lines.push(`- type: ${question.type ?? "free_text"}`);
-    if (question.required !== undefined) lines.push(`- required: ${question.required ? "true" : "false"}`);
+    const options = optionsForQuestion(question);
     const recommended = Array.isArray(question.recommendedOptionIds)
       ? question.recommendedOptionIds.join(", ")
       : question.recommendedOptionIds;
-    if (recommended) lines.push(`- recommended: ${recommended}`);
-    const options = Array.isArray(question.options) ? question.options : [];
-    if (options.length) {
-      lines.push("", "Options:");
-      for (const option of options) {
-        const description = option.description ? ` - ${option.description}` : "";
-        lines.push(`- ${option.id ?? "-"}: ${option.label ?? ""}${description}`);
-      }
-    }
-    lines.push("");
+    const optionText = options.length
+      ? options.map((option) => `${option.id}. ${option.label ?? ""}${option.description ? `（${option.description}）` : ""}`).join("<br>")
+      : "请直接输入";
+    lines.push(`| ${question.id ?? "Q"} | ${question.question ?? ""} | ${optionText} | ${recommended || "-"} |`);
   }
 
-  lines.push("回答格式示例：", "", "```text", "Q-01: A", "Q-02: A, C", "Q-03: 你的补充说明", "```", "");
-  lines.push(`也可以运行：npx crewup clarify ${runId} --interactive`);
+  lines.push(
+    "",
+    "## 回复格式",
+    "",
+    "```text",
+    "Q-01:A",
+    "Q-02:B",
+    "Q-03:D 其它补充说明",
+    "```",
+    "",
+    `也可以在真实终端运行：npx crewup clarify ${runId} --interactive`
+  );
   return lines.join("\n").trimEnd();
 }
 
@@ -116,14 +131,17 @@ async function runInteractive(items) {
       answers.push(answerRecord(question, [value], value));
       continue;
     }
-    const options = Array.isArray(question.options) ? question.options : [];
+    const options = optionsForQuestion(question);
     if (!options.length) {
       const value = await askText(`${question.id} ${question.question}\n> `);
       answers.push(answerRecord(question, [value], value));
       continue;
     }
     const selected = await chooseOptions(question, options, type === "multi_choice");
-    answers.push(answerRecord(question, selected.map((item) => item.id), selected.map((item) => item.label).join(", ")));
+    const other = selected.find((item) => item.isOther);
+    const otherText = other ? await askText("请填写其它说明：\n> ") : "";
+    const answerText = [selected.map((item) => item.label).join(", "), otherText].filter(Boolean).join(": ");
+    answers.push(answerRecord(question, selected.map((item) => item.id), answerText));
   }
   return answers;
 }
@@ -145,7 +163,7 @@ function chooseOptions(question, options, multi) {
         const cursor = itemIndex === index ? ">" : " ";
         const mark = multi ? (selected.has(option.id) ? "[x]" : "[ ]") : (itemIndex === index ? "(*)" : "( )");
         const description = option.description ? ` - ${option.description}` : "";
-        console.log(`${cursor} ${mark} ${option.id}: ${option.label}${description}`);
+        console.log(`${cursor} ${mark} ${option.id}. ${option.label}${description}`);
       }
     };
 
@@ -227,8 +245,9 @@ function parseAnswersArg(value, items) {
     .map((part) => {
       const [idPart, answerPart = ""] = part.split(/[:=]/);
       const question = byId.get(idPart.trim()) ?? { id: idPart.trim(), question: "" };
-      const answerIds = answerPart.split(",").map((item) => item.trim()).filter(Boolean);
-      return answerRecord(question, answerIds, answerIds.join(", "));
+      const answerTokens = answerPart.split(",").map((item) => item.trim()).filter(Boolean);
+      const answerIds = answerTokens.map((item) => item.split(/\s+/)[0]).filter(Boolean);
+      return answerRecord(question, answerIds, answerTokens.join(", "));
     });
 }
 
@@ -245,6 +264,31 @@ function answerRecord(question, answerIds, answerText) {
 function asArray(value) {
   if (!value) return [];
   return Array.isArray(value) ? value : [value];
+}
+
+function optionsForQuestion(question) {
+  const options = Array.isArray(question.options) ? question.options.map((item) => ({ ...item })) : [];
+  if (!options.length) return options;
+  const hasOther = options.some((item) => /^(other|其它|其他)$/i.test(String(item.label ?? item.id ?? "").trim()));
+  if (hasOther) return options;
+  const used = new Set(options.map((item) => String(item.id ?? "").toUpperCase()));
+  const id = nextLetterId(used);
+  const cjk = /[\u3400-\u9FFF]/.test(`${question.question ?? ""} ${options.map((item) => item.label ?? "").join(" ")}`);
+  options.push({
+    id,
+    label: cjk ? "其它" : "Other",
+    description: cjk ? "自己输入补充说明" : "Enter your own answer",
+    isOther: true
+  });
+  return options;
+}
+
+function nextLetterId(used) {
+  for (let code = 65; code <= 90; code += 1) {
+    const id = String.fromCharCode(code);
+    if (!used.has(id)) return id;
+  }
+  return "OTHER";
 }
 
 function valueOf(prefix) {

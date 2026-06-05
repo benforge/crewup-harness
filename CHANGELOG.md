@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.12
+
+- Rewrote the Chinese README and primary Chinese docs as clean UTF-8, with a more professional open-source project structure, clearer product positioning, command tables, API key guidance, workflow boundaries, and stability guarantees.
+- Added stable closeout behavior for new Git repositories: archive commit now records a skipped audit when there is no initial commit instead of blocking an otherwise successful run.
+- Restored localized `RUN_STATUS.md` rendering and clarified the done-but-not-archived next action.
+- Strengthened native-state diagnostics for slow result capture and result files that exist but have not been registered.
+- Tightened frontend and reviewer agent rules to reduce avoidable build-script repair loops and non-blocking reviewer-driven rework.
+- Expanded local testing and test matrix docs around pack-install testing, quoted tarball paths, no-initial-commit archive behavior, and release preflight expectations.
+
 ## 0.3.11
 
 - Re-audited the CLI/package/check entry surface and kept public scripts stable instead of deleting exposed commands.

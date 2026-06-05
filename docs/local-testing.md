@@ -17,6 +17,7 @@
 - implementation agents 等架构分配后才启动
 - audit / gate-check 越权拦截
 - archive / cancel / continue 生命周期
+- 无初始 git commit 时 archive commit 写 audit 并跳过
 
 ## 快速命令
 
@@ -65,6 +66,7 @@ npm run harness:test-flow
 - tool-fallback 日志
 - status/runs 状态卡
 - cancel/archive/continue 生命周期闭环
+- archive commit 在无初始提交时跳过并写审计
 - audit 越界拦截
 - gate-check owner artifact 拦截
 
@@ -77,16 +79,24 @@ npm pack
 mkdir C:\tmp\crewup-app
 cd C:\tmp\crewup-app
 npm init -y
-npm install -D "C:\path\to\crewup-harness-0.3.9.tgz"
+npm install -D "C:\path\to\crewup-harness-0.3.12.tgz"
 npx crewup install
 npx crewup init --agent codex --yes
 npx crewup check
 ```
 
+如果 tarball 路径包含空格，必须加引号：
+
+```powershell
+npm install -D "C:\Users\me\Documents\New project\crewup-harness-0.3.12.tgz"
+```
+
+否则 npm 会把路径拆开，出现找不到 `package.json` 的错误。
+
 ## 最小 run 案例
 
 ```bash
-npx crewup run "使用 CrewUp 做一个最小 counter web app，跑完整 workflow。验收标准：页面显示 counter，初始值为 0；可以 +1、-1、reset；刷新后数值保留；build/test 通过。范围：只做很小的前端实现。"
+npx crewup run "使用 CrewUp 做一个最小 counter web app，跑完整 workflow。验收标准：页面显示 counter，初始值为 0；可以 +1、-1、reset；刷新后数值保留；build/test 通过。范围：只做一个很小的前端实现。"
 ```
 
 随后检查：
@@ -112,7 +122,7 @@ SDK/API 模式或 `inspect --ai` 需要：
 $env:OPENAI_API_KEY="sk-..."
 ```
 
-Codex Desktop native 子 agent 以 Codex Desktop 的登录态和工具能力为准。CrewUp 只负责生成 spawn prompt、native-state 和 gate，不替用户登录模型服务。
+Codex Desktop native 子 agent 以 Codex Desktop 的登录状态和工具能力为准。CrewUp 只负责生成 spawn prompt、native-state 和 gate，不替用户登录模型服务。
 
 ## 常见失败
 

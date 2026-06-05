@@ -2,9 +2,7 @@
 
 中文 | [English](./harness-core-boundary.en.md)
 
-CrewUp 把可复用工作流核心和项目专属适配层分开。
-
-核心只定义流程协议、角色契约、门禁和运行态结构；业务事实来自目标项目，正式产物由对应子 agent 或外部 runner 生成。主 agent 不应把项目专属判断硬编码进可复用核心。
+CrewUp 把可复用工作流核心和项目专属适配层分开。核心只定义流程协议、角色契约、门禁和运行态结构；业务事实来自目标项目，正式产物由对应子 agent 或外部 runner 生成。主 agent 不应把项目专属判断硬编码进可复用核心。
 
 ## 分层
 
@@ -44,9 +42,13 @@ CrewUp 把可复用工作流核心和项目专属适配层分开。
 .harness/rules/**
 ```
 
-`npx crewup check`、`npx crewup doctor` 和 `npx crewup gate-check <run-id>` 会检查 sealed core。如果用户项目中的核心文件漂移，应使用 `npx crewup install --force` 恢复安装态核心；如果是 CrewUp 产品 bug，应在 CrewUp 源码仓库修复和发布升级。
+`npx crewup check`、`npx crewup doctor` 和 `npx crewup gate-check <run-id>` 会检查 sealed core。如果用户项目中的核心文件漂移，应使用：
 
-维护 CrewUp 本身时，`.harness` 核心文件可以作为产品源码修改，但必须发生在 CrewUp 源码仓库或明确的 CrewUp 维护任务中。用户项目的业务 run 不能把这些修改登记为业务变更。
+```bash
+npx crewup install --force
+```
+
+如果是 CrewUp 产品 bug，应在 CrewUp 源码仓库修复、测试和发版。不要在用户项目的业务 run 里修 `.harness` 核心脚本。
 
 ## 不要混在一起
 

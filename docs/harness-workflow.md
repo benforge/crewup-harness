@@ -6,10 +6,10 @@ CrewUp 是显式启用的严格 AI engineering harness。没有明确的 CrewUp 
 
 ## 入口
 
-有两种有效入口：
+有效入口有两种：
 
-- CLI 入口：用户运行 `npx crewup run "..."`。
-- 聊天入口：用户明确说“使用 CrewUp / 按 harness 流程 / 继续某个 run”。这时主 agent 应自己运行 `npx crewup run`，提取 runId，然后继续 `next-agent` 调度。
+- CLI：用户运行 `npx crewup run "..."`。
+- 聊天：用户明确说“使用 CrewUp / 按 harness 流程 / 继续某个 run”。这时主 agent 应自己运行 `npx crewup run`，提取 runId，然后继续 `next-agent` 调度。
 
 聊天入口不应该要求用户先手动生成 runId。
 
@@ -17,7 +17,7 @@ CrewUp 是显式启用的严格 AI engineering harness。没有明确的 CrewUp 
 
 CrewUp 可以在没有 API key 的情况下创建 run、任务、context pack、audit 和 gate。真实 AI 子 agent 执行需要你选择的 agent 环境已经配置好模型访问方式：
 
-- `codex` native 模式需要 Codex 环境可以启动子 agent。Codex Desktop / CLI 可能使用自己的登录态；SDK/API 路径和 `inspect --ai` 需要 `OPENAI_API_KEY`。
+- `codex` native 模式需要 Codex 环境可以启动子 agent。Codex Desktop / CLI 可能使用自己的登录状态；SDK/API 路径和 `inspect --ai` 需要 `OPENAI_API_KEY`。
 - `claude`、`cursor`、`trae` 当前使用 bridge 模式。这些工具使用自己的认证方式，并且必须把 CrewUp 兼容的 result JSON 写回 run。
 - `manual` 模式不需要 AI key；人或外部工具执行 handoff，并写回 result JSON。
 
@@ -29,49 +29,18 @@ CrewUp 可以在没有 API key 的情况下创建 run、任务、context pack、
 - Harness 机器契约保持英文：artifact heading、JSON 字段、文件路径、命令、状态值和 schema label。
 - 读取本地中文文件时使用显式 UTF-8，避免 Windows 终端编码导致误判。
 
-## 核心工作流
+## 核心流程
 
 ```text
 intake -> requirements_plan -> requirements_confirm -> plan
   -> implement -> verify -> review -> release -> done
 ```
 
-严格流程不靠跳过角色省 token，而是通过更窄的任务、更清楚的 result schema、更少的重复返工来降低浪费。`lite` 只能表示短文档和较低上下文预算，不能表示跳过需求确认、架构计划或 owner 分配。
+严格流程不靠跳过角色省 token，而是通过更窄的任务、更清晰的 result schema、更少重复返工来降低浪费。`lite` 只表示短文档和较低上下文预算，不表示跳过需求确认、架构计划或 owner 分配。
 
-需求里明确排除的范围只会移除误判候选。例如用户说 `no backend/database/auth/routing`，CrewUp 不应为了确认无关而启动 backend/database agent。但是否需要 backend、database、auth、routing，应该主要由需求和 architect 的 `implementation-plan.md` 决定，而不是由主 agent 主观接管。
+当需求里明确排除某个范围，例如 `no backend/database/auth/routing`，CrewUp 会避免误启动这些无关候选。但是否需要 backend、database、auth、routing，仍应主要由需求和 architect 的 `implementation-plan.md` 决定，而不是主 agent 主观接管。
 
-## Run Lifecycle
-
-CrewUp 的唯一默认工作单元是 `Run`。不再把 backlog 作为核心流程的一环。
-
-每个 run 都有：
-
-- `.harness/runs/<run-id>/state.json`
-- `.harness/runs/<run-id>/RUN_STATUS.md`
-- `.harness/runs/<run-id>/RUN_SUMMARY.md`（归档后）
-- `.harness/reports/<run-id>.md`（report/归档后）
-
-run 状态包括：
-
-| Status | Meaning |
-| --- | --- |
-| `active` | 正在执行 |
-| `waiting_user` | 等用户确认 |
-| `blocked` | 卡住但可保留现场 |
-| `partial` | 部分完成，可复用但未达 done |
-| `done` | 完整完成 |
-| `canceled` | 用户取消 |
-| `failed` | 执行失败 |
-
-归档不等于成功。`archive` 只是整理这次 run 的证据和报告，可用于 `success`、`partial`、`blocked`、`canceled` 或 `failed`。
-
-```bash
-npx crewup status
-npx crewup status <run-id>
-npx crewup archive <run-id> --outcome=blocked --reason="..."
-npx crewup cancel <run-id> --reason="..."
-npx crewup continue <run-id> "继续处理上次阻塞的问题"
-```
+## Requirements-Plan First
 
 正式 run 的稳定入口是：
 
@@ -81,21 +50,14 @@ requirements-plan first, always
 
 开发 agent 不能因为需求看起来很小就直接启动。
 
-`requirements-plan` 负责交互式澄清。它应先在 `requirement-plan.md` 里生成一张 Markdown 需求确认卡，用表格和短列表展示已确认事实、待决策项、非目标和验收预览；如果关键决策缺失，再返回 `needs_input` 和结构化 `clarificationQuestions`。主 agent 只负责交互转交：不在聊天窗粘贴长问卷，而是引导用户查看确认卡并使用 `crewup clarify --interactive`。只有用户明确要求在聊天里回答时，才展示紧凑文本选项。主 agent 不替用户静默选择默认项，也不代写需求产物。
+`requirements-plan` 负责交互式澄清。它应先在 `requirement-plan.md` 里生成 Markdown 需求确认卡，用表格和短列表展示已确认事实、待决策项、非目标和验收预览；如果关键决策缺失，再返回 `needs_input` 和结构化 `clarificationQuestions`。
 
-可用命令查看这些问题：
+主 agent 只负责交互转交：优先展示紧凑确认卡或引导用户使用 `crewup clarify --interactive`，不要在聊天窗口粘贴长问卷。文本 fallback 使用 `A/B/C/D/E...` 字母选项，并保留 `其它` 让用户自行输入。主 agent 不替用户静默选择默认项，也不代写需求产物。
 
 ```bash
 npx crewup clarify <run-id>
-```
-
-如果用户在真实终端中操作，可以使用键盘交互：
-
-```bash
 npx crewup clarify <run-id> --interactive
 ```
-
-该命令会保存 `.harness/runs/<run-id>/logs/clarifications/answers.json` 和 `answers.md`。Codex 等支持原生 Plan mode/选择 UI 的宿主可以直接把 `clarificationQuestions` 映射成 UI；Cursor、Claude、Trae 或 manual/bridge 环境则使用同一份 JSON 契约，通过 `clarify --interactive` 收集答案。文本选项只作为最后 fallback，不作为 Codex 的默认体验。
 
 ## Owner Artifacts
 
@@ -131,17 +93,7 @@ npx crewup native-state <run-id> status
 requirements-plan -> requirements -> architect -> implementation agents -> tester -> reviewer -> release
 ```
 
-`architect` 完成后，implementation candidates 只有在 `artifacts/implementation-plan.md` 存在，并且用精确 agent id 分配后，才能真正启动。缺少 `implementation-plan.md` 本身就是阻塞原因。`next-agent` 和 `native-state` 会执行这个架构归属规则。
-
-## 工具降级日志
-
-Context7、MCP、插件、Playwright、Browser、CodeGraph 等都是可选增强。不可用时不要只在聊天里说一声，应记录到 run logs：
-
-```bash
-npx crewup tool-fallback <run-id> --tool Context7 --reason "not available in this session" --fallback "architect uses project evidence and checked-in docs"
-```
-
-工具降级日志只记录证据，不改变职责归属。比如 Context7 不可用，不代表主 agent 可以代替 architect 完成技术选型。
+`architect` 完成后，implementation candidates 只有在 `artifacts/implementation-plan.md` 存在，并且用精确 agent id 分配后，才能真正启动。缺少 `implementation-plan.md` 本身就是阻塞原因。
 
 ## Audit 和 Gate
 
@@ -171,6 +123,36 @@ npx crewup report <run-id>
 
 这样 report 能说明“这次结果修复了什么”，减少重复返工和上下文混乱。
 
+## Run Lifecycle
+
+CrewUp 的唯一默认工作单元是 `Run`。每个 run 都有：
+
+- `.harness/runs/<run-id>/state.json`
+- `.harness/runs/<run-id>/RUN_STATUS.md`
+- `.harness/runs/<run-id>/RUN_SUMMARY.md`，归档后生成
+- `.harness/reports/<run-id>.md`，report/归档后生成
+
+run 状态包括：
+
+| Status | Meaning |
+| --- | --- |
+| `active` | 正在执行 |
+| `waiting_user` | 等用户确认 |
+| `blocked` | 卡住但保留现场 |
+| `partial` | 部分完成，可复用但未达 done |
+| `done` | 完整完成 |
+| `canceled` | 用户取消 |
+| `failed` | 执行失败 |
+
+归档不等于成功。`archive` 只是整理这次 run 的证据和报告，可用于 `success`、`partial`、`blocked`、`canceled` 或 `failed`。
+
+```bash
+npx crewup status
+npx crewup archive <run-id> --outcome=blocked --reason="..."
+npx crewup cancel <run-id> --reason="..."
+npx crewup continue <run-id> "继续处理上次阻塞的问题"
+```
+
 ## 发布前验证
 
 ```bash
@@ -179,4 +161,4 @@ npm run harness:test-flow
 npm run release:preflight
 ```
 
-这会覆盖配置完整性、临时项目安装、run 创建、任务顺序、owner artifact gate、implementation dispatch、repair-plan 和基础发布打包检查。
+这会覆盖配置完整性、临时项目安装、run 创建、任务顺序、owner artifact gate、implementation dispatch、repair-plan、archive closeout 和基础发布打包检查。

@@ -2,7 +2,11 @@
 
 中文 | [English](./harness-script-map.en.md)
 
-这份文档面向维护者，用来说明 CrewUp 的公开入口、核心流水线、兼容工具和维护脚本边界。普通使用者不需要记住所有 `.harness/scripts` 文件；他们只需要理解 `install -> init/check -> run -> status/next-agent -> gate/report/archive/finish` 这条主线。
+这份文档面向维护者，用来说明 CrewUp 的公开入口、核心流水线、兼容工具和维护脚本边界。普通使用者不需要记住所有 `.harness/scripts` 文件，只需要理解：
+
+```text
+install -> init/check -> run -> status/next-agent -> audit/gate/report -> archive/finish
+```
 
 ## 公开产品入口
 
@@ -11,13 +15,14 @@
 | 命令 | 脚本 | 定位 |
 | --- | --- | --- |
 | `crewup install` | `bin/crewup.mjs` | 安装或升级 `.harness/` 模板；`--force` 保留运行态，`--reset` 重装核心 |
-| `crewup doctor` | `doctor.mjs` | 检查 Node、git、模板状态、sealed core 和可选能力 |
+| `crewup doctor` | `doctor.mjs` | 检查 Node、git、模板状态、sealed core、编码和可选能力 |
 | `crewup inspect --no-ai` | `inspect.mjs` | 可选：扫描已有复杂项目，生成项目适配输入 |
 | `crewup init` | `init.mjs` | 生成 `.harness/project/` 适配层和 agent 环境配置 |
-| `crewup check` | `check.mjs` | 校验核心文件、配置、模板、编码和工作流约束 |
+| `crewup check` | `check.mjs` | 校验核心文件、配置、模板、编码和工作流契约 |
 | `crewup run` | `run.mjs` | 创建正式 run；正式工作必须从 run 开始 |
 | `crewup status` / `crewup runs` | `status.mjs` | 查看单个 run 状态卡或 run 列表 |
-| `crewup next-agent` | `next-agent.mjs` | 根据当前 stage、产物和 implementation plan 计算可启动子 agent |
+| `crewup next-agent` | `next-agent.mjs` | 根据 stage、产物和 implementation plan 计算可启动子 agent |
+| `crewup clarify` | `clarify.mjs` | 渲染并保存 requirements-plan 的澄清答案 |
 | `crewup native-state` | `native-state.mjs` | 登记 native 子 agent 的 handle、结果、fallback 和诊断信息 |
 | `crewup audit` | `orchestration-audit.mjs` | 审计调度顺序、owner 边界、重复返工和上下文压力 |
 | `crewup gate-check` | `gate-check.mjs` | 执行质量门禁、产物归属和主 agent 越界检查 |
@@ -35,17 +40,14 @@
 | --- | --- |
 | `prepare-run.mjs` | 创建 run scaffold、候选 agent、任务清单和上下文 |
 | `spec-freeze.mjs` | 生成当前需求摘要快照，不代表绕过需求 agent |
-| `clarify.mjs` | 将 `requirements-plan` 的澄清卡片渲染给用户确认 |
 | `context-pack.mjs` | 为子 agent 生成短上下文包 |
 | `native-plan.mjs` | 生成 Codex native 或 bridge handoff 计划 |
 | `transition.mjs` | 执行阶段切换和 stage entry gates |
 | `changed-files.mjs` | 记录和校验 run 变更文件归属 |
-| `archive-commit.mjs` | 在 finish/归档策略允许时创建提交 |
+| `archive-commit.mjs` | 在 finish/归档策略允许时创建提交；无初始 commit 时写 audit 并跳过 |
 | `archive-status.mjs` | 判断当前 run 是否具备归档提交条件 |
 
 ## 子 Agent 与修复支持
-
-这些脚本服务于子 agent 结果收集、反馈修复和异常恢复：
 
 | 脚本 | 职责 |
 | --- | --- |
@@ -59,8 +61,6 @@
 
 ## 可选与高级能力
 
-这些能力不属于最小严格闭环，但在复杂项目或工具集成里有价值：
-
 | 脚本 | 定位 |
 | --- | --- |
 | `integrations.mjs` | 查看可选集成状态，例如 CodeGraph |
@@ -71,19 +71,6 @@
 | `cleanup.mjs` | 清理运行态文件 |
 | `token-ledger.mjs` | 记录 token 预算和消耗 |
 | `next.mjs` | 状态建议器，不负责正式子 agent 派发 |
-
-## 角色真源
-
-Agent 角色集合和执行顺序由 `.harness/scripts/lib/agent-roles.mjs` 统一维护。调度、门禁、native-state、native-plan 和 transition 不应各自维护一份角色列表。
-
-| 分组 | Agents |
-| --- | --- |
-| Planning | `requirements-plan`, `requirements`, `architect` |
-| Optional coordination | `pm` |
-| Implementation | `frontend`, `docs`, `backend`, `database`, `devops` |
-| Code implementation | `frontend`, `backend`, `database`, `devops` |
-| Write owner | `frontend`, `docs`, `backend`, `database`, `devops`, `tester` |
-| Verification/release | `tester`, `reviewer`, `release` |
 
 ## 当前核心工作流契约
 

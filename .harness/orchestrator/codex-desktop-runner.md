@@ -44,7 +44,7 @@ When `requirements-plan` returns `needs_input` with `clarificationQuestions`:
 1. The main agent must stay as interaction transport only. It must not answer the questions or write the requirement artifact.
 2. If the current Codex surface exposes native Plan-mode/user-choice UI, use that UI for the next clarification round.
 3. Show at most 3 questions in one round. If more decisions are needed, resume `requirements-plan` after the first answers and let it ask a second round.
-4. Keep choices short. Do not paste the full result JSON or a long questionnaire into the main chat.
+4. Keep choices short. Use `A/B/C/D/E...` letter choices and keep one `Other` / `其它` option when the decision is not exhaustive. Do not paste the full result JSON or a long questionnaire into the main chat.
 5. After the user chooses, save answers through:
 
 ```bash
@@ -57,7 +57,7 @@ npx crewup clarify <run-id> --answers="Q-01:A;Q-02:B,C"
 npx crewup clarify <run-id> --interactive
 ```
 
-Do not degrade into a long chat-based questionnaire unless the user explicitly asks to answer in chat.
+Do not degrade into a long chat-based questionnaire. If chat fallback is needed, render a compact Markdown card with letter choices instead of numeric choices.
 
 Subagent conversations and results should match the user's primary language for user-facing summaries, clarification card content, questions, option labels, blockers, tests, and handoff notes. Keep required headings, JSON keys, status values, file paths, and commands in English.
 

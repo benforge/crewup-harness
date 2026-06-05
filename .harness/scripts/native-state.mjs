@@ -30,6 +30,7 @@ process.on("exit", () => {
 });
 
 const state = JSON.parse(stripBom(await readFile(statePath, "utf8")));
+const runLifecycleState = await readRunState(root, runId).catch(() => null);
 
 switch (command) {
   case "status":
@@ -181,12 +182,6 @@ function enforceRequirementsPlanConfirmation({ status, resultJsonPath, parsedJso
       console.error("Split large questionnaires into multiple short rounds so Codex can use native choice UI when available.");
       process.exit(1);
     }
-    const oversized = questions.find((question) => Array.isArray(question.options) && question.options.length > 3);
-    if (oversized) {
-      console.error(`Cannot capture requirements-plan needs_input: ${oversized.id ?? "a question"} has more than 3 options.`);
-      console.error("Keep each clarification question concise enough for native choice UI, or move details into requirement-plan.md.");
-      process.exit(1);
-    }
     return;
   }
 
@@ -248,6 +243,7 @@ async function printDiagnostics(current) {
   if (current.fallback) console.log(`Fallback: ${current.fallback.reason}`);
   const issues = [];
   const suggestions = [];
+  const slowMinutes = Number(current.runtime?.slow_result_capture_minutes ?? current.slow_result_capture_minutes ?? 10);
   for (const agent of current.agents ?? []) {
     const resultPathExists = agent.result_path && existsSync(resolveWorkspacePath(agent.result_path));
     const resultJsonPathExists = agent.result_json_path && existsSync(resolveWorkspacePath(agent.result_json_path));
@@ -264,6 +260,10 @@ async function printDiagnostics(current) {
     if (agent.handle && !agent.result_captured_at && (resultPathExists || resultJsonPathExists)) {
       issues.push(`${agent.agent}: result files exist but result is not captured in native-state.`);
       suggestions.push(`${agent.agent}: run native-state mark-result ${agent.agent} <completed|blocked|needs_input>.`);
+    }
+    if (agent.status === "running" && agent.handle && !agent.result_captured_at && minutesSince(agent.spawned_at) >= slowMinutes) {
+      issues.push(`${agent.agent}: running for ${Math.floor(minutesSince(agent.spawned_at))} minutes without captured result.`);
+      suggestions.push(`${agent.agent}: ask the same subagent for a result-only closeout; do not let the main agent rewrite its work.`);
     }
     if (agent.result_captured_at && !resultPathExists) {
       issues.push(`${agent.agent}: native-state captured result but Markdown result file is missing.`);
@@ -317,6 +317,8 @@ function recommendClose(current) {
     if (agent.close_confirmed || agent.status === "closed") return false;
     return agent.retention?.retain_after_result;
   });
+  const stage = runLifecycleState?.stage ?? "";
+  const profile = runLifecycleState?.workflowProfile ?? "";
 
   const isImplementation = (agent) => writeOwnerAgentIds.has(agent.agent);
   const priority = capacity.close_recommendation_priority ?? [
@@ -344,7 +346,16 @@ function recommendClose(current) {
   let impl = retained.filter(isImplementation).length;
   let nonImpl = total - impl;
   const recommendations = [];
+  const stageAware = retained.filter((agent) => shouldPreferCloseForStage(agent, { stage, profile }));
+  for (const agent of stageAware) {
+    recommendations.push({
+      agent: agent.agent,
+      reason: stageAwareCloseReason(agent, { stage, profile })
+    });
+  }
+  const alreadyRecommended = new Set(recommendations.map((item) => item.agent));
   for (const agent of sorted) {
+    if (alreadyRecommended.has(agent.agent)) continue;
     const agentIsImpl = isImplementation(agent);
     const exceedsTotal = total > maxTotal;
     const exceedsGroup = agentIsImpl ? impl > maxImpl : nonImpl > maxNonImpl;
@@ -358,6 +369,21 @@ function recommendClose(current) {
     else nonImpl -= 1;
   }
   return recommendations;
+}
+
+function shouldPreferCloseForStage(agent, { stage, profile }) {
+  if (writeOwnerAgentIds.has(agent.agent)) return false;
+  if (profile === "lite" && ["implement", "verify", "review", "release", "done"].includes(stage)) return true;
+  if (["verify", "review", "release", "done"].includes(stage) && ["requirements-plan", "requirements", "architect"].includes(agent.agent)) return true;
+  if (["release", "done"].includes(stage) && ["tester", "reviewer"].includes(agent.agent)) return true;
+  return false;
+}
+
+function stageAwareCloseReason(agent, { stage, profile }) {
+  const parts = [`stage ${stage || "unknown"}`];
+  if (profile) parts.push(`profile ${profile}`);
+  parts.push(`${agent.agent} result already captured`);
+  return parts.join(", ");
 }
 
 function updateAgent(id, patch) {
@@ -488,6 +514,12 @@ async function removeStaleLock(lockPath) {
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function minutesSince(value) {
+  const time = Date.parse(value ?? "");
+  if (!Number.isFinite(time)) return 0;
+  return (Date.now() - time) / 60000;
 }
 
 async function save(current) {

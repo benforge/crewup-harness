@@ -103,6 +103,7 @@ When the user explicitly asks for CrewUp in chat, the main agent should run `npx
 After you have a runId:
 
 ```bash
+npx crewup status
 npx crewup status <run-id>
 npx crewup next-agent <run-id>
 npx crewup audit <run-id>
@@ -110,6 +111,7 @@ npx crewup gate-check <run-id>
 npx crewup report <run-id>
 ```
 
+- `status` without a runId lists all runs, so you can find the runId.
 - `status` reads `.harness/runs/<run-id>/RUN_STATUS.md` and shows the current status, stage, owner, next command, blockers, and reusable artifacts
 - `next-agent` shows which subagent is actually runnable now; a formal run should initially expose only `requirements-plan`
 - `audit` checks orchestration stability: premature starts, main-agent overreach, missing owner provenance, context pressure, and repair loops

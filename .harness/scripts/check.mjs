@@ -22,6 +22,7 @@ const discoveryExcludes = new Set([
 ]);
 
 const requiredPaths = [
+  ".editorconfig",
   "AGENTS.md",
   ".harness/project/profile.yaml",
   ".harness/project/overlay.yaml",
@@ -126,6 +127,7 @@ const requiredPaths = [
   ".harness/scripts/lib/scope-negation.mjs",
   ".harness/scripts/lib/implementation-plan-scope.mjs",
   ".harness/scripts/lib/run-lifecycle.mjs",
+  ".harness/scripts/lib/terminal-encoding.mjs",
   ".harness/scripts/lib/workload-analysis.mjs",
   "docs/harness-core-boundary.md",
   "docs/harness-extension-guide.md",
@@ -139,6 +141,8 @@ const requiredPaths = [
   "docs/runbook.en.md",
   "docs/local-testing.md",
   "docs/local-testing.en.md",
+  "docs/troubleshooting.md",
+  "docs/troubleshooting.en.md",
   "docs/test-matrix.md",
   "docs/test-matrix.en.md",
   "docs/optional-integrations.md",
@@ -428,7 +432,7 @@ function isProjectGeneratedPath(rel) {
 }
 
 function isTemplateOnlyPath(rel) {
-  return rel === "docs" || rel.startsWith("docs/");
+  return rel === ".editorconfig" || rel === "docs" || rel.startsWith("docs/");
 }
 
 async function checkAgentAdapter() {

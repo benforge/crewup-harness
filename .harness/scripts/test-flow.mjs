@@ -276,7 +276,8 @@ try {
   assertIncludes(clarificationCapture, "requirements-plan: needs_input", "requirements-plan needs_input captured");
   const clarifyOutput = runCli(appDir, ["clarify", planOnlyRunId]);
   assertIncludes(clarifyOutput, "Q-01", "clarify renders question id");
-  assertIncludes(clarifyOutput, "Options:", "clarify renders options");
+  assertIncludes(clarifyOutput, "## 需要你选择", "clarify renders compact choice card");
+  assertIncludes(clarifyOutput, "C. Other", "clarify keeps an Other option");
   const clarifyAnswersOutput = runCli(appDir, ["clarify", planOnlyRunId, "--answers=Q-01:A"]);
   assertIncludes(clarifyAnswersOutput, "Clarification answers saved", "clarify saves answers");
   assertExists(path.join(planOnlyRunDir, "logs", "clarifications", "answers.json"), "clarification answers json");
@@ -344,6 +345,7 @@ async function assertInstallResetPath(tmpRoot, tarball) {
   runGit(["init"], resetDir);
   runNpm(["install", "--no-audit", "--no-fund", "--prefer-offline", tarball], resetDir, { timeoutMs: 120000 });
   runCli(resetDir, ["install"]);
+  await assertArchiveCommitSkipsNoInitialCommit(resetDir);
 
   await mkdir(path.join(resetDir, ".harness", "runs", "old-run"), { recursive: true });
   await mkdir(path.join(resetDir, ".harness", "knowledge"), { recursive: true });
@@ -360,8 +362,35 @@ async function assertInstallResetPath(tmpRoot, tarball) {
 
   const doctor = runCli(resetDir, ["doctor"]);
   assertIncludes(doctor, "sealed core", "doctor reports sealed core after reset");
+  const encodingHelp = runCli(resetDir, ["doctor", "--encoding-help"]);
+  assertIncludes(encodingHelp, "CrewUp Encoding Help", "doctor encoding help title");
+  assertIncludes(encodingHelp, "macOS / Linux", "doctor encoding help covers posix terminals");
+  const encodingProfile = runCli(resetDir, ["doctor", "--encoding-profile"]);
+  assertIncludes(encodingProfile, process.platform === "win32" ? "chcp 65001" : "export LANG=", "doctor encoding profile snippet");
   runCli(resetDir, ["init", "--yes", "--agent", "codex"]);
   runCli(resetDir, ["check"]);
+}
+
+async function assertArchiveCommitSkipsNoInitialCommit(appDir) {
+  const runId = "2026-06-05-001-no-initial-commit";
+  const runDir = path.join(appDir, ".harness", "runs", runId);
+  await mkdir(path.join(runDir, "logs"), { recursive: true });
+  await writeFile(path.join(runDir, "state.json"), `${JSON.stringify({
+    runId,
+    stage: "done",
+    status: "done",
+    outcome: "success",
+    archived: false,
+    sourceRequirement: ""
+  }, null, 2)}\n`, "utf8");
+  await writeFile(path.join(runDir, "logs", "changed-files.json"), `${JSON.stringify({ files: [] }, null, 2)}\n`, "utf8");
+  const output = runCli(appDir, ["archive-commit", runId]);
+  assertIncludes(output, "Archive commit skipped: this repository has no initial git commit.", "archive commit no initial commit skip");
+  const auditPath = path.join(runDir, "logs", "archive", "git-commit.md");
+  assertExists(auditPath, "archive commit skipped audit");
+  const audit = await readFile(auditPath, "utf8");
+  assertIncludes(audit, "- status: skipped", "archive skipped audit status");
+  assertIncludes(audit, "- reason: repository has no initial git commit", "archive skipped audit reason");
 }
 
 function packPackage(packDir) {
@@ -653,7 +682,8 @@ async function seedRequirementsPlanResult(runDir, { status, userConfirmed }) {
         recommendedOptionIds: ["A"],
         options: [
           { id: "A", label: "Tiny frontend only", description: "Smallest scope." },
-          { id: "B", label: "Full stack", description: "Requires backend and database." }
+          { id: "B", label: "Full stack", description: "Requires backend and database." },
+          { id: "C", label: "Other", description: "User provides another scope." }
         ]
       }
     ],

@@ -7,15 +7,23 @@ encoding_policy:
     - "Artifact headings, JSON fields, command names, status values, and schema labels stay English."
     - "Human-facing summaries, blockers, and handoffs should match the user's primary language."
     - "On Windows, shell text inspection must use explicit UTF-8 handling."
+    - "On macOS/Linux, terminal locale should be UTF-8; verify with `locale` when multilingual output looks wrong."
     - "Do not rely on PowerShell or cmd default code pages when checking Chinese documentation."
     - "Prefer Node-based UTF-8 reads or `Get-Content -Encoding UTF8` for local text inspection."
     - "If terminal output is mojibake, verify with UTF-8 before making a judgment."
+    - "Use `npx crewup doctor --encoding-help` for cross-platform terminal encoding guidance."
   windows:
     preferred_code_page: "65001"
     check_command: "chcp"
     one_time_command: "chcp 65001"
     powershell_read_command: "Get-Content <file> -Encoding UTF8"
     node_read_command: "node -e \"console.log(require('fs').readFileSync(process.argv[1], 'utf8'))\" <file>"
+  posix:
+    check_command: "locale"
+    recommended_locale_suffix: "UTF-8"
+    profile_snippet:
+      - "export LANG=en_US.UTF-8"
+      - "export LC_ALL=en_US.UTF-8"
   agent_guidance:
     - "When reading repository docs in a shell, use explicit UTF-8 commands first."
     - "Do not tell the user the document is garbled unless UTF-8 verification also shows garbled content."

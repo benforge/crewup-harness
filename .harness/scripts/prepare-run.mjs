@@ -397,7 +397,8 @@ function outputContractFor(agentId) {
       "- If required decisions are missing, return `needs_input` and fill `clarificationQuestions` in the result JSON.",
       "- Do not answer your own clarification questions or silently choose defaults for the user.",
       "- Return at most 3 clarification questions per round; prefer a second round over a long questionnaire.",
-      "- Prefer `single_choice` or `multi_choice` questions with 2-3 short options when the decision space is clear.",
+      "- Prefer `single_choice` or `multi_choice` questions with concise lettered options when the decision space is clear.",
+      "- Use option ids such as `A`, `B`, `C`, `D`, `E`; keep the last option as `其它` / `Other` unless the choice is intentionally exhaustive.",
       "- Keep question labels and descriptions concise enough for CLI or native choice UI.",
       "- `Acceptance Criteria Draft` must contain numbered entries such as `AC-01`, `AC-02`."
     ],

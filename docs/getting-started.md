@@ -2,15 +2,37 @@
 
 [English](./getting-started.en.md) | 中文
 
-这份文档面向第一次使用 CrewUp 的开发者。CrewUp 是工作流 harness，不是模型服务本身。它负责创建 run、生成角色任务、约束主 agent 和子 agent 的边界、检查门禁、生成报告；真正执行子 agent 的能力来自你选择的 agent 环境。
+这份文档面向第一次使用 CrewUp 的开发者。CrewUp 是工作流 harness，不是模型服务本身。它负责创建 run、生成任务、约束主 agent 和子 agent 的边界、检查门禁、生成报告；真正执行子 agent 的能力来自你选择的 agent 环境。
 
 ## 前置条件
 
 - Node.js 20 或更高版本
 - npm / pnpm / yarn 其中一种包管理器
-- 一个 Git 仓库，真实项目建议先 `git init`
+- 一个 Git 仓库，真实项目建议先 `git init` 并创建初始提交
 - 一个可执行的 agent 环境：Codex、Claude、Cursor、Trae 或 Manual
-- 如果要运行 AI 子 agent，需要先配置对应工具的模型访问方式
+- 如果要运行真实 AI 子 agent，需要先配置对应工具的登录状态或 API key
+
+## 安装
+
+```bash
+npm install -D crewup-harness
+npx crewup install
+npx crewup init --agent codex --yes
+npx crewup check
+```
+
+已有项目或 monorepo 建议先扫描：
+
+```bash
+npx crewup inspect --no-ai
+npx crewup init --agent codex --yes
+```
+
+只有在已经配置 API key，并希望模型基于真实项目证据补充适配层时，才运行：
+
+```bash
+npx crewup inspect --ai
+```
 
 ## API Key 和子 Agent
 
@@ -35,34 +57,12 @@ export OPENAI_API_KEY="sk-..."
 
 如果选择 `claude`、`cursor`、`trae`：
 
-- 当前是 bridge 模式，不宣称原生多 agent API。
+- 当前是 bridge 模式。
 - CrewUp 生成 handoff 和 result JSON 契约。
-- 外部工具使用自己的登录态、API key 或订阅。
-- 外部工具完成后，必须把结果写回 `.harness/runs/<run-id>/logs/agent-bridge/<agent>.result.json`。
+- 外部工具使用自己的登录状态、API key 或订阅。
+- 完成后必须把结果写回 `.harness/runs/<run-id>/logs/agent-bridge/<agent>.result.json`。
 
 如果选择 `manual`，不需要 AI API key。CrewUp 只生成任务、上下文、门禁和报告，由人或外部工具执行并写回 result JSON。
-
-## 安装
-
-```bash
-npm install -D crewup-harness
-npx crewup install
-npx crewup init --agent codex --yes
-npx crewup check
-```
-
-已有项目或 monorepo 建议先扫描：
-
-```bash
-npx crewup inspect --no-ai
-npx crewup init --agent codex --yes
-```
-
-只有配置好 API key，并且希望模型基于真实项目证据补充适配层时，才运行：
-
-```bash
-npx crewup inspect --ai
-```
 
 ## 检查环境
 
@@ -78,27 +78,32 @@ npx crewup doctor
 - SDK/API 模式或 `inspect --ai` 是否已设置 `OPENAI_API_KEY`
 - Windows terminal encoding 是否可能导致中文显示乱码
 
+如果看到中文乱码：
+
+```bash
+npx crewup doctor --encoding-help
+```
+
 ## 启动一个 Run
 
 CLI：
 
 ```bash
-npx crewup run "使用 CrewUp 做一个最小 counter web app，跑完整 workflow。验收标准：页面显示 counter，初始值为 0；可以 +1、-1、reset；刷新后数值保留；build/test 通过。范围：只做很小的前端实现；不需要 backend、database、auth、routing。"
+npx crewup run "使用 CrewUp 做一个最小 counter web app，跑完整 workflow。验收标准：页面显示 counter，初始值为 0；可以 +1、-1、reset；刷新后数值保留；build/test 通过。范围：只做一个很小的前端实现。"
 ```
 
 聊天窗口：
 
 ```text
-使用 CrewUp 做一个最小 counter web app，跑完整 workflow。验收标准：页面显示 counter，初始值为 0；可以 +1、-1、reset；刷新后数值保留；build/test 通过。范围：只做很小的前端实现；不需要 backend、database、auth、routing。
+使用 CrewUp 做一个最小 counter web app，跑完整 workflow。验收标准：页面显示 counter，初始值为 0；可以 +1、-1、reset；刷新后数值保留；build/test 通过。范围：只做一个很小的前端实现。
 ```
 
-当你在聊天里明确说“使用 CrewUp”时，主 agent 应该自己运行 `npx crewup run "<需求>"`，提取 runId，然后用 `next-agent` 调度。
+当你在聊天里明确说“使用 CrewUp”时，主 agent 应该自己运行 `npx crewup run "<需求>"`，提取 runId，然后使用 `next-agent` 调度。用户不需要为了拿 runId 先手动跑命令。
 
 ## 观察调度
 
-拿到 runId 后：
-
 ```bash
+npx crewup status
 npx crewup status <run-id>
 npx crewup next-agent <run-id>
 npx crewup audit <run-id>
@@ -106,8 +111,9 @@ npx crewup gate-check <run-id>
 npx crewup report <run-id>
 ```
 
-- `status` 读取 `.harness/runs/<run-id>/RUN_STATUS.md`，告诉你当前状态、stage、owner、下一步命令、阻塞和可复用产物。
-- `next-agent` 告诉你现在真正能启动哪个子 agent；正式 run 初始应只有 `requirements-plan`。
+- `status` 不带 runId 时会列出所有 run，可用来查 runId。
+- `status <run-id>` 会展示 `RUN_STATUS.md`，说明当前状态、stage、owner、下一步命令、阻塞和可复用产物。
+- `next-agent` 告诉你现在真正能启动哪个子 agent；正式 run 初始应只允许 `requirements-plan`。
 - `audit` 检查流程有没有乱：提前启动、主 agent 越界、owner artifact 缺 provenance、上下文压力、重复返工等。
 - `gate-check` 判断当前阶段能否通过质量门禁。
 - `report` 汇总 agent 结果、artifact、token/context budget、返修 lineage 和归档状态。
@@ -140,21 +146,11 @@ npx crewup tool-fallback <run-id> --tool Context7 --reason "not available in thi
 
 ## 完成与归档
 
-每个正式工作都以一个 run 为单位闭环。常用状态：
-
-| 状态 | 含义 |
-| --- | --- |
-| `active` | 正在执行 |
-| `waiting_user` | 等用户确认或选择 |
-| `blocked` | 卡住，但现场和证据仍保留 |
-| `partial` | 部分完成，可复用但未达到 done |
-| `done` | 完整完成 |
-| `canceled` | 用户取消 |
-| `failed` | 执行失败 |
-
 成功完成：
 
 ```bash
+npx crewup audit <run-id>
+npx crewup gate-check <run-id>
 npx crewup report <run-id>
 npx crewup finish <run-id>
 ```
@@ -174,56 +170,12 @@ npx crewup cancel <run-id> --reason="scope changed"
 - `.harness/runs/<run-id>/logs/archive/archive-summary.md`
 - `.harness/reports/<run-id>.md`
 
-归档不等于成功。只有 `finish` 或 `archive --outcome=success` 表示成功结局。
+如果目标项目只有 `git init` 但没有初始提交，archive commit 会写审计并跳过 git commit，不会把成功 run 卡死。建议真实项目先创建一个初始 setup commit。
 
-如果后续要继续处理一个 blocked/partial/canceled run：
-
-```bash
-npx crewup continue <run-id> "继续处理上次阻塞的问题，复用已有 requirement 和 architecture"
-```
-
-这会创建新的 run，并把旧 run 的 `RUN_STATUS.md`、`RUN_SUMMARY.md`、需求和架构产物写入新 run 的输入上下文。
-
-如果 run 里启动了预览服务：
+## 继续上一轮 Run
 
 ```bash
-npx crewup dev-service <run-id> stop
+npx crewup continue <source-run-id> "继续处理上次未完成的问题，复用已有需求和架构"
 ```
 
-`finish` 前应确保服务关闭、tester/reviewer 问题已回派修复、`audit` 和 `gate-check` 通过。默认先 audit/gate/report，再关闭保留的子 agent。
-
-## 常见问题
-
-### 为什么子 agent 没启动？
-
-常见原因：
-
-- 当前 agent 不是 `next-agent` 返回的 runnable
-- 上游 agent 还没有真实 handle/result
-- native subagent 工具不可用
-- 选择的是 bridge/manual 模式，需要手动执行 handoff
-- API key 或外部 agent 登录态未配置
-
-### 主 agent 能不能直接写业务代码？
-
-正式 CrewUp run 里不应该。主 agent 负责调度、登记、检查和汇总。业务代码和 owner artifact 应由对应子 agent 写入。`audit` 和 `gate-check` 会检查越界风险。
-
-### 中文乱码怎么办？
-
-先运行：
-
-```bash
-npx crewup doctor
-```
-
-如果 Windows terminal encoding 不是 CP65001，PowerShell 可能把中文显示成乱码。可以临时切换：
-
-```powershell
-chcp 65001
-```
-
-读取文件时优先使用：
-
-```powershell
-Get-Content README.md -Encoding UTF8
-```
+新的 run 会读取来源 run 的 `RUN_STATUS.md`、`RUN_SUMMARY.md`、需求和架构产物。旧 run 不会被覆盖。

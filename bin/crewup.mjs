@@ -253,6 +253,8 @@ function printHelp() {
 Usage:
   crewup install [--force] [--reset]
   crewup doctor
+  crewup doctor --encoding-help
+  crewup doctor --encoding-profile
   crewup init [--force] [--agent <codex|claude|cursor|trae|manual>] [--yes]
   crewup inspect --no-ai                 # optional for existing/complex repositories
   crewup check
@@ -273,7 +275,11 @@ Usage:
 
 Core workflow:
   install          Copy or update .harness/ and AGENTS.md; --force preserves runtime state, --reset clears .harness first
-  doctor           Check environment, capabilities, and preflight conditions
+  doctor           Check environment, capabilities, encoding, and preflight conditions
+  doctor --encoding-help
+                   Explain UTF-8 terminal troubleshooting for Windows/macOS/Linux
+  doctor --encoding-profile
+                   Print shell profile snippets for UTF-8 terminal setup
   inspect          Optional: generate project snapshot and adaptation plan for existing or complex repositories
   init             Generate .harness/project/ adaptation layer; prompts for Codex/Claude/Cursor/Trae/Manual by default
   check            Validate harness config and core scripts

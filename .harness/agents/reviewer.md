@@ -37,3 +37,5 @@ Under `## Blocking Issues`, write `- none` when there are no blocking issues.
 - If blocking issues exist, set `fixRequired: true` in result JSON.
 - Fill `targetAgents` and `requiredFixes` with exact owner agents and repair instructions.
 - If only tester evidence is missing, target `tester`, not implementation agents.
+- Mark an issue as blocking only when it violates acceptance criteria, breaks core user-visible behavior, creates security/data-loss risk, blocks build/test/release evidence, or contradicts an explicit requirement.
+- Put polish, optional edge cases, and improvements outside the accepted requirement scope under `## Non-Blocking Suggestions`; do not trigger a repair loop for those alone.

@@ -27,7 +27,6 @@ If required product, scope, acceptance, risk, or boundary decisions are still mi
 - Do not mark the task `completed` just because you can infer a reasonable default.
 - Do not let the run proceed to `requirements` until the user has answered or explicitly accepted defaults.
 - Prefer multiple short clarification rounds over one large questionnaire.
-- Keep each choice question small enough for native host UI: 2-3 options, short labels, and brief descriptions.
 - Put user-facing context in the Markdown `Clarification Card`, not in long chat prose.
 - Write `clarificationQuestions[].question`, `options[].label`, and `options[].description` in the user's primary language unless the user requested another language.
 
@@ -61,7 +60,7 @@ Use these exact second-level headings:
 - `## Selected Clarifications`
 - `## Open Questions`
 
-## Clarification Question Format
+## Clarification Card Format
 
 The `Clarification Card` must be the first user-facing review surface. Use compact Markdown tables and short bullets:
 
@@ -72,25 +71,27 @@ The `Clarification Card` must be the first user-facing review surface. Use compa
 
 | Area | Confirmed |
 | --- | --- |
-| Product goal | 构建一个最小静态计数器页面。 |
-| Scope included | 数字展示、加一、减一、重置。 |
-| Scope excluded | 后端、数据库、认证、路由。 |
+| Product goal | 构建一个最小 H5 计数器页面。 |
+| Scope included | 数字显示、加一、减一、刷新后保留状态。 |
+| Scope excluded | 后端、数据库、登录、路由、多页面。 |
 
 ### Decisions Needed
 
 | ID | Decision | Options | Recommended | User Choice |
 | --- | --- | --- | --- | --- |
-| Q-01 | 是否允许计数为负数？ | A 允许 / B 最低为 0 | A | pending |
+| Q-01 | 是否允许计数小于 0？ | A. 允许 / B. 不允许 / C. 其它 | B | pending |
 
 ### Non-Goals Snapshot
 
 - 不做后端 API。
-- 除非用户选择，否则不做持久化。
+- 不做跨设备同步。
 
 ### Acceptance Preview
 
 - AC-01: 初始值为 0。
-- AC-02: 加一、减一、重置控件可用。
+- AC-02: 点击加按钮后计数加 1。
+- AC-03: 点击减按钮后按用户选择的边界处理。
+- AC-04: 刷新页面后保留当前值。
 
 ### Ready To Continue
 
@@ -99,15 +100,17 @@ The `Clarification Card` must be the first user-facing review surface. Use compa
 
 Keep the card readable in a chat preview. Avoid dense paragraphs.
 
-Use stable question ids:
+## Clarification Question Format
+
+Use stable question ids and letter options:
 
 ```markdown
-- Q-01: 本次是否需要保存刷新后的计数值？
+- Q-01: 是否允许计数小于 0？
   - type: single_choice
-  - recommended: A
-  - A: 不保存，刷新后回到初始值
-  - B: 使用浏览器 localStorage 保存
-  - C: 暂不确定，继续澄清
+  - recommended: B
+  - A: 允许
+  - B: 不允许，最低为 0
+  - C: 其它，用户输入补充说明
 ```
 
 For result JSON, use:
@@ -117,14 +120,14 @@ For result JSON, use:
   "clarificationQuestions": [
     {
       "id": "Q-01",
-      "question": "本次是否需要保存刷新后的计数值？",
+      "question": "是否允许计数小于 0？",
       "type": "single_choice",
       "required": true,
-      "recommendedOptionIds": ["A"],
+      "recommendedOptionIds": ["B"],
       "options": [
-        { "id": "A", "label": "不保存", "description": "刷新后回到初始值，范围最小。" },
-        { "id": "B", "label": "浏览器本地保存", "description": "使用 localStorage，不需要后端。" },
-        { "id": "C", "label": "继续澄清", "description": "当前还不能确定持久化边界。" }
+        { "id": "A", "label": "允许", "description": "减到负数也保留。" },
+        { "id": "B", "label": "不允许", "description": "最低为 0。" },
+        { "id": "C", "label": "其它", "description": "用户输入补充说明。" }
       ]
     }
   ],
@@ -138,8 +141,10 @@ Clarification UX rules:
 
 - Return at most 3 questions per `needs_input` result.
 - Use `single_choice` or `multi_choice` when possible.
-- Use at most 3 options per question unless the user explicitly asks for exhaustive comparison.
-- Keep `question`, `label`, and `description` concise; the main agent may need to render them in a native Plan-mode choice UI.
+- Use as many options as the model genuinely recommends, but keep labels concise and avoid unnecessary choices.
+- The last option should be `其它` / `Other` unless the question is already exhaustive and the user explicitly asked for fixed choices only.
+- Use letter ids such as `A`, `B`, `C`, `D`, `E`. Do not use numeric option ids for clarification choices.
+- Keep `question`, `label`, and `description` concise; the main agent or CLI may render them as a compact choice card.
 - Do not write long explanatory prose into `clarificationQuestions`; put supporting context in `artifacts/requirement-plan.md`.
 
 ## Boundaries

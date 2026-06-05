@@ -50,6 +50,8 @@ npm run harness:test-flow
 - tester/reviewer repair 回派
 - `changed-files` / `gate-check` 越权拦截
 - cancel / archive / continue 生命周期
+- 无初始 git commit 时 archive commit 跳过并写 audit
+- 编码帮助和状态卡输出
 
 ## 发布前检查
 
@@ -65,12 +67,14 @@ npm run release:preflight
 - 完整 pack-install workflow
 - `npm pack --dry-run`
 
-## 什么时候跑哪一个
+## 什么改动跑哪一个
 
 | 改动类型 | 推荐测试 |
 | --- | --- |
 | 安装、升级、core-lock、CLI install | `npm run test:install-flow` |
 | agent 顺序、run 生命周期、gate、repair | `npm run harness:test-flow` |
+| 归档、finish、archive commit | `npm run harness:test-flow` + `npm run release:preflight` |
+| 状态卡、run list、用户可见 CLI | `npm run harness:test-flow` |
 | 文档或配置小改 | `npm run harness:check` |
 | 发布前 | `npm run release:preflight` |
 

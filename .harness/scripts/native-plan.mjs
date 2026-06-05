@@ -330,7 +330,7 @@ function renderSpawnPrompt({ agentId, agentType, profile, primaryLanguage = "en"
     "- If context is insufficient, return `needs_input` and name the exact missing file or decision.",
     "- If you are requirements-plan and user decisions are missing, return `needs_input` with structured `clarificationQuestions`; the main agent will transport those options to the user.",
     "- If you are requirements-plan on the first pass, return `needs_input` unless prior user answers and `userConfirmed: true` are already present; do not answer your own questions.",
-    "- If you are requirements-plan, return at most 3 clarification questions per round, with 2-3 concise options where possible, so Codex can render them through native Plan-mode choice UI when available.",
+    "- If you are requirements-plan, return at most 3 clarification questions per round, with concise lettered options where possible; keep the last option as `其它` / `Other` unless the choice is intentionally exhaustive.",
     "- If you are requirements-plan, make `artifacts/requirement-plan.md` include a scannable `Clarification Card` with compact tables for confirmed facts, needed decisions, non-goals, acceptance preview, and ready-to-continue status.",
     "- Keep the final result concise and follow the output contract.",
     "",

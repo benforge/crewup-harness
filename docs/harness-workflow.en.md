@@ -89,7 +89,7 @@ requirements-plan first, always
 
 Implementation agents must not start just because the request looks small.
 
-`requirements-plan` owns interactive clarification. It should first write a Markdown clarification card in `requirement-plan.md`, using compact tables and short lists for confirmed facts, needed decisions, non-goals, and acceptance preview. If key decisions are missing, it returns `needs_input` with structured `clarificationQuestions`. The main agent is only the interaction transport: it should guide the user to review the card and use `crewup clarify --interactive` instead of pasting a long questionnaire into chat. Compact text choices are allowed only when the user explicitly asks to answer in chat. The main agent must not silently choose defaults or write requirement artifacts.
+`requirements-plan` owns interactive clarification. It should first write a Markdown clarification card in `requirement-plan.md`, using compact tables and short lists for confirmed facts, needed decisions, non-goals, and acceptance preview. If key decisions are missing, it returns `needs_input` with structured `clarificationQuestions`. The main agent is only the interaction transport: it should show a compact confirmation card or guide the user to `crewup clarify --interactive`, not paste a long questionnaire into chat. Text fallback should use `A/B/C/D/E...` letter choices and keep one `Other` option when the decision is not exhaustive. The main agent must not silently choose defaults or write requirement artifacts.
 
 Use this command to render the questions:
 
@@ -103,7 +103,7 @@ For a real terminal, use keyboard interaction:
 npx crewup clarify <run-id> --interactive
 ```
 
-This writes `.harness/runs/<run-id>/logs/clarifications/answers.json` and `answers.md`. Hosts with native Plan-mode choice UI, such as Codex when available, can map `clarificationQuestions` directly to that UI. Cursor, Claude, Trae, manual, and bridge environments use the same JSON contract through `clarify --interactive`. Text-choice chat fallback should be the last resort, not the default Codex experience.
+This writes `.harness/runs/<run-id>/logs/clarifications/answers.json` and `answers.md`. Hosts with native Plan-mode choice UI, such as Codex when available, can map `clarificationQuestions` directly to that UI. Cursor, Claude, Trae, manual, and bridge environments use the same JSON contract through `clarify --interactive`. Text-choice chat fallback must stay compact and use letter choices, not `1/2/3` numeric choices.
 
 ## Owner Artifacts
 

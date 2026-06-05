@@ -7,13 +7,16 @@ export const finalStatuses = new Set(["done", "canceled", "failed"]);
 export function normalizeRunState(state = {}) {
   const status = state.status ?? "active";
   const outcome = state.outcome ?? (status === "done" ? "success" : "none");
-  return {
+  const normalized = {
     ...state,
     status,
     outcome,
     archived: Boolean(state.archived),
-    health: state.health ?? healthForStatus(status, outcome),
-    nextAction: state.nextAction ?? nextActionForState({ ...state, status, outcome })
+    health: state.health ?? healthForStatus(status, outcome)
+  };
+  return {
+    ...normalized,
+    nextAction: state.nextAction ?? nextActionForState(normalized)
   };
 }
 
@@ -32,9 +35,24 @@ export function nextActionForState(state = {}) {
       command: state.runId ? `npx crewup clarify ${state.runId} --interactive` : ""
     };
   }
-  if (state.status === "blocked") return { type: "blocked", description: state.reason ?? state.health?.reason ?? "Run is blocked.", command: "" };
-  if (state.status === "done" || state.status === "canceled" || state.status === "failed") return { type: "none", description: "No active next action.", command: "" };
-  return { type: "agent", description: "Run the next allowed CrewUp agent or gate command.", command: state.runId ? `npx crewup next-agent ${state.runId}` : "" };
+  if (state.status === "blocked") {
+    return { type: "blocked", description: state.reason ?? state.health?.reason ?? "Run is blocked.", command: "" };
+  }
+  if (state.status === "done" && !state.archived) {
+    return {
+      type: "archive",
+      description: "Run reached done; archive closeout is still pending.",
+      command: state.runId ? `npx crewup archive ${state.runId} --outcome=success` : ""
+    };
+  }
+  if (state.status === "done" || state.status === "canceled" || state.status === "failed") {
+    return { type: "none", description: "No active next action.", command: "" };
+  }
+  return {
+    type: "agent",
+    description: "Run the next allowed CrewUp agent or gate command.",
+    command: state.runId ? `npx crewup next-agent ${state.runId}` : ""
+  };
 }
 
 export async function readRunState(root, runId) {
@@ -220,7 +238,8 @@ function statusBadge(status) {
 }
 
 function completionFor({ state, progress }) {
-  if (state.status === "done" && state.outcome === "success") return { done: true, reason: "success outcome recorded" };
+  if (state.status === "done" && state.outcome === "success" && state.archived) return { done: true, reason: "success outcome recorded and archived" };
+  if (state.status === "done" && state.outcome === "success") return { done: true, reason: "success outcome recorded; archive pending" };
   if (state.status === "canceled") return { done: false, reason: "canceled outcome" };
   if (state.status === "failed") return { done: false, reason: "failed outcome" };
   if (state.status === "blocked") return { done: false, reason: "blocked" };
@@ -262,8 +281,12 @@ function decisionLinesFor({ state, blockers, nextCommand, locale = "en" }) {
       : ["- This run is partially complete.", "- Reusable artifacts are listed below.", "- Archive as partial or continue from this run."];
   }
   if (state.status === "done") {
-    if (zh) return state.archived ? ["- 这个 run 已完成并归档。"] : ["- 这个 run 已完成。如尚未收口，请生成 report/archive。"];
-    return state.archived ? ["- This run is complete and archived."] : ["- This run is complete. Run report/archive closeout if not already done."];
+    if (zh) return state.archived
+      ? ["- 这个 run 已完成并归档。"]
+      : ["- 这个 run 已完成，但尚未归档。", nextCommand ? `- 建议执行：\`${nextCommand}\`` : "- 建议执行 archive 收口。"];
+    return state.archived
+      ? ["- This run is complete and archived."]
+      : ["- This run is complete, but archive closeout is still pending.", nextCommand ? `- Suggested command: \`${nextCommand}\`` : "- Run archive closeout."];
   }
   if (state.status === "canceled") return zh ? ["- 这个 run 已取消。如需恢复，使用 `crewup continue`。"] : ["- This run was canceled. Use `crewup continue` if the work should resume later."];
   if (state.status === "failed") return zh ? ["- 这个 run 执行失败。重试前先查看阻塞和归档摘要。"] : ["- This run failed. Review blockers and archive summary before retrying."];
@@ -333,6 +356,8 @@ function localizedNextDescription(state, locale) {
   if (!text) return "未记录下一步。";
   if (text === "Review and answer the clarification card or requested approval.") return "查看并回答需求澄清卡或确认请求。";
   if (text === "Run the next allowed CrewUp agent or gate command.") return "运行下一个允许的 CrewUp agent 或 gate 命令。";
+  if (text === "Run the next allowed CrewUp agent or transition gate.") return "运行下一个允许的 CrewUp agent 或阶段门禁。";
+  if (text === "Run reached done; archive closeout is still pending.") return "Run 已到 done，仍需执行归档收口。";
   if (text === "No active next action.") return "没有活跃的下一步。";
   if (/needs user input/i.test(text)) return "requirements-plan 需要用户输入。";
   return text;
@@ -363,6 +388,8 @@ function localizeReason(reason, locale) {
   }
   return {
     "success outcome recorded": "已记录成功结局",
+    "success outcome recorded and archived": "已记录成功结局并归档",
+    "success outcome recorded; archive pending": "已记录成功结局，归档待完成",
     "canceled outcome": "已取消",
     "failed outcome": "已失败",
     blocked: "被阻塞",

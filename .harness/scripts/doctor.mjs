@@ -4,8 +4,21 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { parse as parseYaml } from "yaml";
 import { verifyCoreLock } from "./lib/core-lock.mjs";
+import { detectTerminalEncoding, encodingHelpText, encodingProfileText } from "./lib/terminal-encoding.mjs";
 
 const root = process.cwd();
+const args = process.argv.slice(2);
+
+if (args.includes("--encoding-help")) {
+  console.log(encodingHelpText());
+  process.exit(0);
+}
+
+if (args.includes("--encoding-profile")) {
+  console.log(encodingProfileText());
+  process.exit(0);
+}
+
 const packageJson = await readJson(path.join(root, "package.json"));
 const isTemplatePackage = packageJson?.name === "crewup-harness";
 const scripts = packageJson?.scripts ?? {};
@@ -13,7 +26,7 @@ const bin = packageJson?.bin ?? {};
 const lockfile = detectLockfile();
 const git = gitInfo();
 const integrations = await readIntegrations();
-const terminalEncoding = detectTerminalEncoding();
+const terminalEncoding = detectTerminalEncoding({ cwd: root });
 const coreLock = existsSync(path.join(root, ".harness")) ? await verifyCoreLock(root) : null;
 
 const projectChecks = [
@@ -201,28 +214,6 @@ function gitInfo() {
   return {
     branch: branch.status === 0 ? branch.stdout.trim() : "",
     dirty: status.status === 0 ? Boolean(status.stdout.trim()) : false
-  };
-}
-
-function detectTerminalEncoding() {
-  if (process.platform !== "win32") {
-    return {
-      value: process.env.LANG || process.env.LC_ALL || "unknown",
-      note: "UTF-8 locale is recommended for multilingual docs"
-    };
-  }
-
-  const result = spawnSync(process.env.ComSpec || "cmd.exe", ["/d", "/c", "chcp"], {
-    cwd: root,
-    encoding: "utf8"
-  });
-  const output = `${result.stdout ?? ""}${result.stderr ?? ""}`.trim();
-  const codePage = output.match(/(\d{3,5})/)?.[1] ?? "unknown";
-  const ok = codePage === "65001";
-  return {
-    value: codePage === "unknown" ? "unknown" : `CP${codePage}`,
-    note: ok ? "UTF-8 code page" : "Windows console code page; UTF-8 CP65001 is recommended",
-    warning: ok ? "" : "Windows terminal is not using UTF-8 code page. If Chinese text appears garbled, run `chcp 65001` or read files with `Get-Content <file> -Encoding UTF8`."
   };
 }
 

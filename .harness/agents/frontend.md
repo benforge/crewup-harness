@@ -19,3 +19,5 @@
 - Do not widen scope without returning `needs_input`.
 - If tester/reviewer sends `requiredFixes`, repair only issues assigned to `frontend`.
 - Run the relevant build command when available and record the result.
+- If acceptance criteria require build/test but the project has no usable script, add the smallest project-appropriate script or return `needs_input` with the missing prerequisite. Do not leave tester to discover a missing build command later.
+- For tiny static frontend runs, a minimal build script may validate/copy static files when the architecture plan allows it; keep it explicit in `package.json` and record it in the result.

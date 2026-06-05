@@ -61,8 +61,8 @@ Every formal CrewUp run starts with requirements planning. `lite` means shorter 
 `requirements-plan` is the clarification owner. When it returns `needs_input` with `clarificationQuestions`, the main agent is only the interaction transport:
 
 1. Prefer the host's native choice UI when it is available. In Codex Plan mode or another Codex surface that exposes native user-choice prompts, render up to 3 short questions from `clarificationQuestions` through that native UI.
-2. If native choice UI is unavailable, do not paste a questionnaire into chat by default. Ask the user to run `npx crewup clarify <run-id> --interactive` in a real terminal.
-3. Show compact chat choices only when the user explicitly asks to answer in chat, and still limit the round to 1-3 questions.
+2. If native choice UI is unavailable, prefer the compact Markdown card from `npx crewup clarify <run-id>` or ask the user to run `npx crewup clarify <run-id> --interactive` in a real terminal.
+3. Show compact chat choices only in a card/table format. Use letter choices such as `A`, `B`, `C`, `D`, `E`; keep one option as `Other` / `其它` when the question is not exhaustive. Do not use numeric choices for clarification options.
 4. Record the user's selected answers into `.harness/runs/<run-id>/logs/clarifications/answers.json` by using `npx crewup clarify <run-id> --answers="Q-01:A;Q-02:B,C"` or an equivalent handoff file.
 5. Resume `requirements-plan` after answers are recorded.
 
@@ -196,6 +196,43 @@ Details: .harness/runs/<run-id>/logs/run-report.md
 When reporting subagent results, summarize in one or two lines and cite the result path. Do not paste the result body, artifact body, context pack, or long logs into chat. If the user asks for details, point to the file path first and only quote the smallest relevant excerpt.
 
 For routine progress updates, keep to at most six lines. Do not include implementation reasoning, copied artifact sections, native-state JSON, or multiple alternative next steps. If multiple actions look possible, run `next-agent` and report only the current authorized next step.
+
+Avoid self-dialogue and process narration in the user chat. Do not say things like "I have the draft", "I will now check", "I think the plan is ready", or "the harness native state has not recorded..." unless the user explicitly asks for debugging detail. Record process evidence in run logs and report paths instead.
+
+When asking for user confirmation, use this compact shape:
+
+```text
+Run: <run-id>
+Status: <status> / <stage>
+Owner: <owner>
+
+## 需要你确认
+| 题号 | 问题 | 选项 | 推荐 |
+| --- | --- | --- | --- |
+| Q-01 | <question> | A. <option><br>B. <option><br>C. 其它 | B |
+
+回复格式：`Q-01:B; Q-02:A`
+Status card: .harness/runs/<run-id>/RUN_STATUS.md
+Details: .harness/runs/<run-id>/artifacts/requirement-plan.md
+```
+
+When asking for implementation approval after planning, do not restate the full requirement. Use at most five bullets plus paths:
+
+```text
+Run: <run-id>
+Status: active / plan
+Owner: architect
+
+Ready for implementation approval.
+- Scope: <one-line scope>
+- Non-goals: <one-line exclusions>
+- Assigned agents: <agent ids>
+- Preview files: <planned files or "see implementation-plan.md">
+
+Reply: 确认继续实现
+Details: .harness/runs/<run-id>/artifacts/requirement.md
+Plan: .harness/runs/<run-id>/artifacts/implementation-plan.md
+```
 
 ## Closeout Order
 
