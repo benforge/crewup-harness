@@ -76,6 +76,12 @@ npx crewup transition <run-id> --to=<stage>
 
 Do not hand-edit `state.json` unless using a dedicated repair script.
 
+Do not use `transition --force` in normal project work. Force transitions require `--force-reason` and are reserved for audited state repair only. When diagnostics show only closeout metadata is stale, prefer:
+
+```bash
+npx crewup repair-state <run-id> --closeout-only --apply
+```
+
 ## Language
 
 - Match the user's primary language for user-facing coordination, status updates, summaries, blockers, and subagent handoff discussion.
@@ -100,6 +106,14 @@ When tester/reviewer returns required fixes:
 3. Capture repair results, then rerun verify/review as needed.
 
 The main agent must not directly edit business files because tester/reviewer reported issues.
+
+When a run is already archived and the user reports a bug, preview error, deployment issue, or follow-up change, do not reopen the archived run and do not patch business code in the original run. Create a continuation run:
+
+```bash
+npx crewup continue <archived-run-id> "<user reported issue or follow-up>"
+```
+
+The only exception is a pure runtime action with no file edits, such as restarting or stopping a stale preview service and recording the result. If a code, config, dependency, or artifact change is needed, route it through the continuation run and the owning agents.
 
 ## Harness Core Protection
 
@@ -254,3 +268,11 @@ Allowed run outcomes are `success`, `partial`, `blocked`, `canceled`, and `faile
 When a run reaches `done`, use `npx crewup finish <run-id>` so it records success archive evidence. For blocked, partial, canceled, or failed runs, use `npx crewup archive <run-id> --outcome=<outcome> --reason="..."` or `npx crewup cancel <run-id> --reason="..."`.
 
 Do not claim a run is done unless `state.status=done`, `outcome=success`, gates passed, report exists, and the status card says archived or ready to archive.
+
+For web or full-stack runs, do not claim user-visible completion until a preview URL has been reported or a blocker explains why preview cannot be started. If a service is started, run:
+
+```bash
+npx crewup preview-smoke <run-id> --url=<preview-url>
+```
+
+Report only the preview URL and `artifacts/preview-smoke.md` path. If preview smoke fails, route repair to the owner agent; do not fix business code in the main window.

@@ -249,6 +249,8 @@ function renderCreatedLog({ runId, requestText, now, git, sourceRunId }) {
     `- branch: ${git.branch ?? "(none)"}`,
     `- branchCreated: ${git.createdByHarness ? "yes" : "no"}`,
     `- branchReason: ${git.reason || "none"}`,
+    `- initialCommitExists: ${git.initialCommitExists === false ? "no" : git.initialCommitExists === true ? "yes" : "unknown"}`,
+    `- baselineRecommendation: ${git.baselineRecommendation || "none"}`,
     "",
     "## Original Request",
     "",
@@ -273,21 +275,27 @@ function createRunBranch(runId, slug) {
     return { available: false, createdByHarness: false, branch: null, baseBranch: null, baseCommit: null, reason: "not a git worktree" };
   }
   const baseBranch = git(["branch", "--show-current"]).stdout.trim() || "HEAD";
-  const baseCommit = git(["rev-parse", "HEAD"]).stdout.trim();
+  const head = git(["rev-parse", "--verify", "HEAD"]);
+  const hasInitialCommit = head.status === 0;
+  const baseCommit = hasInitialCommit ? head.stdout.trim() : null;
   const status = git(["status", "--short"]).stdout.trim().split(/\r?\n/).filter(Boolean);
   const branch = `crewup/${runId}-${slug}`.slice(0, 180);
   const created = git(["switch", "-c", branch]);
   return {
     available: true,
+    initialCommitExists: hasInitialCommit,
     createdByHarness: created.status === 0,
     branch: created.status === 0 ? branch : baseBranch,
     plannedBranch: branch,
     baseBranch,
     baseCommit,
+    baselineRecommendation: hasInitialCommit ? "" : "Create an initial git commit before large CrewUp runs so changed-file and archive gates have a stable baseline.",
     dirtyAtStart: status,
     reason: created.status === 0
-      ? (status.length > 0 ? "branch created with existing uncommitted changes recorded" : "")
-      : "git branch creation failed"
+      ? (!hasInitialCommit
+          ? "branch created without an initial commit; baseline is recommended"
+          : (status.length > 0 ? "branch created with existing uncommitted changes recorded" : ""))
+      : (hasInitialCommit ? "git branch creation failed" : "git branch creation failed; repository has no initial commit")
   };
 }
 

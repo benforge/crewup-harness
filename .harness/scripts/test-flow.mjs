@@ -2,7 +2,7 @@ import { mkdir, readFile, readdir, rm, mkdtemp, writeFile } from "node:fs/promis
 import { existsSync } from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { hasTemplatePlaceholder } from "./lib/placeholder-detector.mjs";
 import { sortByExecutionOrder } from "./lib/execution-order.mjs";
 
@@ -10,6 +10,7 @@ const root = process.cwd();
 const tmpRoot = await mkdtemp(path.join(os.tmpdir(), "crewup-flow-"));
 const appDir = path.join(tmpRoot, "app");
 const packDir = path.join(tmpRoot, "pack");
+let smokeServer = null;
 
 await mkdir(appDir, { recursive: true });
 await mkdir(packDir, { recursive: true });
@@ -138,6 +139,7 @@ try {
   ]);
   const counterRunId = extractRunId(counterRunOutput);
   if (!counterRunId) throw new Error(`Failed to detect counter runId from output: ${counterRunOutput}`);
+  const counterRunDir = path.join(appDir, ".harness", "runs", counterRunId);
   assertIncludes(counterRunId, "build-counter-web-app", "semantic counter run id ignores negated auth");
   const counterTaskNames = sortByExecutionOrder(await listTaskNames(path.join(appDir, ".harness", "runs", counterRunId, "tasks")));
   assertSameMembers(counterTaskNames, ["requirements-plan", "requirements", "architect", "frontend", "tester", "reviewer", "release"], "counter task assignment excludes negated scopes");
@@ -173,6 +175,21 @@ try {
   assertExists(path.join(appDir, ".harness", "reports", `${counterRunId}.md`), "global canceled run report");
   const canceledStatusOutput = runCli(appDir, ["status", counterRunId]);
   assertIncludes(canceledStatusOutput, "| Status | canceled |", "canceled status card");
+  const canceledReport = await readFile(path.join(appDir, ".harness", "runs", counterRunId, "logs", "run-report.md"), "utf8");
+  assertIncludes(canceledReport, "| deliveryStatus | closed |", "archived run report is closed even without archive commit");
+
+  const smokePort = await startSmokeServer();
+  try {
+    const smokeOutput = runCli(appDir, ["preview-smoke", counterRunId, "--url", `http://127.0.0.1:${smokePort}`]);
+    assertIncludes(smokeOutput, "Preview smoke passed", "preview smoke passed output");
+    assertExists(path.join(counterRunDir, "artifacts", "preview-smoke.md"), "preview smoke artifact");
+    assertExists(path.join(counterRunDir, "logs", "preview-smoke.json"), "preview smoke json");
+  } finally {
+    await stopSmokeServer();
+  }
+
+  const forceWithoutReason = runCliWithStatus(appDir, ["transition", counterRunId, "--to=done", "--force"], { expectedStatus: 1 });
+  assertIncludes(forceWithoutReason, "transition --force requires --force-reason", "force transition reason guard");
   const continueOutput = runCli(appDir, ["continue", counterRunId, "Continue the counter MVP after cancellation with the same tiny scope."]);
   const continuationRunId = extractRunId(continueOutput);
   if (!continuationRunId) throw new Error(`Failed to detect continuation runId from output: ${continueOutput}`);
@@ -182,7 +199,6 @@ try {
   if (continuationState.source !== "continue_run" || continuationState.sourceRunId !== counterRunId) {
     throw new Error(`Continuation state mismatch:\n${JSON.stringify(continuationState, null, 2)}`);
   }
-  const counterRunDir = path.join(appDir, ".harness", "runs", counterRunId);
   await writeFile(path.join(counterRunDir, "artifacts", "test-report.md"), "# Test Report\n", "utf8");
   const blockedArtifactRepair = runCliWithStatus(appDir, ["repair-artifacts", counterRunId], { expectedStatus: 1 });
   assertIncludes(blockedArtifactRepair, "Refusing to repair owner-agent artifacts directly", "repair-artifacts owner guard");
@@ -320,7 +336,40 @@ try {
   }, null, 2));
   console.log("test-flow passed");
 } finally {
+  await stopSmokeServer();
   await rm(tmpRoot, { recursive: true, force: true });
+}
+
+async function startSmokeServer() {
+  smokeServer = spawn(process.execPath, [
+    "-e",
+    "const http=require('node:http');const s=http.createServer((req,res)=>{res.writeHead(200,{'content-type':'text/plain; charset=utf-8'});res.end('ok')});s.listen(0,'127.0.0.1',()=>console.log(s.address().port));process.on('SIGTERM',()=>s.close(()=>process.exit(0)));"
+  ], {
+    stdio: ["ignore", "pipe", "pipe"]
+  });
+  return await new Promise((resolve, reject) => {
+    let stderr = "";
+    const timer = setTimeout(() => reject(new Error(`smoke server did not start: ${stderr}`)), 10000);
+    smokeServer.stderr.on("data", (chunk) => {
+      stderr += chunk.toString();
+    });
+    smokeServer.stdout.once("data", (chunk) => {
+      clearTimeout(timer);
+      resolve(Number(chunk.toString().trim()));
+    });
+    smokeServer.once("exit", (code) => {
+      clearTimeout(timer);
+      reject(new Error(`smoke server exited early: ${code} ${stderr}`));
+    });
+  });
+}
+
+async function stopSmokeServer() {
+  if (!smokeServer) return;
+  const child = smokeServer;
+  smokeServer = null;
+  child.kill("SIGTERM");
+  await new Promise((resolve) => child.once("exit", resolve));
 }
 
 async function createStrictFrontendRun(appDir) {

@@ -35,7 +35,7 @@ const agentRows = await buildAgentRows(nativeState, taskNames);
 const artifactRows = await buildArtifactRows(artifactNames);
 const contextBudgetRows = buildContextBudgetRows(contextBudget);
 const tokenRows = buildTokenRows(tokenLedger);
-const deliveryStatus = deliveryStatusFor({ state, archiveAudit, agentRows, artifactRows });
+const deliveryStatus = deliveryStatusFor({ state, agentRows, artifactRows });
 const verdictTag = verdictTagFor({ deliveryStatus, archiveAudit, agentRows, artifactRows });
 
 const lines = [
@@ -51,7 +51,8 @@ const lines = [
   `| workflowProfile | ${cell(state.workflowProfile ?? "unknown")} |`,
   `| deliveryStatus | ${cell(deliveryStatus)} |`,
   `| verdictTag | ${cell(verdictTag)} |`,
-  `| archive | ${cell(archiveAudit.status || "no record")} |`,
+  `| archived | ${state.archived ? "yes" : "no"} |`,
+  `| archive commit | ${cell(archiveAudit.status || "no record")} |`,
   "",
   "## Request",
   "",
@@ -105,7 +106,8 @@ const lines = [
   "",
   "| Item | Value |",
   "| --- | --- |",
-  `| archive status | ${cell(archiveAudit.status || "no record")} |`,
+  `| run archived | ${state.archived ? "yes" : "no"} |`,
+  `| archive commit status | ${cell(archiveAudit.status || "no record")} |`,
   `| reason | ${cell(archiveAudit.reason || "none")} |`,
   `| commit | ${cell(archiveAudit.commit || "not generated")} |`,
   `| audit | ${existsSync(path.join(logsDir, "archive", "git-commit.md")) ? "`logs/archive/git-commit.md`" : "none"} |`,
@@ -276,8 +278,8 @@ function listText(value) {
   }).join("<br>");
 }
 
-function deliveryStatusFor({ state, archiveAudit, agentRows, artifactRows }) {
-  if (archiveAudit.status === "committed") return "closed";
+function deliveryStatusFor({ state, agentRows, artifactRows }) {
+  if (state.archived === true) return "closed";
   if (state.status === "done" || state.stage === "done") return "done-not-archived";
   if (agentRows.some((item) => /blocked/i.test(item.status) || /blocked/i.test(item.blockers))) return "blocked";
   if (artifactRows.length > 0 || agentRows.length > 0) return "in-progress";
@@ -329,8 +331,12 @@ function verdictTagFor({ deliveryStatus }) {
 }
 
 function verdictFor({ deliveryStatus, archiveAudit, agentRows, artifactRows }) {
-  if (deliveryStatus === "closed") return `This run is fully closed and archived: ${archiveAudit.commit || "commit not recorded"}.`;
-  if (deliveryStatus === "done-not-archived") return "This run reached done, but archive commit is still pending.";
+  if (deliveryStatus === "closed") {
+    return archiveAudit.commit
+      ? `This run is fully closed and archived. Archive commit: ${archiveAudit.commit}.`
+      : `This run is fully closed and archived. Archive commit evidence: ${archiveAudit.status || "not recorded"}.`;
+  }
+  if (deliveryStatus === "done-not-archived") return "This run reached done, but archive closeout is still pending.";
   if (deliveryStatus === "blocked") return "This run contains a blocker. Resolve agent output or manual confirmation before continuing.";
   if (agentRows.length === 0 && artifactRows.length === 0) return "This run has no deliverables yet. Execute the plan, implement, verify, or capture agent results first.";
   return "This run has partial results, but it is not fully closed yet.";

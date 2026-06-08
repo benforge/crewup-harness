@@ -166,6 +166,7 @@ npx crewup run "使用 CrewUp 做一个最小 counter web app，跑完整 workfl
 | `npx crewup native-state <run-id> diagnose` | 诊断子 agent handle、result 和状态差异 |
 | `npx crewup audit <run-id>` | 审计调度顺序、owner 边界、上下文压力和返工 |
 | `npx crewup gate-check <run-id>` | 检查 gate、产物归属和越权风险 |
+| `npx crewup preview-smoke <run-id> --url=http://localhost:3000` | 验证预览 URL 并写入 smoke 证据 |
 | `npx crewup report <run-id>` | 生成结构化交付报告 |
 | `npx crewup finish <run-id>` | 成功完成并按策略归档 run |
 | `npx crewup archive <run-id> --outcome=blocked --reason="..."` | 以非成功结果归档并保留证据 |
@@ -189,6 +190,7 @@ npx crewup run "使用 CrewUp 做一个最小 counter web app，跑完整 workfl
 | `artifacts/requirement.md` | 正式需求 |
 | `artifacts/architecture.md` | 架构设计 |
 | `artifacts/implementation-plan.md` | 实现分配和阶段计划 |
+| `artifacts/preview-smoke.md` | Web/full-stack 预览 URL 验证证据 |
 | `logs/run-report.md` | 当前 run 的交付报告 |
 
 CrewUp 支持这些结局：
@@ -210,6 +212,7 @@ CrewUp 通过几层机制保证流程稳定：
 - `artifact provenance` 检查 owner artifact 是否由正确 agent 产出。
 - `sealed core` 检查用户项目里的 `.harness` 核心是否被业务 run 修改。
 - `gate-check` 阻止主 agent 越权写业务代码或跳过阶段产物。
+- `preview-smoke` 把“页面能打开”变成文件证据；归档后发现问题必须开 continuation run，不能在原 run 里继续改业务代码。
 - `archive-commit` 在没有初始 git commit 的新项目里会写审计并跳过提交，不会把成功 run 卡死。
 - `native-state diagnose` 会提示“结果文件已存在但未登记”或“子 agent 运行过久未捕获结果”，减少主窗口等待。
 

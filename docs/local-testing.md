@@ -79,7 +79,7 @@ npm pack
 mkdir C:\tmp\crewup-app
 cd C:\tmp\crewup-app
 npm init -y
-npm install -D "C:\path\to\crewup-harness-0.3.12.tgz"
+npm install -D "C:\path\to\crewup-harness-<version>.tgz"
 npx crewup install
 npx crewup init --agent codex --yes
 npx crewup check
@@ -88,7 +88,7 @@ npx crewup check
 如果 tarball 路径包含空格，必须加引号：
 
 ```powershell
-npm install -D "C:\Users\me\Documents\New project\crewup-harness-0.3.12.tgz"
+npm install -D "C:\Users\me\Documents\New project\crewup-harness-<version>.tgz"
 ```
 
 否则 npm 会把路径拆开，出现找不到 `package.json` 的错误。

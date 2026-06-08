@@ -31,9 +31,18 @@ const to = valueOf("--to=");
 const approveImplementation = args.includes("--approve-implementation");
 const approveProductSync = args.includes("--approve-product-sync");
 const force = args.includes("--force");
+const forceReason = valueOf("--force-reason=");
 
 if (!runId || !to) {
-  console.error("Usage: npm run harness:transition -- <run-id> --to=<stage> [--approve-implementation] [--approve-product-sync] [--force]");
+  console.error("Usage: npm run harness:transition -- <run-id> --to=<stage> [--approve-implementation] [--approve-product-sync] [--force --force-reason=<reason>]");
+  process.exit(1);
+}
+
+if (force && !forceReason) {
+  console.error([
+    "transition --force requires --force-reason=<reason>.",
+    "Force is reserved for audited state repair. Prefer `npx crewup repair-state <run-id> --closeout-only --apply` when diagnostics says only lifecycle metadata is stale."
+  ].join("\n"));
   process.exit(1);
 }
 
@@ -80,11 +89,12 @@ if (approveImplementation) state.confirmations.implementation_approved_at = now;
 if (approveProductSync || to === "done") state.confirmations.product_sync_approved_at = now;
 state.transitions = [
   ...(state.transitions ?? []),
-  { from, to, at: now, force, approveImplementation, approveProductSync }
+  { from, to, at: now, force, forceReason: force ? forceReason : "", approveImplementation, approveProductSync }
 ];
 
 await writeFile(statePath, `${JSON.stringify(state, null, 2)}\n`, "utf8");
-await appendTransitionLog({ from, to, at: now, force });
+await appendTransitionLog({ from, to, at: now, force, forceReason });
+if (force) await appendForceAudit({ from, to, at: now, forceReason });
 await writeRunStatus(root, runId, state);
 
 console.log(`Transitioned ${runId}: ${from} -> ${to}`);
@@ -140,6 +150,7 @@ async function enforceGate(targetStage, currentState) {
     await requireArtifactContent("test-report.md", { noPlaceholders: true, noRequiredCheckFailures: true, requireOwner: true });
     await requireArtifactContent("review-report.md", { noPlaceholders: true, reviewPassed: true, requireOwner: true });
     await requireArtifactContent("release-summary.md", { noPlaceholders: true, requireOwner: true });
+    await requirePreviewSmokeIfPresent();
     requireNoOpenNativeAgents();
     await requireNoRunningDevService();
     await refreshDashboard();
@@ -237,6 +248,17 @@ async function requireNoRunningDevService() {
   if (service.status !== "running" || !service.pid) return;
   if (!isPidRunning(service.pid)) return;
   fail(`Dev service is still running before done/archive: pid ${service.pid}. Run \`npm run harness:dev-service -- ${runId} stop\`.`);
+}
+
+async function requirePreviewSmokeIfPresent() {
+  const smokePath = path.join(logsDir, "preview-smoke.json");
+  const artifactPath = path.join(runDir, "artifacts", "preview-smoke.md");
+  if (!existsSync(smokePath) && !existsSync(artifactPath)) return;
+  if (!existsSync(smokePath)) fail("preview-smoke.md exists but logs/preview-smoke.json is missing.");
+  const smoke = JSON.parse(await readFile(smokePath, "utf8"));
+  if (smoke.status !== "passed") {
+    fail("Preview smoke exists but did not pass. Route the issue to the owning implementation/devops agent before done.");
+  }
 }
 
 function isPidRunning(pid) {
@@ -389,8 +411,23 @@ function escapeRegExp(value) {
 
 async function appendTransitionLog(entry) {
   const previous = existsSync(transitionLog) ? await readFile(transitionLog, "utf8") : `# Transition Log: ${runId}\n\n`;
-  const line = `- ${entry.at}: ${entry.from} -> ${entry.to}${entry.force ? " (force)" : ""}\n`;
+  const line = `- ${entry.at}: ${entry.from} -> ${entry.to}${entry.force ? ` (force: ${entry.forceReason})` : ""}\n`;
   await writeFile(transitionLog, `${previous.trimEnd()}\n${line}`, "utf8");
+}
+
+async function appendForceAudit(entry) {
+  const target = path.join(logsDir, "state-repair.md");
+  const previous = existsSync(target) ? await readFile(target, "utf8") : `# State Repair Audit: ${runId}\n\n`;
+  const line = [
+    `## ${entry.at}`,
+    "",
+    `- action: transition --force`,
+    `- from: ${entry.from}`,
+    `- to: ${entry.to}`,
+    `- reason: ${entry.forceReason}`,
+    ""
+  ].join("\n");
+  await writeFile(target, `${previous.trimEnd()}\n\n${line}`, "utf8");
 }
 
 function valueOf(prefix) {

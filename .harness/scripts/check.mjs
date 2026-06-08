@@ -105,6 +105,7 @@ const requiredPaths = [
   ".harness/scripts/archive-status.mjs",
   ".harness/scripts/changed-files.mjs",
   ".harness/scripts/dev-service.mjs",
+  ".harness/scripts/preview-smoke.mjs",
   ".harness/scripts/lib/delegation-guard.mjs",
   ".harness/scripts/lib/agent-runtime.mjs",
   ".harness/scripts/lib/artifact-provenance.mjs",

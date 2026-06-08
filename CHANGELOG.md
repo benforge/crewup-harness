@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.13
+
+- Added `crewup preview-smoke <run-id> --url=<preview-url>` / `npm run harness:preview-smoke` to turn preview URL checks into run evidence through `artifacts/preview-smoke.md` and `logs/preview-smoke.json`.
+- Fixed delivery report closeout semantics: `deliveryStatus=closed` now follows `state.archived=true`, while archive commit status is reported as separate Git audit evidence.
+- Tightened `transition --force`: force transitions now require `--force-reason` and write an audited `logs/state-repair.md` entry. `repair-state --closeout-only --apply` is documented as the preferred metadata repair path.
+- Strengthened main-agent rules for archived runs: post-archive preview, deployment, or functional issues must create a continuation run unless the action is a no-file-edit runtime service operation.
+- Added initial-commit baseline metadata and recommendations when creating runs in brand-new Git repositories.
+- Updated README, runbooks, script maps, and service policy docs to explain preview smoke, closed-vs-commit audit semantics, continuation-after-archive behavior, and force-transition boundaries.
+- Expanded pack-install flow coverage for preview smoke evidence, archived report status, and force-transition guards.
+
 ## 0.3.12
 
 - Rewrote the Chinese README and primary Chinese docs as clean UTF-8, with a more professional open-source project structure, clearer product positioning, command tables, API key guidance, workflow boundaries, and stability guarantees.

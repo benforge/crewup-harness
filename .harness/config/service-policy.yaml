@@ -17,12 +17,16 @@ service_policy:
     start_command: "npx crewup dev-service <run-id> start"
     status_command: "npx crewup dev-service <run-id> status"
     stop_command: "npx crewup dev-service <run-id> stop"
+    smoke_command: "npx crewup preview-smoke <run-id> --url=<preview-url>"
     audit_file: ".harness/runs/<run>/logs/dev-service.json"
     log_file: ".harness/runs/<run>/logs/dev-service.log"
+    smoke_artifact: ".harness/runs/<run>/artifacts/preview-smoke.md"
+    smoke_log: ".harness/runs/<run>/logs/preview-smoke.json"
 
   rules:
     - "The main agent may start and stop services, but must not leave a service running at done/archive."
     - "Before final summary, report service URL or port when known."
+    - "For web or full-stack runs, start the preview service before final user-visible completion and run preview smoke against the URLs the user should open."
+    - "If preview smoke fails, route the issue to the owning implementation or devops agent; the main agent must not edit business code directly."
     - "Before finish/done, stop the service or explain why no service was started."
     - "If no dev/preview/start command is detected, ask the user for the command or record a blocker."
-

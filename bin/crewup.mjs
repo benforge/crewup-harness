@@ -49,6 +49,7 @@ const scriptByCommand = {
   "changed-files": "changed-files.mjs",
   "token-ledger": "token-ledger.mjs",
   "dev-service": "dev-service.mjs",
+  "preview-smoke": "preview-smoke.mjs",
   "test-flow": "test-flow.mjs",
   skills: "skills-report.mjs",
   "skills:resolve": "skills-resolve.mjs",
@@ -267,6 +268,7 @@ Usage:
   crewup tool-fallback <run-id> --tool <name> --reason <reason> --fallback <method>
   crewup audit <run-id>
   crewup gate-check <run-id>
+  crewup preview-smoke <run-id> --url=http://localhost:3000
   crewup report <run-id>
   crewup archive <run-id> --outcome=<success|partial|blocked|canceled|failed>
   crewup cancel <run-id> --reason <reason>
@@ -307,6 +309,7 @@ Runtime support:
   next             Suggest the next step for a run
   dashboard        Generate or refresh .harness/dashboard/index.html
   dev-service      Start, stop, or inspect a run-scoped preview/dev service
+  preview-smoke    Check preview URLs and write artifacts/preview-smoke.md evidence
   changed-files    Record or infer files changed by a run
   archive-status   Check whether a run is ready for archive commit
 

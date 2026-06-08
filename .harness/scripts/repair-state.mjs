@@ -1,10 +1,11 @@
-import { readFile, readdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
 const args = process.argv.slice(2);
 const apply = args.includes("--apply");
+const closeoutOnly = args.includes("--closeout-only");
 const runArg = args.find((arg) => !arg.startsWith("--"));
 const runsRoot = path.join(root, ".harness", "runs");
 
@@ -30,9 +31,14 @@ for (const runId of runIds) {
   }
 
   const state = JSON.parse(await readFile(statePath, "utf8"));
-  const before = { stage: state.stage, status: state.status };
+  const before = { stage: state.stage, status: state.status, archived: Boolean(state.archived) };
   const next = { ...state };
   const notes = [];
+
+  if (closeoutOnly && !isCloseoutRepairAllowed(next)) {
+    repairs.push({ runId, action: "skip", reason: "closeout-only requires a final or archived run", before, after: before });
+    continue;
+  }
 
   if (next.status === "done" && next.stage !== "done") {
     next.stage = "done";
@@ -72,6 +78,7 @@ for (const runId of runIds) {
 
   if (apply) {
     await writeFile(statePath, `${JSON.stringify(next, null, 2)}\n`, "utf8");
+    await writeRepairAudit(runId, { before, after: { stage: next.stage, status: next.status, archived: Boolean(next.archived) }, notes, closeoutOnly });
   }
 
   repairs.push({
@@ -83,4 +90,25 @@ for (const runId of runIds) {
   });
 }
 
-console.log(JSON.stringify({ apply, repairs }, null, 2));
+console.log(JSON.stringify({ apply, closeoutOnly, repairs }, null, 2));
+
+function isCloseoutRepairAllowed(state) {
+  return Boolean(state.archived) || ["done", "canceled", "failed", "blocked", "partial"].includes(state.status);
+}
+
+async function writeRepairAudit(runId, entry) {
+  const logsDir = path.join(runsRoot, runId, "logs");
+  const target = path.join(logsDir, "state-repair.md");
+  await mkdir(logsDir, { recursive: true });
+  const previous = existsSync(target) ? await readFile(target, "utf8") : `# State Repair Audit: ${runId}\n\n`;
+  const line = [
+    `## ${new Date().toISOString()}`,
+    "",
+    `- action: repair-state${entry.closeoutOnly ? " --closeout-only" : ""}`,
+    `- before: stage=${entry.before.stage ?? "unknown"}, status=${entry.before.status ?? "unknown"}, archived=${entry.before.archived ? "yes" : "no"}`,
+    `- after: stage=${entry.after.stage ?? "unknown"}, status=${entry.after.status ?? "unknown"}, archived=${entry.after.archived ? "yes" : "no"}`,
+    `- notes: ${entry.notes.join("; ") || "none"}`,
+    ""
+  ].join("\n");
+  await writeFile(target, `${previous.trimEnd()}\n\n${line}`, "utf8");
+}

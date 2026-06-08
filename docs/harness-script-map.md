@@ -27,6 +27,7 @@ install -> init/check -> run -> status/next-agent -> audit/gate/report -> archiv
 | `crewup audit` | `orchestration-audit.mjs` | 审计调度顺序、owner 边界、重复返工和上下文压力 |
 | `crewup gate-check` | `gate-check.mjs` | 执行质量门禁、产物归属和主 agent 越界检查 |
 | `crewup report` | `report.mjs` | 生成 run 交付报告 |
+| `crewup preview-smoke` | `preview-smoke.mjs` | 检查预览 URL，并写入用户可验证的预览证据 |
 | `crewup archive` | `archive.mjs` | 归档 success、partial、blocked、canceled、failed 等任意结局 |
 | `crewup cancel` | `cancel.mjs` | 取消 run，并保留取消原因与现场证据 |
 | `crewup continue` | `continue-run.mjs` | 基于历史 run 创建延续 run |
@@ -57,6 +58,7 @@ install -> init/check -> run -> status/next-agent -> audit/gate/report -> archiv
 | `repair-state.mjs` | 诊断后修复异常 run/native state |
 | `verify.mjs` | 根据项目脚本执行测试/构建辅助检查 |
 | `dev-service.mjs` | 启动、停止或查看 run 级预览服务 |
+| `preview-smoke.mjs` | 对预览 URL 做 HTTP smoke check，写入 `artifacts/preview-smoke.md` 和 `logs/preview-smoke.json` |
 | `dashboard.mjs` | 生成 `.harness/dashboard/index.html` |
 
 ## 可选与高级能力
@@ -83,6 +85,7 @@ install -> init/check -> run -> status/next-agent -> audit/gate/report -> archiv
 7. 未被 `implementation-plan.md` 分配的 implementation candidates 会被跳过，不阻塞 tester。
 8. tester/reviewer 反馈必须回到 owner implementation agent；主 agent 不直接修业务代码。
 9. 默认在关闭保留子 agent 前运行 `audit`、`gate-check` 和 `report`。
+10. Web/full-stack run 在用户可见收口前应启动预览并运行 `preview-smoke`；归档后发现问题必须创建 continuation run，不能在原 run 里继续改业务代码。
 
 ## 已移除的历史路径
 

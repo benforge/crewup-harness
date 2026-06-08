@@ -20,6 +20,8 @@ Read these files first:
 | `RUN_SUMMARY.md` | Archive summary reusable by later runs |
 | `logs/run-report.md` | Delivery report for this run |
 | `.harness/reports/<run-id>.md` | Global report copy |
+| `artifacts/preview-smoke.md` | Preview URL verification evidence for web/full-stack runs |
+| `logs/preview-smoke.json` | Machine-readable preview smoke result |
 | `logs/archive/archive-summary.md` | Archive reason and outcome |
 
 Useful commands:
@@ -30,6 +32,7 @@ npx crewup status <run-id>
 npx crewup next-agent <run-id>
 npx crewup audit <run-id>
 npx crewup gate-check <run-id>
+npx crewup preview-smoke <run-id> --url=http://localhost:3000
 npx crewup report <run-id>
 ```
 
@@ -122,6 +125,7 @@ Successful completion requires all of these:
 - `audit` and `gate-check` pass.
 - `report` was generated.
 - Any dev service started by the run is stopped or has shutdown evidence.
+- Web/full-stack runs report preview URLs; if a preview service was started, `preview-smoke` passed or a blocker explains why it could not pass.
 - `RUN_STATUS.md` shows done and report/archive evidence exists.
 
 Recommended commands:
@@ -129,11 +133,14 @@ Recommended commands:
 ```bash
 npx crewup audit <run-id>
 npx crewup gate-check <run-id>
+npx crewup preview-smoke <run-id> --url=<preview-url>
 npx crewup report <run-id>
 npx crewup finish <run-id>
 ```
 
 `finish` is the success closeout path. Archive alone does not mean success unless `outcome=success`.
+
+In `logs/run-report.md`, `deliveryStatus=closed` is based on `state.archived=true`. `logs/archive/git-commit.md` is only Git commit audit evidence: if the repository has no initial commit or commit creation is skipped by policy, the run can still be archived and closed.
 
 ## When A Run Is Blocked
 
@@ -153,6 +160,7 @@ Common handling:
 | Subagent has no result | Resume that agent, or write bridge/manual result JSON |
 | Owner artifact is invalid | Resume the owner agent; do not let the main agent rewrite it |
 | tester/reviewer requires fixes | Use `repair-plan` to assign owner implementation agents |
+| Preview URL fails or smoke check fails | Do not let the main agent patch business code; route to the owner agent, or create a continuation run after archive |
 | Local dependency/environment unavailable | Record blocker and archive as blocked if needed |
 | Only part of the work is done | Archive as partial and continue in a later run |
 | Sealed core drift | Restore with `npx crewup install --force`, or fix CrewUp in the source repository |
@@ -193,6 +201,14 @@ The new run reads the source run's:
 - `artifacts/implementation-plan.md`
 
 The old run is not overwritten. The continuation is a new formal work unit.
+
+If a successfully archived run later shows a preview, deployment, or functional issue, also create a continuation run. Do not keep editing files inside the archived run:
+
+```bash
+npx crewup continue <archived-run-id> "Fix the preview or functional issue found after archive"
+```
+
+The main agent may only perform runtime actions that do not edit files, such as stopping an old service, restarting a preview service, or rerunning `preview-smoke`. Any business code, config, dependency, or owner artifact change must enter a new run and be handled by the owning agent.
 
 ## Main Agent Reporting Standard
 

@@ -22,6 +22,7 @@ These commands should stay stable and documented:
 | `crewup audit` | `orchestration-audit.mjs` | Audit dispatch order, owner boundaries, repair loops, and context pressure |
 | `crewup gate-check` | `gate-check.mjs` | Run quality gates, artifact ownership checks, and main-agent overreach checks |
 | `crewup report` | `report.mjs` | Generate the run delivery report |
+| `crewup preview-smoke` | `preview-smoke.mjs` | Check preview URLs and write user-verifiable preview evidence |
 | `crewup archive` | `archive.mjs` | Archive any outcome: success, partial, blocked, canceled, or failed |
 | `crewup cancel` | `cancel.mjs` | Cancel a run while preserving the reason and evidence |
 | `crewup continue` | `continue-run.mjs` | Create a continuation run from a previous run |
@@ -55,6 +56,7 @@ These scripts support subagent result collection, repair routing, or manual reco
 | `repair-state.mjs` | Repair malformed run/native state after diagnostics |
 | `verify.mjs` | Run project test/build helper checks |
 | `dev-service.mjs` | Start, stop, or inspect run-scoped preview services |
+| `preview-smoke.mjs` | Run HTTP smoke checks against preview URLs and write `artifacts/preview-smoke.md` plus `logs/preview-smoke.json` |
 | `dashboard.mjs` | Generate `.harness/dashboard/index.html` |
 
 ## Optional And Advanced

@@ -166,6 +166,7 @@ If multilingual text appears garbled in a terminal, run `npx crewup doctor --enc
 | `npx crewup tool-fallback <run-id> --tool Context7 --reason "..." --fallback "..."` | Record optional tool fallback evidence |
 | `npx crewup audit <run-id>` | Audit orchestration order, owner boundaries, repair loops, and context pressure |
 | `npx crewup gate-check <run-id>` | Check gates, artifact ownership, and overreach risks |
+| `npx crewup preview-smoke <run-id> --url=http://localhost:3000` | Verify preview URLs and write smoke evidence |
 | `npx crewup report <run-id>` | Generate a structured delivery report |
 | `npx crewup archive <run-id> --outcome=blocked --reason="..."` | Archive a non-success outcome and preserve evidence |
 | `npx crewup cancel <run-id> --reason="..."` | Cancel a run and archive the cancellation without discarding files |
@@ -201,7 +202,10 @@ Typical planning-to-development flow:
 5. Implementation agents start only after `implementation-plan.md` exists and assigns exact agent ids, such as `frontend`, `backend`, `database`, `devops`, or `docs`.
 6. `tester` verifies the result and writes `artifacts/test-report.md`.
 7. `reviewer` reviews implementation, artifacts, risks, and test evidence.
-8. `release` writes `artifacts/release-summary.md`, then the run can be reported and archived.
+8. For web/full-stack runs, the main agent starts or reports preview, then runs `preview-smoke` for the URLs the user should open.
+9. `release` writes `artifacts/release-summary.md`, then the run can be reported and archived.
+
+If an archived run later shows a preview, deployment, or functional issue, create a continuation run with `npx crewup continue <run-id> "..."`. The main agent may restart/stop services and rerun preview smoke, but business-code fixes must go through a new run and the owning agents.
 
 Normally, users should describe the goal and constraints; requirements/architect artifacts and impact scope should decide which implementation agents are needed. Negation-aware routing only applies when the user has explicitly excluded a scope, so CrewUp does not start irrelevant owner agents just to confirm they are irrelevant.
 
