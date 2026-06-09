@@ -1,6 +1,6 @@
 {
   "name": "crewup-harness",
-  "version": "0.3.14",
+  "version": "0.3.15",
   "description": "CrewUp: a reusable AI workflow harness for project-agnostic agent collaboration.",
   "author": "Ben",
   "license": "MIT",

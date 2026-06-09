@@ -134,18 +134,6 @@ external_skill_candidates:
     use_when: "Frontend implementation or UX review needs stronger visual hierarchy, composition, interaction, and polish guidance."
     note: "Do not assume this is active only because .agents/skills/frontend-design exists; verify with `npx skills list --json` and restart Codex when needed."
 
-  web-design-guidelines:
-    source: "skills marketplace search result"
-    marketplace_ref: "vercel-labs/agent-skills@web-design-guidelines"
-    status: "installable_candidate"
-    roles:
-      - "frontend"
-      - "requirements"
-      - "architect"
-      - "reviewer"
-    install_command: "npx skills add vercel-labs/agent-skills --skill web-design-guidelines -a codex --copy -y"
-    use_when: "Modern web page layout, content-site rhythm, and visual guideline support are needed."
-
   tailwind-design-system:
     source: "skills marketplace search result"
     marketplace_ref: "wshobson/agents@tailwind-design-system"
@@ -155,3 +143,65 @@ external_skill_candidates:
       - "reviewer"
     install_command: "npx skills add wshobson/agents --skill tailwind-design-system -a codex --copy -y"
     use_when: "Tailwind token, spacing, utility organization, and design-system consistency need explicit support."
+
+  webapp-testing:
+    source: "skills marketplace search result"
+    marketplace_ref: "anthropics/skills@webapp-testing"
+    status: "installable_candidate"
+    roles:
+      - "frontend"
+      - "tester"
+    install_command: "npx skills add anthropics/skills@webapp-testing -a codex --copy -y"
+    use_when: "Web app behavior, user flows, local preview, or browser-facing verification needs stronger test guidance."
+
+  accessibility:
+    source: "skills marketplace search result"
+    marketplace_ref: "addyosmani/web-quality-skills@accessibility"
+    status: "installable_candidate"
+    roles:
+      - "frontend"
+      - "tester"
+      - "reviewer"
+    install_command: "npx skills add addyosmani/web-quality-skills@accessibility -a codex --copy -y"
+    use_when: "Forms, navigation, semantic HTML, keyboard states, contrast, or accessibility checks are part of the work."
+
+  performance:
+    source: "skills marketplace search result"
+    marketplace_ref: "addyosmani/web-quality-skills@performance"
+    status: "installable_candidate"
+    roles:
+      - "frontend"
+      - "tester"
+      - "reviewer"
+    install_command: "npx skills add addyosmani/web-quality-skills@performance -a codex --copy -y"
+    use_when: "Frontend performance, load behavior, responsiveness, resource cost, or web quality needs explicit review."
+
+  improve-codebase-architecture:
+    source: "skills marketplace search result"
+    marketplace_ref: "mattpocock/skills@improve-codebase-architecture"
+    status: "installable_candidate"
+    roles:
+      - "architect"
+      - "reviewer"
+    install_command: "npx skills add mattpocock/skills@improve-codebase-architecture -a codex --copy -y"
+    use_when: "Module boundaries, codebase architecture, dependency direction, or maintainability need stronger architectural guidance."
+
+  code-review-excellence:
+    source: "skills marketplace search result"
+    marketplace_ref: "wshobson/agents@code-review-excellence"
+    status: "installable_candidate"
+    roles:
+      - "reviewer"
+    install_command: "npx skills add wshobson/agents@code-review-excellence -a codex --copy -y"
+    use_when: "Reviewer needs stricter, actionable review criteria for code quality, regressions, risks, or maintainability."
+
+  documentation-and-adrs:
+    source: "skills marketplace search result"
+    marketplace_ref: "addyosmani/agent-skills@documentation-and-adrs"
+    status: "installable_candidate"
+    roles:
+      - "architect"
+      - "docs"
+      - "release"
+    install_command: "npx skills add addyosmani/agent-skills@documentation-and-adrs -a codex --copy -y"
+    use_when: "Architecture decisions, ADRs, release notes, or durable project documentation need explicit documentation support."

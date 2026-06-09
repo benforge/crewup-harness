@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.15
+
+- Refined default external skill candidates to a smaller, complementary set of eight skills across frontend design, Tailwind consistency, web app testing, accessibility, performance, architecture, code review, and documentation/ADRs.
+- Removed the overlapping `web-design-guidelines` default candidate to reduce duplicated UI guidance, token pressure, and role confusion.
+
 ## 0.3.14
 
 - Added run-level completion contracts: every prepared run now gets `GOAL.md` and `completion-contract.json` with success criteria, non-goals, constraints, required evidence, and repair budget.
