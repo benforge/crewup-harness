@@ -86,7 +86,7 @@ switch (command) {
         process.exit(1);
       }
       const resultJsonPath = agent.result_json_path ?? resultPath.replace(/\.result\.md$/, ".result.json");
-      const parsedJson = await readResultJson(resultJsonPath);
+      const parsedJson = await readResultJson(resultJsonPath, { expectedAgent: agentId });
       if (existsSync(resolveWorkspacePath(resultJsonPath)) && parsedJson.status && parsedJson.status !== value) {
         console.error(`Cannot capture result for ${agentId}: JSON status (${parsedJson.status}) does not match mark-result status (${value}).`);
         process.exit(1);
@@ -454,13 +454,13 @@ function validateHandle(handle) {
   }
 }
 
-async function readResultJson(target) {
+async function readResultJson(target, { expectedAgent = agentId } = {}) {
   const absolute = resolveWorkspacePath(target);
   if (!existsSync(absolute)) return {};
   try {
     const parsed = JSON.parse(stripBom(await readFile(absolute, "utf8")));
-    if (parsed.agent && parsed.agent !== agentId) {
-      console.error(`Cannot capture result for ${agentId}: JSON agent is ${parsed.agent}.`);
+    if (parsed.agent && expectedAgent && parsed.agent !== expectedAgent) {
+      console.error(`Cannot capture result for ${expectedAgent}: JSON agent is ${parsed.agent}.`);
       process.exit(1);
     }
     if (parsed.status) validateResultStatus(parsed.status);
@@ -653,7 +653,7 @@ async function reconcileResults(current) {
     const resultPath = agent.result_path;
     const resultJsonPath = agent.result_json_path ?? resultPath?.replace(/\.result\.md$/, ".result.json");
     if (!resultPath || !existsSync(resolveWorkspacePath(resultPath))) continue;
-    const parsedJson = await readResultJson(resultJsonPath);
+    const parsedJson = await readResultJson(resultJsonPath, { expectedAgent: agent.agent });
     const status = parsedJson.status;
     if (!["completed", "blocked", "needs_input"].includes(status)) continue;
     const retainedCompleted = status === "completed" && agent.retention?.retain_after_result;

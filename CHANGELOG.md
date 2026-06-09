@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.18
+
+- Fixed `native-state reconcile-results` so result JSON files with a matching `agent` field are validated against the current reconciled agent instead of the top-level CLI argument.
+
 ## 0.3.17
 
 - Added explicit `next-agent` wait semantics for active subagents: when tester/reviewer/etc. is running, the CLI now returns `action: wait`, `waitFor`, and `userInputRequired: false` instead of leaving the main agent to infer downstream choices.

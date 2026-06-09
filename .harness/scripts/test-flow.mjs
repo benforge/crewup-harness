@@ -246,7 +246,9 @@ try {
   runCli(appDir, ["native-state", architectureDispatchRunId, "mark-spawned", "frontend", "frontend-handle"]);
   const architectureNativeDir = path.join(architectureDispatchRunDir, "logs", "native-subagents");
   await writeFile(path.join(architectureNativeDir, "frontend.result.md"), "# Frontend Result\n\n## Status\n\ncompleted\n", "utf8");
-  await writeFile(path.join(architectureNativeDir, "frontend.result.json"), `${JSON.stringify({ status: "completed", summary: "frontend done" }, null, 2)}\n`, "utf8");
+  await writeFile(path.join(architectureNativeDir, "frontend.result.json"), `${JSON.stringify({ agent: "frontend", status: "completed", summary: "frontend done" }, null, 2)}\n`, "utf8");
+  const reconcileAgentFieldOutput = runCli(appDir, ["native-state", architectureDispatchRunId, "reconcile-results"]);
+  assertIncludes(reconcileAgentFieldOutput, "frontend", "reconcile-results accepts matching JSON agent field");
   runCli(appDir, ["report", architectureDispatchRunId]);
   const reconciledReport = await readFile(path.join(architectureDispatchRunDir, "logs", "run-report.md"), "utf8");
   assertIncludes(reconciledReport, "`frontend`", "report includes frontend row");
