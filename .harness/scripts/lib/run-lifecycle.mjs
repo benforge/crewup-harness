@@ -320,6 +320,32 @@ function verdictForState(state = {}, locale = "en", { contract = null } = {}) {
 
 function decisionLinesFor({ state, blockers, nextCommand, locale = "en" }) {
   const zh = locale === "zh-CN";
+  if (state.nextAction?.type === "wait") {
+    return zh
+      ? [
+          "- 当前已有子 agent 正在运行，暂无新的 runnable agent。",
+          "- 等待该子 agent 写入 result 后，先登记 result，再重新运行 `next-agent`。",
+          "- 这不是用户决策点；不要询问用户选择 reviewer 或 repair 分支。"
+        ]
+      : [
+          "- A subagent is currently running; no new agent is runnable yet.",
+          "- Wait for that subagent to write its result, capture the result, then rerun `next-agent`.",
+          "- This is not a user decision point; do not ask the user to choose reviewer or repair routing."
+        ];
+  }
+  if (state.nextAction?.type === "repair") {
+    return zh
+      ? [
+          "- tester/reviewer 已返回 required fixes，需要回派 owner agent 修复。",
+          nextCommand ? `- 先执行：\`${nextCommand}\`。` : "- 先生成 repair-plan。",
+          "- 不要启动 reviewer/release，也不要让主 agent 直接修业务代码。"
+        ]
+      : [
+          "- tester/reviewer returned required fixes; route repair to owner agents.",
+          nextCommand ? `- Run first: \`${nextCommand}\`.` : "- Generate a repair plan first.",
+          "- Do not start reviewer/release and do not let the main agent patch business code directly."
+        ];
+  }
   if (state.status === "waiting_user") {
     return zh
       ? [
@@ -436,6 +462,8 @@ function localizedNextDescription(state, locale) {
   if (text === "Run the next allowed CrewUp agent or transition gate.") return "运行下一个允许的 CrewUp agent 或阶段门禁。";
   if (text === "Run reached done; archive closeout is still pending.") return "Run 已到 done，仍需执行归档收口。";
   if (text === "No active next action.") return "没有活跃的下一步。";
+  if (/is running; wait for its result/i.test(text)) return text.replace(" is running; wait for its result before deciding downstream routing.", " 正在运行；等待它写入 result 后再决定下游路由。");
+  if (/found required fixes/i.test(text)) return text.replace(" found required fixes; generate a repair plan and route work to owner agents.", " 发现 required fixes；生成 repair-plan 并回派 owner agent。");
   if (/needs user input/i.test(text)) return "requirements-plan 需要用户输入。";
   return text;
 }

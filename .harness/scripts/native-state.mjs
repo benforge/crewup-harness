@@ -65,6 +65,7 @@ switch (command) {
       last_error: null
     });
     await save(state);
+    await syncRunLifecycleFromNativeSpawn(agentId);
     break;
   case "mark-result":
     requireAgentAndValue("status");
@@ -111,6 +112,9 @@ switch (command) {
         result_json_path: resultJsonPath,
         result_captured_at: new Date().toISOString(),
         summary: parsedJson.summary ?? null,
+        fixRequired: parsedJson.fixRequired === true,
+        targetAgents: Array.isArray(parsedJson.targetAgents) ? parsedJson.targetAgents : [],
+        requiredFixes: Array.isArray(parsedJson.requiredFixes) ? parsedJson.requiredFixes : [],
         blockers: Array.isArray(parsedJson.blockers) ? parsedJson.blockers : [],
         blockingIssues: Array.isArray(parsedJson.blockingIssues) ? parsedJson.blockingIssues : [],
         last_error: null
@@ -133,6 +137,13 @@ switch (command) {
     updateAgent(agentId, {
       status: "running",
       resumed_at: new Date().toISOString(),
+      result_status: null,
+      result_captured_at: null,
+      fixRequired: false,
+      targetAgents: [],
+      requiredFixes: [],
+      blockers: [],
+      blockingIssues: [],
       last_error: null
     });
     await save(state);
@@ -558,6 +569,25 @@ async function syncRunLifecycleFromNativeResult(currentAgentId, resultStatus) {
     });
     return;
   }
+  const currentAgent = (state.agents ?? []).find((item) => item.agent === currentAgentId);
+  if (["tester", "reviewer"].includes(currentAgentId) && feedbackRequiresRepair(currentAgent)) {
+    const targets = repairTargetsFor(currentAgent);
+    const reason = `${currentAgentId} feedback requires delegated repair${targets.length ? ` for: ${targets.join(", ")}` : ""}.`;
+    await writeRunState(root, runId, {
+      ...runState,
+      status: "blocked",
+      outcome: "none",
+      archived: false,
+      reason,
+      health: { level: "blocked", reason },
+      nextAction: {
+        type: "repair",
+        description: `${currentAgentId} found required fixes; generate a repair plan and route work to owner agents.`,
+        command: `npx crewup repair-plan ${runId}`
+      }
+    });
+    return;
+  }
   if (resultStatus === "needs_input") {
     await writeRunState(root, runId, {
       ...runState,
@@ -583,7 +613,7 @@ async function syncRunLifecycleFromNativeResult(currentAgentId, resultStatus) {
     });
     return;
   }
-  if (runState.status === "blocked" && resultStatus === "completed") {
+  if ((runState.status === "blocked" || runState.nextAction?.type === "wait") && resultStatus === "completed") {
     await writeRunState(root, runId, {
       ...runState,
       status: "active",
@@ -602,10 +632,23 @@ async function syncRunLifecycleFromNativeResult(currentAgentId, resultStatus) {
   await writeRunStatus(root, runId, runState);
 }
 
+async function syncRunLifecycleFromNativeSpawn(currentAgentId) {
+  const runState = await readRunState(root, runId);
+  if (!runState || ["done", "canceled", "failed"].includes(runState.status) || runState.archived) return;
+  await writeRunState(root, runId, {
+    ...runState,
+    status: runState.status === "waiting_user" ? "waiting_user" : "active",
+    nextAction: {
+      type: "wait",
+      description: `${currentAgentId} is running; wait for its result before deciding downstream routing.`,
+      command: ""
+    }
+  });
+}
+
 async function reconcileResults(current) {
   let changed = 0;
   for (const agent of current.agents ?? []) {
-    if (agent.result_captured_at) continue;
     if (!agent.handle) continue;
     const resultPath = agent.result_path;
     const resultJsonPath = agent.result_json_path ?? resultPath?.replace(/\.result\.md$/, ".result.json");
@@ -614,13 +657,19 @@ async function reconcileResults(current) {
     const status = parsedJson.status;
     if (!["completed", "blocked", "needs_input"].includes(status)) continue;
     const retainedCompleted = status === "completed" && agent.retention?.retain_after_result;
+    const nextStatus = agent.result_captured_at
+      ? agent.status
+      : retainedCompleted ? agent.retention.retained_status_after_completed_result ?? "waiting_review" : status;
     Object.assign(agent, {
-      status: retainedCompleted ? agent.retention.retained_status_after_completed_result ?? "waiting_review" : status,
+      status: nextStatus,
       result_status: status,
       result_path: resultPath,
       result_json_path: resultJsonPath,
-      result_captured_at: new Date().toISOString(),
+      result_captured_at: agent.result_captured_at ?? new Date().toISOString(),
       summary: parsedJson.summary ?? null,
+      fixRequired: parsedJson.fixRequired === true,
+      targetAgents: Array.isArray(parsedJson.targetAgents) ? parsedJson.targetAgents : [],
+      requiredFixes: Array.isArray(parsedJson.requiredFixes) ? parsedJson.requiredFixes : [],
       blockers: Array.isArray(parsedJson.blockers) ? parsedJson.blockers : [],
       blockingIssues: Array.isArray(parsedJson.blockingIssues) ? parsedJson.blockingIssues : [],
       last_error: null,
@@ -636,6 +685,11 @@ async function reconcileResults(current) {
 }
 
 async function syncRunLifecycleAfterReconcile(current) {
+  const repair = (current.agents ?? []).find((agent) => ["tester", "reviewer"].includes(agent.agent) && feedbackRequiresRepair(agent));
+  if (repair) {
+    await syncRunLifecycleFromNativeResult(repair.agent, repair.result_status ?? "completed");
+    return;
+  }
   const blocked = (current.agents ?? []).find((agent) => agent.result_status === "blocked" && !agent.closed_at);
   if (blocked) {
     await syncRunLifecycleFromNativeResult(blocked.agent, "blocked");
@@ -652,6 +706,23 @@ function blockerReasonFor(agent) {
     ...(agent?.blockers ?? [])
   ].filter(Boolean);
   return values.length ? values.join("; ") : "";
+}
+
+function feedbackRequiresRepair(agent) {
+  return Boolean(
+    agent?.fixRequired === true
+    || (agent?.requiredFixes ?? []).length > 0
+    || (agent?.blockingIssues ?? []).length > 0
+  );
+}
+
+function repairTargetsFor(agent) {
+  return [
+    ...new Set([
+      ...(agent?.targetAgents ?? []),
+      ...(agent?.requiredFixes ?? []).flatMap((fix) => Array.isArray(fix.targetAgents) ? fix.targetAgents : [fix.targetAgents].filter(Boolean))
+    ].filter(Boolean))
+  ];
 }
 
 function usage() {

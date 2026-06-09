@@ -178,6 +178,8 @@ Before starting an agent, run `next-agent` and start only agents listed as runna
 
 After an agent finishes, register its result first, then run `next-agent` again before deciding what to start next. Never chain-start a downstream agent from memory.
 
+If `next-agent` returns `action: wait`, `runnable: []`, and one or more `active` agents, this is not a user decision point. Report that the run is waiting for the active agent result, then wait for/capture that result. Do not ask the user whether the next step should be reviewer or owner repair; tester/reviewer results decide that through normal gates after they are captured.
+
 Implementation agents selected at run creation are candidates only. After `architect` completes, start implementation agents only when `artifacts/implementation-plan.md` assigns their exact agent id. `next-agent` and `native-state` enforce this architecture-owned implementation dispatch.
 
 If `artifacts/implementation-plan.md` is missing, implementation agents are not runnable. A missing plan is a blocker, not permission to start coding.

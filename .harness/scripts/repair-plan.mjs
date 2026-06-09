@@ -3,7 +3,9 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const runId = process.argv[2];
+const args = process.argv.slice(2);
+const runId = args.find((arg) => !arg.startsWith("--"));
+const refresh = args.includes("--refresh");
 
 if (!runId) {
   console.error("Please provide runId, for example: npm run harness:repair-plan -- <run-id>");
@@ -26,7 +28,8 @@ await mkdir(tasksDir, { recursive: true });
 const contract = await readJson(path.join(runDir, "completion-contract.json")) ?? {};
 const maxRepairRounds = Number(contract.maxRepairRounds ?? 3);
 const repairLoop = await readJson(repairLoopPath) ?? { runId, maxRepairRounds, rounds: [] };
-const nextRound = (repairLoop.rounds?.length ?? 0) + 1;
+const existingRounds = repairLoop.rounds ?? [];
+const nextRound = refresh && existingRounds.length > 0 ? existingRounds[existingRounds.length - 1].round : existingRounds.length + 1;
 
 const sources = [];
 for (const agent of ["tester", "reviewer"]) {
@@ -56,16 +59,17 @@ const summary = {
 };
 
 repairLoop.maxRepairRounds = maxRepairRounds;
-repairLoop.rounds = [
-  ...(repairLoop.rounds ?? []),
-  {
-    round: nextRound,
-    at: summary.generatedAt,
-    sources: summary.sources,
-    targetAgents: summary.targetAgents,
-    fixCount: summary.fixes.reduce((sum, item) => sum + item.fixes.length, 0)
-  }
-];
+const roundEntry = {
+  round: nextRound,
+  at: summary.generatedAt,
+  sources: summary.sources,
+  targetAgents: summary.targetAgents,
+  fixCount: summary.fixes.reduce((sum, item) => sum + item.fixes.length, 0),
+  refreshed: refresh
+};
+repairLoop.rounds = refresh && existingRounds.length > 0
+  ? [...existingRounds.slice(0, -1), roundEntry]
+  : [...existingRounds, roundEntry];
 await writeFile(repairLoopPath, `${JSON.stringify(repairLoop, null, 2)}\n`, "utf8");
 
 await writeFile(path.join(logsDir, "repair-plan.json"), `${JSON.stringify(summary, null, 2)}\n`, "utf8");
@@ -77,6 +81,7 @@ for (const [agent, fixes] of grouped.entries()) {
 
 console.log(`Repair plan generated: ${path.relative(root, path.join(logsDir, "repair-plan.md"))}`);
 console.log(`- repair round: ${nextRound}/${maxRepairRounds}`);
+if (refresh) console.log("- refresh: true");
 if (grouped.size === 0) {
   console.log("- no required fixes found in tester/reviewer result JSON");
 } else {
@@ -98,10 +103,11 @@ function normalizeFixes(sourceAgent, result) {
       sourceAgent,
       targetAgents,
       severity: item.severity ?? "medium",
-      acceptanceCriteria: item.acceptanceCriteria ?? [],
-      summary: item.summary ?? String(item),
+      scope: item.scope ?? "",
+      acceptanceCriteria: item.acceptanceCriteria ?? item.relatedAcceptanceCriteria ?? [],
+      summary: item.summary ?? item.description ?? item.requiredChange ?? String(item),
       evidence: item.evidence ?? "",
-      requiredChange: item.requiredChange ?? ""
+      requiredChange: item.requiredChange ?? item.description ?? ""
     });
   }
   for (const issue of result.blockingIssues ?? []) {
@@ -112,6 +118,7 @@ function normalizeFixes(sourceAgent, result) {
       sourceAgent,
       targetAgents,
       severity: "high",
+      scope: "",
       acceptanceCriteria: [],
       summary: String(issue),
       evidence: "",
@@ -141,6 +148,7 @@ function renderSummary(summary) {
       lines.push(`### ${fix.id}: ${fix.summary}`);
       lines.push(`- source: ${fix.sourceAgent}`);
       lines.push(`- severity: ${fix.severity}`);
+      if (fix.scope) lines.push(`- scope: ${fix.scope}`);
       lines.push(`- acceptanceCriteria: ${fix.acceptanceCriteria.length ? fix.acceptanceCriteria.join(", ") : "(none)"}`);
       if (fix.evidence) lines.push(`- evidence: ${fix.evidence}`);
       if (fix.requiredChange) lines.push(`- requiredChange: ${fix.requiredChange}`);
@@ -173,6 +181,7 @@ function renderAgentTask({ runId, agent, fixes, round, maxRepairRounds }) {
     lines.push(`### ${fix.id}`);
     lines.push(`- severity: ${fix.severity}`);
     lines.push(`- sourceAgent: ${fix.sourceAgent}`);
+    if (fix.scope) lines.push(`- scope: ${fix.scope}`);
     lines.push(`- acceptanceCriteria: ${fix.acceptanceCriteria.length ? fix.acceptanceCriteria.join(", ") : "(none)"}`);
     lines.push(`- summary: ${fix.summary}`);
     if (fix.evidence) lines.push(`- evidence: ${fix.evidence}`);

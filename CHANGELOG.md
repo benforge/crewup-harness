@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.17
+
+- Added explicit `next-agent` wait semantics for active subagents: when tester/reviewer/etc. is running, the CLI now returns `action: wait`, `waitFor`, and `userInputRequired: false` instead of leaving the main agent to infer downstream choices.
+- Updated native-state lifecycle sync so `mark-spawned` records a wait next action in `RUN_STATUS.md`, preventing the main agent from asking users to choose reviewer vs owner repair while tester is still running.
+- Treat tester/reviewer `fixRequired`, `requiredFixes`, or `blockingIssues` as a formal repair state even when the result status is `completed`; `next-agent` now returns `action: repair` and blocks reviewer/release until owner repair and re-verification happen.
+- Improved `repair-plan` generation for tester/reviewer fixes that use `description`, `scope`, or `relatedAcceptanceCriteria`, and added `repair-plan --refresh` to regenerate the current repair task without consuming another repair round.
+- `native-state reconcile-results` now refreshes already-captured result metadata so older runs can recover from tester/reviewer repair feedback after upgrading.
+- `native-state mark-resumed` now clears stale result metadata before an owner/tester/reviewer rerun, preventing old failed feedback from leaking into the next repair cycle.
+
 ## 0.3.16
 
 - Changed non-success archive behavior: `archive --outcome=blocked|partial|failed` now keeps the current run open by default, and only archive-closes when `--close` / `--confirm-close` is explicit.

@@ -190,6 +190,8 @@ Common handling:
 | Waiting for user confirmation | `npx crewup clarify <run-id> --interactive` |
 | Subagent has no result | Resume that agent, or write bridge/manual result JSON |
 | Result file exists but was not captured | Run `npx crewup native-state <run-id> reconcile-results`, then `npx crewup report <run-id>` |
+| `next-agent` shows `action: wait` | Wait for the active agent result; this is not a user decision point, so do not ask the user to choose reviewer or repair |
+| `next-agent` shows `action: repair` | Run `repair-plan` first and route tester/reviewer required fixes to owners; do not start reviewer/release |
 | Owner artifact is invalid | Resume the owner agent; do not let the main agent rewrite it |
 | tester/reviewer requires fixes | Use `repair-plan` to assign owner implementation agents |
 | Repair rounds exceed `maxRepairRounds` | Mark the current run open `blocked`/`partial`, then ask the user whether to continue, narrow scope, or explicitly close |

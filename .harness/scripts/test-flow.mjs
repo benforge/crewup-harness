@@ -251,6 +251,43 @@ try {
   const reconciledReport = await readFile(path.join(architectureDispatchRunDir, "logs", "run-report.md"), "utf8");
   assertIncludes(reconciledReport, "`frontend`", "report includes frontend row");
   assertIncludes(reconciledReport, "result=completed", "report reconciles uncaptured native result");
+  const testerRunnable = JSON.parse(runCli(appDir, ["next-agent", architectureDispatchRunId, "--json"]));
+  assertSameArray(testerRunnable.runnable.map((item) => item.agent), ["tester"], "tester becomes runnable after implementation result is captured");
+  runCli(appDir, ["native-state", architectureDispatchRunId, "mark-spawned", "tester", "tester-handle"]);
+  const waitForTester = JSON.parse(runCli(appDir, ["next-agent", architectureDispatchRunId, "--json"]));
+  if (waitForTester.action !== "wait" || waitForTester.userInputRequired !== false) {
+    throw new Error(`Active tester should produce wait/no-user-input next-agent result:\n${JSON.stringify(waitForTester, null, 2)}`);
+  }
+  assertSameArray(waitForTester.waitFor, ["tester"], "next-agent waits for active tester result");
+  assertIncludes(waitForTester.instruction, "Do not ask the user to choose", "wait instruction prevents user branch selection");
+  await writeFile(path.join(architectureNativeDir, "tester.result.md"), "# Tester Result\n\nStatus: completed\n\nFix required.\n", "utf8");
+  await writeFile(path.join(architectureNativeDir, "tester.result.json"), `${JSON.stringify({
+    status: "completed",
+    fixRequired: true,
+    targetAgents: ["frontend"],
+    requiredFixes: [
+      {
+        id: "RF-TEST-01",
+        targetAgents: ["frontend"],
+        severity: "high",
+        summary: "Fix failing frontend build before review.",
+        requiredChange: "Restore missing frontend files and rerun tester."
+      }
+    ],
+    blockingIssues: ["Frontend build failed."]
+  }, null, 2)}\n`, "utf8");
+  runCli(appDir, ["native-state", architectureDispatchRunId, "mark-result", "tester", "completed"]);
+  const repairAfterTester = JSON.parse(runCli(appDir, ["next-agent", architectureDispatchRunId, "--json"]));
+  if (repairAfterTester.action !== "repair" || repairAfterTester.next !== null) {
+    throw new Error(`Tester fixRequired should route to repair, not reviewer:\n${JSON.stringify(repairAfterTester, null, 2)}`);
+  }
+  assertSameArray(repairAfterTester.repair.targetAgents, ["frontend"], "tester required fixes target frontend repair");
+  runCli(appDir, ["native-state", architectureDispatchRunId, "mark-resumed", "tester"]);
+  const nativeAfterTesterResume = JSON.parse(await readFile(path.join(architectureNativeDir, "native-state.json"), "utf8"));
+  const resumedTester = nativeAfterTesterResume.agents.find((agent) => agent.agent === "tester");
+  if (resumedTester.result_status !== null || resumedTester.result_captured_at !== null || resumedTester.fixRequired !== false) {
+    throw new Error(`mark-resumed should clear stale tester result metadata:\n${JSON.stringify(resumedTester, null, 2)}`);
+  }
 
   const planOnlyPlan = JSON.parse(await readFile(path.join(planOnlyRunDir, "logs", "native-subagents", "native-subagent-plan.json"), "utf8"));
   assertSameArray(
@@ -346,6 +383,14 @@ try {
         summary: "Wire UI to the real API and align environment variables.",
         evidence: "tester evidence",
         requiredChange: "Update frontend API client and env docs."
+      },
+      {
+        id: "RF-02",
+        targetAgents: ["frontend"],
+        severity: "medium",
+        scope: "src/admin",
+        relatedAcceptanceCriteria: ["AC-02"],
+        description: "Restore the Admin shell entry so the build can run."
       }
     ],
     targetAgents: ["frontend", "devops"],
@@ -358,6 +403,15 @@ try {
   assertExists(path.join(planOnlyRunDir, "logs", "repair-loop.json"), "repair-loop json");
   assertExists(path.join(planOnlyRunDir, "tasks", "repairs", "frontend.repair.task.md"), "frontend repair task");
   assertExists(path.join(planOnlyRunDir, "tasks", "repairs", "devops.repair.task.md"), "devops repair task");
+  const frontendRepairTask = await readFile(path.join(planOnlyRunDir, "tasks", "repairs", "frontend.repair.task.md"), "utf8");
+  assertIncludes(frontendRepairTask, "Restore the Admin shell entry so the build can run.", "repair-plan supports description-only fixes");
+  assertIncludes(frontendRepairTask, "AC-02", "repair-plan supports relatedAcceptanceCriteria");
+  const repairRefreshOutput = runCli(appDir, ["repair-plan", planOnlyRunId, "--refresh"]);
+  assertIncludes(repairRefreshOutput, "refresh: true", "repair-plan refresh output");
+  const repairLoopAfterRefresh = JSON.parse(await readFile(path.join(planOnlyRunDir, "logs", "repair-loop.json"), "utf8"));
+  if (repairLoopAfterRefresh.rounds.length !== 1 || repairLoopAfterRefresh.rounds[0].round !== 1) {
+    throw new Error(`repair-plan --refresh should not add a new round:\n${JSON.stringify(repairLoopAfterRefresh, null, 2)}`);
+  }
 
   console.log(JSON.stringify({
     planOnlyRunId,
