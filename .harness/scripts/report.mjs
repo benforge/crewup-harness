@@ -25,7 +25,9 @@ const state = await readJson(path.join(runDir, "state.json"), {});
 const input = await readFile(path.join(runDir, "input.md"), "utf8").catch(() => "");
 const taskNames = existsSync(tasksDir) ? (await readdir(tasksDir)).filter((name) => name.endsWith(".task.md")).sort() : [];
 const artifactNames = existsSync(artifactsDir) ? (await readdir(artifactsDir)).sort() : [];
-const nativeState = await readJson(path.join(nativeDir, "native-state.json"), null);
+const nativeStatePath = path.join(nativeDir, "native-state.json");
+const nativeState = await readJson(nativeStatePath, null);
+if (nativeState) await reconcileNativeResults(nativeState, nativeStatePath);
 const changedFiles = await readJson(path.join(logsDir, "changed-files.json"), { files: [] });
 const archiveAudit = await readArchiveAudit(path.join(logsDir, "archive", "git-commit.md"));
 const contextBudget = await readJson(path.join(logsDir, "context", "context-budget.json"), null);
@@ -170,6 +172,32 @@ async function buildAgentRows(native, taskNames) {
     });
   }
   return rows;
+}
+
+async function reconcileNativeResults(native, target) {
+  let changed = false;
+  for (const agent of native.agents ?? []) {
+    if (agent.result_captured_at || !agent.handle) continue;
+    const resultPath = agent.result_path ? resolveWorkspacePath(agent.result_path) : "";
+    const resultJsonPath = agent.result_json_path ? resolveWorkspacePath(agent.result_json_path) : resultPath.replace(/\.result\.md$/, ".result.json");
+    if (!resultPath || !existsSync(resultPath) || !resultJsonPath || !existsSync(resultJsonPath)) continue;
+    const parsed = await readJson(resultJsonPath, {});
+    const status = parsed.status;
+    if (!["completed", "blocked", "needs_input"].includes(status)) continue;
+    agent.result_status = status;
+    agent.result_captured_at = new Date().toISOString();
+    agent.status = status === "completed" && agent.retention?.retain_after_result
+      ? agent.retention.retained_status_after_completed_result ?? "waiting_review"
+      : status;
+    agent.summary = parsed.summary ?? agent.summary ?? null;
+    agent.blockers = Array.isArray(parsed.blockers) ? parsed.blockers : agent.blockers ?? [];
+    agent.blockingIssues = Array.isArray(parsed.blockingIssues) ? parsed.blockingIssues : agent.blockingIssues ?? [];
+    agent.updated_at = new Date().toISOString();
+    changed = true;
+  }
+  if (!changed) return;
+  native.updatedAt = new Date().toISOString();
+  await writeFile(target, `${JSON.stringify(native, null, 2)}\n`, "utf8");
 }
 
 async function buildArtifactRows(names) {

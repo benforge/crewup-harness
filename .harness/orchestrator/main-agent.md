@@ -111,9 +111,22 @@ When tester/reviewer returns required fixes:
 1. Identify owner agents such as `frontend`, `backend`, `database`, `devops`, or `docs`.
 2. Resume an existing owner agent or create a repair task for that owner.
 3. Capture repair results, then rerun verify/review as needed.
-4. Track repair rounds through `logs/repair-loop.json`; if the run exceeds `completion-contract.json.maxRepairRounds`, stop and archive as `blocked`/`partial` or create a narrower continuation run.
+4. Track repair rounds through `logs/repair-loop.json`; if the run exceeds `completion-contract.json.maxRepairRounds`, mark the current run `blocked` or `partial` but keep it open unless the user explicitly asks to close/archive it.
 
 The main agent must not directly edit business files because tester/reviewer reported issues.
+
+Blocked does not automatically mean archived. If the run is blocked during implementation, verification, review, preview, or release, keep the current run open and route repair through the current owner:
+
+```bash
+npx crewup native-state <run-id> diagnose
+npx crewup next-agent <run-id>
+```
+
+Only archive a non-success run when the user explicitly asks to close, abandon, or preserve the blocked/partial/failed state:
+
+```bash
+npx crewup archive <run-id> --outcome=blocked --reason="..." --close
+```
 
 When a run is already archived and the user reports a bug, preview error, deployment issue, or follow-up change, do not reopen the archived run and do not patch business code in the original run. Create a continuation run:
 
@@ -281,7 +294,7 @@ Archive means the run evidence has been organized. It does not always mean succe
 
 Allowed run outcomes are `success`, `partial`, `blocked`, `canceled`, and `failed`.
 
-When a run reaches `done`, use `npx crewup finish <run-id>` so it records success archive evidence. For blocked, partial, canceled, or failed runs, use `npx crewup archive <run-id> --outcome=<outcome> --reason="..."` or `npx crewup cancel <run-id> --reason="..."`.
+When a run reaches `done`, use `npx crewup finish <run-id>` so it records success archive evidence. For blocked, partial, or failed runs, first keep the run open and route repair through `npx crewup next-agent <run-id>`. Use `npx crewup archive <run-id> --outcome=<outcome> --reason="..." --close` only when the user explicitly wants to close that non-success run. Use `npx crewup cancel <run-id> --reason="..."` when the user intentionally stops the iteration.
 
 Do not claim a run is done unless `state.status=done`, `outcome=success`, gates passed, report exists, and the status card says archived or ready to archive.
 

@@ -164,12 +164,14 @@ npx crewup run "使用 CrewUp 做一个最小 counter web app，跑完整 workfl
 | `npx crewup next-agent <run-id>` | 查看当前真正可启动的子 agent |
 | `npx crewup clarify <run-id> --interactive` | 在终端中回答需求澄清问题 |
 | `npx crewup native-state <run-id> diagnose` | 诊断子 agent handle、result 和状态差异 |
+| `npx crewup native-state <run-id> reconcile-results` | 对账已存在但漏登记的子 agent result |
 | `npx crewup audit <run-id>` | 审计调度顺序、owner 边界、上下文压力和返工 |
 | `npx crewup gate-check <run-id>` | 检查 gate、产物归属和越权风险 |
 | `npx crewup preview-smoke <run-id> --url=http://localhost:3000` | 验证预览 URL 并写入 smoke 证据 |
 | `npx crewup report <run-id>` | 生成结构化交付报告 |
 | `npx crewup finish <run-id>` | 成功完成并按策略归档 run |
-| `npx crewup archive <run-id> --outcome=blocked --reason="..."` | 以非成功结果归档并保留证据 |
+| `npx crewup archive <run-id> --outcome=blocked --reason="..."` | 标记非成功状态但默认保持 run open |
+| `npx crewup archive <run-id> --outcome=blocked --reason="..." --close` | 用户明确放弃/关闭时才归档非成功 run |
 | `npx crewup continue <run-id> "..."` | 基于历史 run 创建延续 run |
 
 ## Run 是核心工作单元
@@ -201,7 +203,9 @@ CrewUp 支持这些结局：
 - `canceled`
 - `failed`
 
-归档不是“成功”的同义词。归档表示这次 run 的现场、证据和下一步已经整理清楚。
+阻塞不是“归档”的同义词。实现、测试、评审、预览或发布阶段遇到问题时，CrewUp 默认应保持当前 run open，并把下一步指回对应 owner agent。只有用户明确接受部分结果、放弃本轮或要求关闭现场时，才用 `--close` 归档非成功 run。
+
+归档也不是“成功”的同义词。归档表示这次 run 的现场、证据和下一步已经整理清楚；只有 `done / success / archived` 才表示完整成功。
 
 ## 稳定性保障
 
@@ -212,9 +216,9 @@ CrewUp 通过几层机制保证流程稳定：
 - `artifact provenance` 检查 owner artifact 是否由正确 agent 产出。
 - `sealed core` 检查用户项目里的 `.harness` 核心是否被业务 run 修改。
 - `gate-check` 阻止主 agent 越权写业务代码或跳过阶段产物。
-- `preview-smoke` 把“页面能打开”变成文件证据；归档后发现问题必须开 continuation run，不能在原 run 里继续改业务代码。
+- `preview-smoke` 把“页面能打开”变成文件证据；open run 中发现问题回派 owner agent，只有 archived run 后续发现问题才开 continuation run。
 - `archive-commit` 在没有初始 git commit 的新项目里会写审计并跳过提交，不会把成功 run 卡死。
-- `native-state diagnose` 会提示“结果文件已存在但未登记”或“子 agent 运行过久未捕获结果”，减少主窗口等待。
+- `native-state diagnose` / `reconcile-results` 会提示并修复“结果文件已存在但未登记”的状态差异，减少主窗口等待和错误归档。
 
 ## 本地验证
 

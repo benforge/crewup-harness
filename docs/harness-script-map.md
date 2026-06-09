@@ -23,12 +23,12 @@ install -> init/check -> run -> status/next-agent -> audit/gate/report -> archiv
 | `crewup status` / `crewup runs` | `status.mjs` | 查看单个 run 状态卡或 run 列表 |
 | `crewup next-agent` | `next-agent.mjs` | 根据 stage、产物和 implementation plan 计算可启动子 agent |
 | `crewup clarify` | `clarify.mjs` | 渲染并保存 requirements-plan 的澄清答案 |
-| `crewup native-state` | `native-state.mjs` | 登记 native 子 agent 的 handle、结果、fallback 和诊断信息 |
+| `crewup native-state` | `native-state.mjs` | 登记、对账和诊断 native 子 agent 的 handle、结果、fallback |
 | `crewup audit` | `orchestration-audit.mjs` | 审计调度顺序、owner 边界、重复返工和上下文压力 |
 | `crewup gate-check` | `gate-check.mjs` | 执行质量门禁、产物归属和主 agent 越界检查 |
 | `crewup report` | `report.mjs` | 生成 run 交付报告 |
 | `crewup preview-smoke` | `preview-smoke.mjs` | 检查预览 URL，并写入用户可验证的预览证据 |
-| `crewup archive` | `archive.mjs` | 归档 success、partial、blocked、canceled、failed 等任意结局 |
+| `crewup archive` | `archive.mjs` | 标记 success、partial、blocked、canceled、failed；非成功默认保持 open，显式 `--close` 才关闭 |
 | `crewup cancel` | `cancel.mjs` | 取消 run，并保留取消原因与现场证据 |
 | `crewup continue` | `continue-run.mjs` | 基于历史 run 创建延续 run |
 | `crewup finish` | `finish.mjs` | 完成报告、归档和按策略提交 |

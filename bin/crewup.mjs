@@ -265,12 +265,14 @@ Usage:
   crewup next-agent <run-id>
   crewup clarify <run-id>
   crewup native-state <run-id> diagnose
+  crewup native-state <run-id> reconcile-results
   crewup tool-fallback <run-id> --tool <name> --reason <reason> --fallback <method>
   crewup audit <run-id>
   crewup gate-check <run-id>
+  crewup repair-state <run-id> --reopen-blocked --apply
   crewup preview-smoke <run-id> --url=http://localhost:3000
   crewup report <run-id>
-  crewup archive <run-id> --outcome=<success|partial|blocked|canceled|failed>
+  crewup archive <run-id> --outcome=<success|partial|blocked|canceled|failed> [--close]
   crewup cancel <run-id> --reason <reason>
   crewup continue <run-id> "continue from the previous run"
   crewup finish <run-id>
@@ -290,11 +292,11 @@ Core workflow:
   runs             Alias for status list
   next-agent       Show currently runnable subagents; implementation agents are gated by architecture plan assignments
   clarify          Render requirements-plan clarification questions for user confirmation
-  native-state     Register/diagnose native subagent handles and results
+  native-state     Register, reconcile, and diagnose native subagent handles and results
   audit            Audit dispatch order, owner boundaries, repair loops, and context pressure
   gate-check       Run quality gates and ownership checks
   report           Generate a run summary report
-  archive          Archive any run outcome; archive means organized evidence, not necessarily success
+  archive          Mark outcomes; non-success stays open unless --close is explicit
   cancel           Mark a run canceled and archive that outcome without discarding files
   continue         Create a new run using a previous run as historical context
   finish           Move a run to done and auto-commit by archive policy

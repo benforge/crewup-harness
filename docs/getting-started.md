@@ -155,11 +155,19 @@ npx crewup report <run-id>
 npx crewup finish <run-id>
 ```
 
-卡住、部分完成或取消时，不要让 run 永远悬空：
+卡住或部分完成时，默认先保持当前 run open，并继续回派 owner agent：
 
 ```bash
-npx crewup archive <run-id> --outcome=blocked --reason="local database is unavailable"
-npx crewup archive <run-id> --outcome=partial --reason="frontend done, backend blocked"
+npx crewup native-state <run-id> diagnose
+npx crewup native-state <run-id> reconcile-results
+npx crewup next-agent <run-id>
+```
+
+只有用户明确关闭非成功现场时才归档：
+
+```bash
+npx crewup archive <run-id> --outcome=blocked --reason="local database is unavailable" --close
+npx crewup archive <run-id> --outcome=partial --reason="frontend done, backend blocked" --close
 npx crewup cancel <run-id> --reason="scope changed"
 ```
 

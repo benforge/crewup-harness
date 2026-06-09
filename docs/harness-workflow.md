@@ -144,11 +144,12 @@ run 状态包括：
 | `canceled` | 用户取消 |
 | `failed` | 执行失败 |
 
-归档不等于成功。`archive` 只是整理这次 run 的证据和报告，可用于 `success`、`partial`、`blocked`、`canceled` 或 `failed`。
+阻塞不等于归档。`blocked` 默认表示当前 run 卡住但仍可继续，下一步应该回派 owner agent。`archive --close` 才表示用户明确关闭非成功现场。归档也不等于成功；只有 `success` 结局代表完整完成。
 
 ```bash
 npx crewup status
-npx crewup archive <run-id> --outcome=blocked --reason="..."
+npx crewup next-agent <run-id>
+npx crewup archive <run-id> --outcome=blocked --reason="..." --close
 npx crewup cancel <run-id> --reason="..."
 npx crewup continue <run-id> "继续处理上次阻塞的问题"
 ```

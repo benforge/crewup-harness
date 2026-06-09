@@ -173,6 +173,20 @@ try {
   const runsListOutput = runCli(appDir, ["runs"]);
   assertIncludes(runsListOutput, "# CrewUp Runs", "runs list heading");
   assertIncludes(runsListOutput, counterRunId, "runs list includes counter run");
+  const blockedOpenOutput = runCli(appDir, ["archive", counterRunId, "--outcome=blocked", "--reason=test blocker stays in current run"]);
+  assertIncludes(blockedOpenOutput, "kept open", "blocked archive keeps run open by default");
+  const blockedOpenState = JSON.parse(await readFile(path.join(counterRunDir, "state.json"), "utf8"));
+  if (blockedOpenState.archived !== false || blockedOpenState.status !== "blocked") {
+    throw new Error(`Blocked run should stay open:\n${JSON.stringify(blockedOpenState, null, 2)}`);
+  }
+  assertIncludes(blockedOpenState.nextAction?.command ?? "", `next-agent ${counterRunId}`, "blocked open run points back to next-agent");
+  runCli(appDir, ["archive", counterRunId, "--outcome=blocked", "--reason=test explicit close", "--close"]);
+  const reopenOutput = runCli(appDir, ["repair-state", counterRunId, "--reopen-blocked", "--apply"]);
+  assertIncludes(reopenOutput, '"reopenBlocked": true', "repair-state supports reopening incorrectly archived blocked runs");
+  const reopenedState = JSON.parse(await readFile(path.join(counterRunDir, "state.json"), "utf8"));
+  if (reopenedState.archived !== false || reopenedState.status !== "blocked") {
+    throw new Error(`Blocked run should reopen after repair-state:\n${JSON.stringify(reopenedState, null, 2)}`);
+  }
   const cancelOutput = runCli(appDir, ["cancel", counterRunId, "--reason=test lifecycle cancellation"]);
   assertIncludes(cancelOutput, "Run archived", "cancel archives run");
   assertIncludes(cancelOutput, "- outcome: canceled", "cancel outcome");
@@ -229,6 +243,14 @@ try {
   assertSameMembers(architectureNextAgent.skipped.map((item) => item.agent), ["backend", "database", "devops"], "unassigned implementation candidates are skipped");
   const unassignedBackendSpawn = runCliWithStatus(appDir, ["native-state", architectureDispatchRunId, "mark-spawned", "backend", "backend-handle"], { expectedStatus: 1 });
   assertIncludes(unassignedBackendSpawn, "implementation-plan.md is missing or does not assign backend", "unassigned backend spawn is blocked");
+  runCli(appDir, ["native-state", architectureDispatchRunId, "mark-spawned", "frontend", "frontend-handle"]);
+  const architectureNativeDir = path.join(architectureDispatchRunDir, "logs", "native-subagents");
+  await writeFile(path.join(architectureNativeDir, "frontend.result.md"), "# Frontend Result\n\n## Status\n\ncompleted\n", "utf8");
+  await writeFile(path.join(architectureNativeDir, "frontend.result.json"), `${JSON.stringify({ status: "completed", summary: "frontend done" }, null, 2)}\n`, "utf8");
+  runCli(appDir, ["report", architectureDispatchRunId]);
+  const reconciledReport = await readFile(path.join(architectureDispatchRunDir, "logs", "run-report.md"), "utf8");
+  assertIncludes(reconciledReport, "`frontend`", "report includes frontend row");
+  assertIncludes(reconciledReport, "result=completed", "report reconciles uncaptured native result");
 
   const planOnlyPlan = JSON.parse(await readFile(path.join(planOnlyRunDir, "logs", "native-subagents", "native-subagent-plan.json"), "utf8"));
   assertSameArray(

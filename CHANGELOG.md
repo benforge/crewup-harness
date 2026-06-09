@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.16
+
+- Changed non-success archive behavior: `archive --outcome=blocked|partial|failed` now keeps the current run open by default, and only archive-closes when `--close` / `--confirm-close` is explicit.
+- Added native result reconciliation through `native-state reconcile-results` and report-time auto-reconciliation so existing subagent result files are not shown as `not captured`.
+- Added `repair-state --reopen-blocked --apply` for recovering older runs that were archive-closed while still needing owner-agent repair.
+- Updated main-agent and user docs to clarify that implementation/test/review blockers should be repaired inside the current open run, while continuation runs are for already archived runs.
+
 ## 0.3.15
 
 - Refined default external skill candidates to a smaller, complementary set of eight skills across frontend design, Tailwind consistency, web app testing, accessibility, performance, architecture, code review, and documentation/ADRs.

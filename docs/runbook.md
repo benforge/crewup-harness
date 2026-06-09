@@ -156,28 +156,36 @@ npx crewup audit <run-id>
 | --- | --- |
 | 等用户确认 | `npx crewup clarify <run-id> --interactive` |
 | 子 agent 没结果 | 恢复对应 agent，或在 bridge/manual 模式写回 result JSON |
-| 结果文件存在但没登记 | `npx crewup native-state <run-id> diagnose` 会提示 `mark-result` |
+| 结果文件存在但没登记 | 先运行 `npx crewup native-state <run-id> reconcile-results`，再运行 `npx crewup report <run-id>` |
 | 子 agent 运行太久没捕获结果 | 要求同一个子 agent 做 result-only closeout，不让主 agent 代写 |
 | owner artifact 不合格 | 恢复 owner agent 修复，不让主 agent 代写 |
 | tester/reviewer 要求修复 | `repair-plan` 分配给 owner implementation agent |
-| repair 轮次超过 `maxRepairRounds` | 停止返工，归档为 `blocked`/`partial`，或拆成更小 continuation run |
-| 预览 URL 打不开或 smoke 失败 | 不让主 agent 直接改业务代码；回派 owner agent，或归档后开 continuation run |
-| 本地依赖/环境不可用 | 记录 blocker，必要时归档为 `blocked` |
-| 只完成一部分 | 归档为 `partial`，并在下一个 run 继续 |
+| repair 轮次超过 `maxRepairRounds` | 标记为 open `blocked`/`partial`，让用户决定继续、缩小范围或显式关闭 |
+| 预览 URL 打不开或 smoke 失败 | 不让主 agent 直接改业务代码；当前 run 内回派 owner agent |
+| 本地依赖/环境不可用 | 记录 blocker，默认保持 run open；用户明确放弃时再 close |
+| 只完成一部分 | 默认保持 open；用户接受部分结果时再 close 为 `partial` |
 | sealed core 漂移 | `npx crewup install --force` 恢复，或在 CrewUp 源码仓库修复产品问题 |
 
 ## 取消、失败、部分完成
 
-不要让 run 永远悬空。非成功结局也要收口：
+阻塞不等于归档。实现、测试、评审、预览或发布阶段遇到问题时，CrewUp 默认应该把当前 run 保持为 open blocked，并继续指向 owner agent：
 
 ```bash
-npx crewup archive <run-id> --outcome=blocked --reason="local dependency unavailable"
-npx crewup archive <run-id> --outcome=partial --reason="frontend done, backend blocked"
-npx crewup archive <run-id> --outcome=failed --reason="tests cannot run in this environment"
+npx crewup native-state <run-id> diagnose
+npx crewup native-state <run-id> reconcile-results
+npx crewup next-agent <run-id>
+```
+
+只有当用户明确表示“放弃这次 run / 关闭这次阻塞 / 接受部分完成 / 归档失败现场”时，才关闭非成功 run：
+
+```bash
+npx crewup archive <run-id> --outcome=blocked --reason="local dependency unavailable" --close
+npx crewup archive <run-id> --outcome=partial --reason="frontend done, backend blocked" --close
+npx crewup archive <run-id> --outcome=failed --reason="tests cannot run in this environment" --close
 npx crewup cancel <run-id> --reason="scope changed"
 ```
 
-归档会生成：
+不加 `--close` 时，`archive --outcome=blocked|partial|failed` 只会更新状态和报告，不会把 run 归档关闭。关闭后会生成：
 
 - `RUN_SUMMARY.md`
 - `logs/archive/archive-summary.md`
@@ -200,7 +208,22 @@ git commit -m "chore: initial setup"
 
 ## 继续上一轮 Run
 
-如果一个 run 被 `blocked`、`partial`、`canceled` 或 `failed`，但后续要继续：
+如果 run 仍是 open blocked/open partial，优先在当前 run 内继续，不要新开 run：
+
+```bash
+npx crewup next-agent <run-id>
+```
+
+如果旧版本或人工操作已经把本应继续修复的 blocked run 误归档，可以显式重开：
+
+```bash
+npx crewup native-state <run-id> reconcile-results
+npx crewup repair-state <run-id> --reopen-blocked --apply
+npx crewup report <run-id>
+npx crewup next-agent <run-id>
+```
+
+如果一个 run 已经被关闭归档为 `blocked`、`partial`、`canceled` 或 `failed`，但后续要继续：
 
 ```bash
 npx crewup continue <source-run-id> "继续处理上次未完成的问题，复用已有需求和架构"

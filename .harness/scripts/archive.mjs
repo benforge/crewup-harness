@@ -10,10 +10,11 @@ const args = process.argv.slice(2);
 const runId = args.find((arg) => !arg.startsWith("--"));
 const outcome = valueOf("--outcome=") ?? "partial";
 const reason = valueOf("--reason=") ?? "";
+const close = args.includes("--close") || args.includes("--confirm-close");
 
 const allowed = new Set(["success", "partial", "blocked", "canceled", "failed"]);
 if (!runId || !allowed.has(outcome)) {
-  console.error("Usage: npx crewup archive <run-id> --outcome=<success|partial|blocked|canceled|failed> [--reason=<reason>]");
+  console.error("Usage: npx crewup archive <run-id> --outcome=<success|partial|blocked|canceled|failed> [--reason=<reason>] [--close]");
   process.exit(1);
 }
 
@@ -26,6 +27,33 @@ if (!existsSync(runDir)) {
 const current = await readRunState(root, runId);
 const status = statusForOutcome(outcome, current?.status);
 const now = new Date().toISOString();
+const shouldClose = outcome === "success" || outcome === "canceled" || close;
+if (!shouldClose) {
+  const state = await writeRunState(root, runId, {
+    ...current,
+    status,
+    outcome,
+    archived: false,
+    reason,
+    health: healthForStatus(status, outcome, reason),
+    nextAction: {
+      type: "agent",
+      description: "Run is blocked but still open; continue the current run with the owning agent.",
+      command: `npx crewup next-agent ${runId}`
+    }
+  });
+  await writeRunSummary(root, runId, { reason, archiveOutcome: outcome });
+  await writeRunStatus(root, runId, state);
+  runReport(runId);
+  console.log(`Run marked ${outcome} but kept open: ${runId}`);
+  console.log(`- status: ${state.status}`);
+  console.log(`- outcome: ${state.outcome}`);
+  console.log("- archived: no");
+  console.log(`- next: npx crewup next-agent ${runId}`);
+  console.log(`- status card: .harness/runs/${runId}/RUN_STATUS.md`);
+  console.log("Use --close only when the user explicitly wants to archive this non-success run.");
+  process.exit(0);
+}
 const next = {
   type: "none",
   description: outcome === "success" ? "Run archived successfully." : "Run archived with non-success outcome; create a continuation run if needed.",

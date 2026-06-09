@@ -18,12 +18,12 @@ These commands should stay stable and documented:
 | `crewup run` | `run.mjs` | Create a formal run; formal work starts with a run |
 | `crewup status` / `crewup runs` | `status.mjs` | Show one run status card or the run list |
 | `crewup next-agent` | `next-agent.mjs` | Compute runnable subagents from the current stage, artifacts, and implementation plan |
-| `crewup native-state` | `native-state.mjs` | Register native subagent handles, results, fallbacks, and diagnostics |
+| `crewup native-state` | `native-state.mjs` | Register, reconcile, and diagnose native subagent handles, results, and fallbacks |
 | `crewup audit` | `orchestration-audit.mjs` | Audit dispatch order, owner boundaries, repair loops, and context pressure |
 | `crewup gate-check` | `gate-check.mjs` | Run quality gates, artifact ownership checks, and main-agent overreach checks |
 | `crewup report` | `report.mjs` | Generate the run delivery report |
 | `crewup preview-smoke` | `preview-smoke.mjs` | Check preview URLs and write user-verifiable preview evidence |
-| `crewup archive` | `archive.mjs` | Archive any outcome: success, partial, blocked, canceled, or failed |
+| `crewup archive` | `archive.mjs` | Mark any outcome; non-success stays open by default and closes only with explicit `--close` |
 | `crewup cancel` | `cancel.mjs` | Cancel a run while preserving the reason and evidence |
 | `crewup continue` | `continue-run.mjs` | Create a continuation run from a previous run |
 | `crewup finish` | `finish.mjs` | Finish reporting, archive, and commit according to policy |

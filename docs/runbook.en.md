@@ -113,7 +113,7 @@ Handle it this way:
 
 - Core drift inside a user project: run `npx crewup install --force` to restore the installed core. runs/knowledge/project/reports/dashboard are preserved.
 - CrewUp product bug: fix it in the CrewUp source repository, test it, publish an upgrade, then let users upgrade.
-- Current project run cannot continue: archive as `blocked` or `partial`, then use `crewup continue` later.
+- Current project run cannot continue: mark it open `blocked` or `partial` first. Archive-close it with `--close` only if the user explicitly abandons or closes that state, then use `crewup continue` later if needed.
 
 When maintaining CrewUp itself, work in the CrewUp source repository, not inside a user project's business run. Add a regression test first, then fix the implementation, then run the test matrix.
 
@@ -189,26 +189,35 @@ Common handling:
 | --- | --- |
 | Waiting for user confirmation | `npx crewup clarify <run-id> --interactive` |
 | Subagent has no result | Resume that agent, or write bridge/manual result JSON |
+| Result file exists but was not captured | Run `npx crewup native-state <run-id> reconcile-results`, then `npx crewup report <run-id>` |
 | Owner artifact is invalid | Resume the owner agent; do not let the main agent rewrite it |
 | tester/reviewer requires fixes | Use `repair-plan` to assign owner implementation agents |
-| Repair rounds exceed `maxRepairRounds` | Stop the loop; archive as `blocked`/`partial`, or create a narrower continuation run |
-| Preview URL fails or smoke check fails | Do not let the main agent patch business code; route to the owner agent, or create a continuation run after archive |
-| Local dependency/environment unavailable | Record blocker and archive as blocked if needed |
-| Only part of the work is done | Archive as partial and continue in a later run |
+| Repair rounds exceed `maxRepairRounds` | Mark the current run open `blocked`/`partial`, then ask the user whether to continue, narrow scope, or explicitly close |
+| Preview URL fails or smoke check fails | Do not let the main agent patch business code; route repair to the owner agent in the current run |
+| Local dependency/environment unavailable | Record the blocker and keep the run open by default; close only if the user abandons it |
+| Only part of the work is done | Keep the run open by default; close as `partial` only if the user accepts partial completion |
 | Sealed core drift | Restore with `npx crewup install --force`, or fix CrewUp in the source repository |
 
 ## Cancel, Fail, Or Partial
 
-Do not leave runs hanging. Non-success outcomes still need closeout:
+Blocked does not mean archived. If implementation, verification, review, preview, or release hits a problem, CrewUp should keep the current run open and route the next step back to the owning agent:
 
 ```bash
-npx crewup archive <run-id> --outcome=blocked --reason="local dependency unavailable"
-npx crewup archive <run-id> --outcome=partial --reason="frontend done, backend blocked"
-npx crewup archive <run-id> --outcome=failed --reason="tests cannot run in this environment"
+npx crewup native-state <run-id> diagnose
+npx crewup native-state <run-id> reconcile-results
+npx crewup next-agent <run-id>
+```
+
+Only close a non-success run when the user explicitly asks to abandon, close, accept partial completion, or preserve a failed state:
+
+```bash
+npx crewup archive <run-id> --outcome=blocked --reason="local dependency unavailable" --close
+npx crewup archive <run-id> --outcome=partial --reason="frontend done, backend blocked" --close
+npx crewup archive <run-id> --outcome=failed --reason="tests cannot run in this environment" --close
 npx crewup cancel <run-id> --reason="scope changed"
 ```
 
-Archive creates:
+Without `--close`, `archive --outcome=blocked|partial|failed` only updates state and reports; it does not archive-close the run. Closing creates:
 
 - `RUN_SUMMARY.md`
 - `logs/archive/archive-summary.md`
@@ -218,7 +227,22 @@ This makes the run reusable without relying on chat memory.
 
 ## Continue A Previous Run
 
-If a blocked, partial, canceled, or failed run should continue:
+If a run is still open blocked/open partial, continue inside the current run first:
+
+```bash
+npx crewup next-agent <run-id>
+```
+
+If an older version or a manual close archived a blocked run that should still be repaired, explicitly reopen it:
+
+```bash
+npx crewup native-state <run-id> reconcile-results
+npx crewup repair-state <run-id> --reopen-blocked --apply
+npx crewup report <run-id>
+npx crewup next-agent <run-id>
+```
+
+If a run has already been archive-closed as blocked, partial, canceled, or failed and should continue:
 
 ```bash
 npx crewup continue <source-run-id> "Continue the unfinished work and reuse the existing requirement and architecture."

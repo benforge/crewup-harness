@@ -165,11 +165,19 @@ npx crewup report <run-id>
 npx crewup finish <run-id>
 ```
 
-If a run is blocked, partially complete, or canceled, do not leave it hanging:
+If a run is blocked or partially complete, keep the current run open first and route repair back to the owning agent:
 
 ```bash
-npx crewup archive <run-id> --outcome=blocked --reason="local database is unavailable"
-npx crewup archive <run-id> --outcome=partial --reason="frontend done, backend blocked"
+npx crewup native-state <run-id> diagnose
+npx crewup native-state <run-id> reconcile-results
+npx crewup next-agent <run-id>
+```
+
+Only archive-close a non-success run when the user explicitly asks to close that state:
+
+```bash
+npx crewup archive <run-id> --outcome=blocked --reason="local database is unavailable" --close
+npx crewup archive <run-id> --outcome=partial --reason="frontend done, backend blocked" --close
 npx crewup cancel <run-id> --reason="scope changed"
 ```
 

@@ -71,12 +71,13 @@ Run statuses:
 | `canceled` | User canceled |
 | `failed` | Execution failed |
 
-Archive does not mean success. `archive` only organizes evidence and reports for `success`, `partial`, `blocked`, `canceled`, or `failed` outcomes.
+Blocked does not mean archived. `blocked` keeps the current run open by default so the owning agent can continue repair. `archive --close` means the user explicitly closes a non-success state. Archive also does not mean success; only a `success` outcome represents full completion.
 
 ```bash
 npx crewup status
 npx crewup status <run-id>
-npx crewup archive <run-id> --outcome=blocked --reason="..."
+npx crewup next-agent <run-id>
+npx crewup archive <run-id> --outcome=blocked --reason="..." --close
 npx crewup cancel <run-id> --reason="..."
 npx crewup continue <run-id> "continue from the previous blocker"
 ```

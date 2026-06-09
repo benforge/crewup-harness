@@ -39,6 +39,11 @@ switch (command) {
   case "diagnose":
     await printDiagnostics(state);
     break;
+  case "reconcile-results":
+    await reconcileResults(state);
+    await save(state);
+    await syncRunLifecycleAfterReconcile(state);
+    break;
   case "recommend-close":
     printStatus(state, { includeRecommendations: false });
     printCloseRecommendations(state, { force: true });
@@ -105,6 +110,9 @@ switch (command) {
         result_path: resultPath,
         result_json_path: resultJsonPath,
         result_captured_at: new Date().toISOString(),
+        summary: parsedJson.summary ?? null,
+        blockers: Array.isArray(parsedJson.blockers) ? parsedJson.blockers : [],
+        blockingIssues: Array.isArray(parsedJson.blockingIssues) ? parsedJson.blockingIssues : [],
         last_error: null
       });
     }
@@ -532,6 +540,24 @@ async function save(current) {
 async function syncRunLifecycleFromNativeResult(currentAgentId, resultStatus) {
   const runState = await readRunState(root, runId);
   if (!runState) return;
+  if (resultStatus === "blocked") {
+    const agent = (state.agents ?? []).find((item) => item.agent === currentAgentId);
+    const reason = blockerReasonFor(agent) || `${currentAgentId} is blocked.`;
+    await writeRunState(root, runId, {
+      ...runState,
+      status: "blocked",
+      outcome: "none",
+      archived: false,
+      reason,
+      health: { level: "blocked", reason },
+      nextAction: {
+        type: "agent",
+        description: `${currentAgentId} is blocked; keep this run open and route repair through the owning agent.`,
+        command: `npx crewup next-agent ${runId}`
+      }
+    });
+    return;
+  }
   if (resultStatus === "needs_input") {
     await writeRunState(root, runId, {
       ...runState,
@@ -557,13 +583,82 @@ async function syncRunLifecycleFromNativeResult(currentAgentId, resultStatus) {
     });
     return;
   }
+  if (runState.status === "blocked" && resultStatus === "completed") {
+    await writeRunState(root, runId, {
+      ...runState,
+      status: "active",
+      outcome: "none",
+      archived: false,
+      reason: "",
+      health: { level: "ok", reason: "" },
+      nextAction: {
+        type: "agent",
+        description: "Owner result was captured; continue the current run.",
+        command: `npx crewup next-agent ${runId}`
+      }
+    });
+    return;
+  }
   await writeRunStatus(root, runId, runState);
+}
+
+async function reconcileResults(current) {
+  let changed = 0;
+  for (const agent of current.agents ?? []) {
+    if (agent.result_captured_at) continue;
+    if (!agent.handle) continue;
+    const resultPath = agent.result_path;
+    const resultJsonPath = agent.result_json_path ?? resultPath?.replace(/\.result\.md$/, ".result.json");
+    if (!resultPath || !existsSync(resolveWorkspacePath(resultPath))) continue;
+    const parsedJson = await readResultJson(resultJsonPath);
+    const status = parsedJson.status;
+    if (!["completed", "blocked", "needs_input"].includes(status)) continue;
+    const retainedCompleted = status === "completed" && agent.retention?.retain_after_result;
+    Object.assign(agent, {
+      status: retainedCompleted ? agent.retention.retained_status_after_completed_result ?? "waiting_review" : status,
+      result_status: status,
+      result_path: resultPath,
+      result_json_path: resultJsonPath,
+      result_captured_at: new Date().toISOString(),
+      summary: parsedJson.summary ?? null,
+      blockers: Array.isArray(parsedJson.blockers) ? parsedJson.blockers : [],
+      blockingIssues: Array.isArray(parsedJson.blockingIssues) ? parsedJson.blockingIssues : [],
+      last_error: null,
+      updated_at: new Date().toISOString()
+    });
+    changed += 1;
+  }
+  if (changed === 0) {
+    console.log("No uncaptured native results found.");
+  } else {
+    console.log(`Reconciled native results: ${changed}`);
+  }
+}
+
+async function syncRunLifecycleAfterReconcile(current) {
+  const blocked = (current.agents ?? []).find((agent) => agent.result_status === "blocked" && !agent.closed_at);
+  if (blocked) {
+    await syncRunLifecycleFromNativeResult(blocked.agent, "blocked");
+    return;
+  }
+  const runState = await readRunState(root, runId);
+  if (!runState) return;
+  await writeRunStatus(root, runId, runState);
+}
+
+function blockerReasonFor(agent) {
+  const values = [
+    ...(agent?.blockingIssues ?? []),
+    ...(agent?.blockers ?? [])
+  ].filter(Boolean);
+  return values.length ? values.join("; ") : "";
 }
 
 function usage() {
   console.error("Usage:");
   console.error("  npm run harness:native-state -- <run-id> status");
   console.error("  npm run harness:native-state -- <run-id> diagnose");
+  console.error("  npm run harness:native-state -- <run-id> reconcile-results");
   console.error("  npm run harness:native-state -- <run-id> recommend-close");
   console.error("  npm run harness:native-state -- <run-id> mark-spawned <agent> <handle>");
   console.error("  npm run harness:native-state -- <run-id> mark-result <agent> <completed|blocked|needs_input> [result-path]");

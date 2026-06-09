@@ -6,6 +6,7 @@ const root = process.cwd();
 const args = process.argv.slice(2);
 const apply = args.includes("--apply");
 const closeoutOnly = args.includes("--closeout-only");
+const reopenBlocked = args.includes("--reopen-blocked");
 const runArg = args.find((arg) => !arg.startsWith("--"));
 const runsRoot = path.join(root, ".harness", "runs");
 
@@ -52,6 +53,22 @@ for (const runId of runIds) {
     next.status = "waiting_user";
     notes.push("normalized ready-for-user-review to waiting_user");
   }
+  if (reopenBlocked && next.archived && ["blocked", "partial", "failed"].includes(next.status)) {
+    next.archived = false;
+    delete next.archivedAt;
+    next.nextAction = {
+      type: "agent",
+      description: "Run was reopened from a non-success archive; continue the current run with the owning agent.",
+      command: `npx crewup next-agent ${runId}`
+    };
+    const inferredStage = await inferStageFromNativeState(runId);
+    if (inferredStage && stageRank(inferredStage) > stageRank(next.stage)) {
+      next.stage = inferredStage;
+      notes.push(`reopened non-success archive and inferred stage=${inferredStage}`);
+    } else {
+      notes.push("reopened non-success archive");
+    }
+  }
   if (!next.confirmations) {
     next.confirmations = {};
     notes.push("added confirmations object");
@@ -90,7 +107,7 @@ for (const runId of runIds) {
   });
 }
 
-console.log(JSON.stringify({ apply, closeoutOnly, repairs }, null, 2));
+console.log(JSON.stringify({ apply, closeoutOnly, reopenBlocked, repairs }, null, 2));
 
 function isCloseoutRepairAllowed(state) {
   return Boolean(state.archived) || ["done", "canceled", "failed", "blocked", "partial"].includes(state.status);
@@ -104,11 +121,32 @@ async function writeRepairAudit(runId, entry) {
   const line = [
     `## ${new Date().toISOString()}`,
     "",
-    `- action: repair-state${entry.closeoutOnly ? " --closeout-only" : ""}`,
+    `- action: repair-state${entry.closeoutOnly ? " --closeout-only" : ""}${reopenBlocked ? " --reopen-blocked" : ""}`,
     `- before: stage=${entry.before.stage ?? "unknown"}, status=${entry.before.status ?? "unknown"}, archived=${entry.before.archived ? "yes" : "no"}`,
     `- after: stage=${entry.after.stage ?? "unknown"}, status=${entry.after.status ?? "unknown"}, archived=${entry.after.archived ? "yes" : "no"}`,
     `- notes: ${entry.notes.join("; ") || "none"}`,
     ""
   ].join("\n");
   await writeFile(target, `${previous.trimEnd()}\n\n${line}`, "utf8");
+}
+
+async function inferStageFromNativeState(runId) {
+  const target = path.join(runsRoot, runId, "logs", "native-subagents", "native-state.json");
+  if (!existsSync(target)) return "";
+  const native = JSON.parse(await readFile(target, "utf8"));
+  const agents = native.agents ?? [];
+  const has = (names) => agents.some((agent) => names.includes(agent.agent) && (agent.handle || agent.result_captured_at || agent.result_status));
+  if (has(["release"])) return "release";
+  if (has(["reviewer"])) return "review";
+  if (has(["tester"])) return "verify";
+  if (has(["frontend", "backend", "database", "devops", "docs"])) return "implement";
+  if (has(["architect"])) return "plan";
+  if (has(["requirements"])) return "requirements_confirm";
+  if (has(["requirements-plan"])) return "requirements_plan";
+  return "";
+}
+
+function stageRank(stage) {
+  const order = ["intake", "requirements_plan", "requirements_confirm", "plan", "implement", "verify", "review", "release", "done"];
+  return order.indexOf(stage) >= 0 ? order.indexOf(stage) : -1;
 }
