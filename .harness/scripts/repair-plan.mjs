@@ -14,6 +14,7 @@ const runDir = path.join(root, ".harness", "runs", runId);
 const logsDir = path.join(runDir, "logs");
 const nativeDir = path.join(logsDir, "native-subagents");
 const tasksDir = path.join(runDir, "tasks", "repairs");
+const repairLoopPath = path.join(logsDir, "repair-loop.json");
 
 if (!existsSync(runDir)) {
   console.error(`Run does not exist: ${runId}`);
@@ -21,6 +22,11 @@ if (!existsSync(runDir)) {
 }
 
 await mkdir(tasksDir, { recursive: true });
+
+const contract = await readJson(path.join(runDir, "completion-contract.json")) ?? {};
+const maxRepairRounds = Number(contract.maxRepairRounds ?? 3);
+const repairLoop = await readJson(repairLoopPath) ?? { runId, maxRepairRounds, rounds: [] };
+const nextRound = (repairLoop.rounds?.length ?? 0) + 1;
 
 const sources = [];
 for (const agent of ["tester", "reviewer"]) {
@@ -42,23 +48,44 @@ for (const source of sources) {
 const summary = {
   runId,
   generatedAt: new Date().toISOString(),
+  round: nextRound,
+  maxRepairRounds,
   sources: sources.map((source) => source.agent),
   targetAgents: [...grouped.keys()].sort(),
   fixes: [...grouped.entries()].map(([agent, fixes]) => ({ agent, fixes }))
 };
 
+repairLoop.maxRepairRounds = maxRepairRounds;
+repairLoop.rounds = [
+  ...(repairLoop.rounds ?? []),
+  {
+    round: nextRound,
+    at: summary.generatedAt,
+    sources: summary.sources,
+    targetAgents: summary.targetAgents,
+    fixCount: summary.fixes.reduce((sum, item) => sum + item.fixes.length, 0)
+  }
+];
+await writeFile(repairLoopPath, `${JSON.stringify(repairLoop, null, 2)}\n`, "utf8");
+
 await writeFile(path.join(logsDir, "repair-plan.json"), `${JSON.stringify(summary, null, 2)}\n`, "utf8");
 await writeFile(path.join(logsDir, "repair-plan.md"), renderSummary(summary), "utf8");
 
 for (const [agent, fixes] of grouped.entries()) {
-  await writeFile(path.join(tasksDir, `${agent}.repair.task.md`), renderAgentTask({ runId, agent, fixes }), "utf8");
+  await writeFile(path.join(tasksDir, `${agent}.repair.task.md`), renderAgentTask({ runId, agent, fixes, round: nextRound, maxRepairRounds }), "utf8");
 }
 
 console.log(`Repair plan generated: ${path.relative(root, path.join(logsDir, "repair-plan.md"))}`);
+console.log(`- repair round: ${nextRound}/${maxRepairRounds}`);
 if (grouped.size === 0) {
   console.log("- no required fixes found in tester/reviewer result JSON");
 } else {
   for (const [agent, fixes] of grouped.entries()) console.log(`- ${agent}: ${fixes.length} fix(es)`);
+}
+
+if (nextRound > maxRepairRounds) {
+  console.error(`Repair loop exceeded maxRepairRounds (${nextRound}/${maxRepairRounds}). Stop and archive as blocked/partial, or create a narrower continuation run.`);
+  process.exit(1);
 }
 
 function normalizeFixes(sourceAgent, result) {
@@ -103,6 +130,7 @@ function renderSummary(summary) {
     `# Repair Plan: ${summary.runId}`,
     "",
     `- generatedAt: ${summary.generatedAt}`,
+    `- round: ${summary.round}/${summary.maxRepairRounds}`,
     `- sources: ${summary.sources.length ? summary.sources.join(", ") : "(none)"}`,
     `- targetAgents: ${summary.targetAgents.length ? summary.targetAgents.join(", ") : "(none)"}`,
     ""
@@ -122,12 +150,13 @@ function renderSummary(summary) {
   return `${lines.join("\n")}\n`;
 }
 
-function renderAgentTask({ runId, agent, fixes }) {
+function renderAgentTask({ runId, agent, fixes, round, maxRepairRounds }) {
   const lines = [
     `# Repair Task: ${agent}`,
     "",
     `- runId: ${runId}`,
     `- agent: ${agent}`,
+    `- repairRound: ${round}/${maxRepairRounds}`,
     "- source: tester/reviewer requiredFixes",
     "",
     "## Rules",

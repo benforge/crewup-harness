@@ -57,11 +57,13 @@ await checkCoreLock();
 await checkArtifactProvenance();
 await checkOwnerArtifactAudit();
 await checkRequirementPlanGate();
+await checkCompletionContract();
 await checkNativeState();
 await checkVerifyReport();
 await checkReviewReport();
 await checkReleaseSummary();
 await checkFeedbackLoop();
+await checkRepairLoopBudget();
 await checkDevServiceLifecycle();
 await checkAgentLogs();
 await checkNoCodeProfile();
@@ -176,6 +178,35 @@ async function checkRequirementPlanGate() {
     if (!isLiteImplementationOnlyRun() && state.stage && ["implement", "verify", "review", "release", "done"].includes(state.stage) && hasTemplatePlaceholder(requirement)) {
       problems.push("requirement.md still contains template placeholder before implementation/review stage.");
     }
+  }
+}
+
+async function checkCompletionContract() {
+  const goalPath = path.join(runDir, "GOAL.md");
+  const contractPath = path.join(runDir, "completion-contract.json");
+  const requiresContract = ["release", "done"].includes(state.stage) || state.status === "done";
+  if (!existsSync(goalPath) || !existsSync(contractPath)) {
+    const missing = [
+      !existsSync(goalPath) ? "GOAL.md" : "",
+      !existsSync(contractPath) ? "completion-contract.json" : ""
+    ].filter(Boolean).join(", ");
+    if (requiresContract) {
+      problems.push(`Missing completion contract before closeout: ${missing}. Run spec-freeze or repair the run evidence before claiming SUCCESS.`);
+    } else {
+      warnings.push(`Completion contract not generated yet: ${missing}.`);
+    }
+    return;
+  }
+  const parsed = await readJsonStrict(contractPath);
+  if (!parsed.ok) {
+    problems.push(`Invalid completion-contract.json: ${parsed.error}`);
+    return;
+  }
+  if (parsed.value.runId && parsed.value.runId !== runId) {
+    problems.push(`completion-contract.json runId mismatch: ${parsed.value.runId}`);
+  }
+  if (!Array.isArray(parsed.value.successCriteria) || parsed.value.successCriteria.length === 0) {
+    problems.push("completion-contract.json must include non-empty successCriteria.");
   }
 }
 
@@ -354,6 +385,17 @@ async function checkFeedbackLoop() {
   }
 }
 
+async function checkRepairLoopBudget() {
+  const contract = await readOptionalJson(path.join(runDir, "completion-contract.json"));
+  const loop = await readOptionalJson(path.join(logsDir, "repair-loop.json"));
+  if (!loop) return;
+  const maxRepairRounds = Number(contract?.maxRepairRounds ?? loop.maxRepairRounds ?? 3);
+  const rounds = Array.isArray(loop.rounds) ? loop.rounds.length : Number(loop.round ?? 0);
+  if (rounds > maxRepairRounds) {
+    problems.push(`Repair loop exceeded maxRepairRounds (${rounds}/${maxRepairRounds}). Archive as blocked/partial or narrow the scope instead of continuing indefinitely.`);
+  }
+}
+
 async function checkDevServiceLifecycle() {
   if (state.stage !== "done") return;
   const target = path.join(logsDir, "dev-service.json");
@@ -377,6 +419,16 @@ async function readAgentResultJson(agent) {
     }
   }
   return null;
+}
+
+async function readOptionalJson(target) {
+  if (!existsSync(target)) return null;
+  try {
+    return JSON.parse((await readFile(target, "utf8")).replace(/^\uFEFF/, ""));
+  } catch {
+    warnings.push(`Invalid JSON: ${path.relative(root, target)}`);
+    return null;
+  }
 }
 
 async function readJsonStrict(target) {

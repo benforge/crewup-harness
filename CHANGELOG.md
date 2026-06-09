@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.14
+
+- Added run-level completion contracts: every prepared run now gets `GOAL.md` and `completion-contract.json` with success criteria, non-goals, constraints, required evidence, and repair budget.
+- Updated `RUN_STATUS.md` and `RUN_SUMMARY.md` to show an explicit iteration verdict and completion-contract evidence, so users can distinguish `SUCCESS`, `PARTIAL`, `BLOCKED`, `FAILED`, `CANCELED`, and in-progress states at a glance.
+- Added gate checks for missing or malformed completion contracts before release/done closeout.
+- Added bounded repair-loop tracking through `logs/repair-loop.json`; `repair-plan` now records repair rounds and stops when `maxRepairRounds` is exceeded.
+- Strengthened main-agent closeout rules so completion answers must be based on `GOAL.md`, `completion-contract.json`, `RUN_STATUS.md`, gates, and reports instead of chat memory.
+- Expanded bilingual runbook guidance for completion verdicts, completion contracts, and repair-loop overflow handling.
+
 ## 0.3.13
 
 - Added `crewup preview-smoke <run-id> --url=<preview-url>` / `npm run harness:preview-smoke` to turn preview URL checks into run evidence through `artifacts/preview-smoke.md` and `logs/preview-smoke.json`.

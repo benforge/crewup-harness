@@ -29,11 +29,15 @@ const input = await readFile(inputPath, "utf8");
 const existingRequirement = await readOptional(path.join(artifactsDir, "requirement.md"));
 const analysis = analyzeWorkload(input);
 const frozen = freezeSpec(input, existingRequirement, analysis);
+const completionContract = buildCompletionContract(frozen);
 
+await writeFile(path.join(runDir, "GOAL.md"), renderGoal(frozen, completionContract), "utf8");
+await writeFile(path.join(runDir, "completion-contract.json"), `${JSON.stringify(completionContract, null, 2)}\n`, "utf8");
 await writeFile(path.join(artifactsDir, "spec-freeze.md"), renderSpecFreeze(frozen), "utf8");
 await writeFile(path.join(logsDir, "spec-freeze.json"), `${JSON.stringify(frozen, null, 2)}\n`, "utf8");
 
 console.log(`需求冻结摘要已生成：${path.relative(root, path.join(artifactsDir, "spec-freeze.md")).replaceAll("\\", "/")}`);
+console.log(`完成契约已生成：${path.relative(root, path.join(runDir, "GOAL.md")).replaceAll("\\", "/")}`);
 console.log(`- profile: ${frozen.workflowProfile}`);
 console.log(`- stability: ${frozen.stability}`);
 console.log(`- open_questions: ${frozen.openQuestions.length}`);
@@ -80,6 +84,88 @@ function freezeSpec(inputText, requirementText, workload) {
 function chooseSource(inputText, requirementText) {
   if (isMeaningfulRequirementDraft(requirementText)) return stripMarkdownNoise(requirementText);
   return stripMarkdownNoise(inputText);
+}
+
+function buildCompletionContract(spec) {
+  return {
+    runId: spec.runId,
+    generatedAt: spec.generatedAt,
+    workflowProfile: spec.workflowProfile,
+    verdicts: {
+      success: [
+        "state.status is done",
+        "state.outcome is success",
+        "state.archived is true",
+        "required owner artifacts exist and pass gates",
+        "tester/reviewer/release evidence is recorded when required",
+        "run-report and archive summary exist"
+      ],
+      partial: [
+        "some deliverables are reusable but strict owner-agent workflow did not fully complete",
+        "direct-chat or manual work occurred outside the formal CrewUp loop",
+        "non-critical verification/release evidence is missing"
+      ],
+      blocked: [
+        "required tool, service, environment, dependency, or owner-agent path is unavailable",
+        "repair loop exceeded the configured maximum"
+      ],
+      failed: [
+        "required verification failed and the result should not be treated as delivered"
+      ]
+    },
+    successCriteria: uniqueList([
+      ...spec.acceptanceCriteria,
+      "All required CrewUp gates pass.",
+      "The run is archived with outcome=success."
+    ]),
+    nonGoals: spec.nonGoals,
+    constraints: spec.constraints,
+    maxRepairRounds: spec.workflowProfile === "full" ? 3 : 2,
+    requiredEvidence: [
+      "RUN_STATUS.md",
+      "RUN_SUMMARY.md after archive",
+      "logs/run-report.md",
+      "logs/archive/archive-summary.md",
+      "owner artifacts required by the current workflow profile"
+    ]
+  };
+}
+
+function renderGoal(spec, contract) {
+  return `${[
+    `# Iteration Goal: ${spec.runId}`,
+    "",
+    "## Verdict Rule",
+    "",
+    "Only `SUCCESS` means this CrewUp iteration is fully complete.",
+    "`PARTIAL`, `BLOCKED`, `FAILED`, `CANCELED`, `IN_PROGRESS`, and `WAITING_USER` are not successful completion.",
+    "",
+    "## Goal",
+    "",
+    ...renderList(spec.goals, "Complete the user request captured in input.md."),
+    "",
+    "## Success Criteria",
+    "",
+    ...renderList(contract.successCriteria, "All required CrewUp gates pass and the run archives with outcome=success."),
+    "",
+    "## Non-Goals",
+    "",
+    ...renderList(contract.nonGoals, "No explicit non-goals captured."),
+    "",
+    "## Constraints",
+    "",
+    ...renderList(contract.constraints, "No explicit constraints captured."),
+    "",
+    "## Repair Budget",
+    "",
+    `- maxRepairRounds: ${contract.maxRepairRounds}`,
+    "- If repair rounds exceed this budget, archive as BLOCKED or PARTIAL instead of continuing indefinitely.",
+    "",
+    "## Required Evidence",
+    "",
+    ...contract.requiredEvidence.map((item) => `- ${item}`),
+    ""
+  ].join("\n")}\n`;
 }
 
 function renderSpecFreeze(spec) {

@@ -58,6 +58,13 @@ The strict sequence is:
 
 Every formal CrewUp run starts with requirements planning. `lite` means shorter artifacts and smaller context, not skipping `requirements-plan`, `requirements`, or `architect`.
 
+Every formal run also has a completion contract:
+
+- `.harness/runs/<run-id>/GOAL.md`
+- `.harness/runs/<run-id>/completion-contract.json`
+
+Use these files as the run-level definition of success, partial completion, blockers, and repair budget. Do not answer "complete" from chat memory alone.
+
 `requirements-plan` is the clarification owner. When it returns `needs_input` with `clarificationQuestions`, the main agent is only the interaction transport:
 
 1. Prefer the host's native choice UI when it is available. In Codex Plan mode or another Codex surface that exposes native user-choice prompts, render up to 3 short questions from `clarificationQuestions` through that native UI.
@@ -104,6 +111,7 @@ When tester/reviewer returns required fixes:
 1. Identify owner agents such as `frontend`, `backend`, `database`, `devops`, or `docs`.
 2. Resume an existing owner agent or create a repair task for that owner.
 3. Capture repair results, then rerun verify/review as needed.
+4. Track repair rounds through `logs/repair-loop.json`; if the run exceeds `completion-contract.json.maxRepairRounds`, stop and archive as `blocked`/`partial` or create a narrower continuation run.
 
 The main agent must not directly edit business files because tester/reviewer reported issues.
 
@@ -114,6 +122,13 @@ npx crewup continue <archived-run-id> "<user reported issue or follow-up>"
 ```
 
 The only exception is a pure runtime action with no file edits, such as restarting or stopping a stale preview service and recording the result. If a code, config, dependency, or artifact change is needed, route it through the continuation run and the owning agents.
+
+Once a CrewUp continuation run has been created, do not offer "directly edit in this chat outside CrewUp" as a normal branch of that same run. If native owner-agent execution is unavailable, mark the continuation run `blocked` or archive it as `partial` with the reason. If the user explicitly asks to leave CrewUp after that, say clearly that the next edits are outside the CrewUp iteration and cannot make that run `success`.
+
+Never mix the two statements:
+
+- "CrewUp run is complete" means `SUCCESS`: `status=done`, `outcome=success`, `archived=true`, gates/report evidence exist.
+- "I changed files directly after the run" means out-of-harness work. It may be useful, but it is not a successful CrewUp iteration unless a new/continued run routes the work through owner agents and gates.
 
 ## Harness Core Protection
 
@@ -201,6 +216,7 @@ Main-agent updates should be short and path-based. Use this shape unless the use
 ```text
 Run: <run-id>
 Status: <status> / <stage>
+Verdict: <SUCCESS|PARTIAL|BLOCKED|FAILED|CANCELED|IN_PROGRESS>
 Owner: <current owner>
 Next: <next command or runnable agent>
 Status card: .harness/runs/<run-id>/RUN_STATUS.md
@@ -268,6 +284,17 @@ Allowed run outcomes are `success`, `partial`, `blocked`, `canceled`, and `faile
 When a run reaches `done`, use `npx crewup finish <run-id>` so it records success archive evidence. For blocked, partial, canceled, or failed runs, use `npx crewup archive <run-id> --outcome=<outcome> --reason="..."` or `npx crewup cancel <run-id> --reason="..."`.
 
 Do not claim a run is done unless `state.status=done`, `outcome=success`, gates passed, report exists, and the status card says archived or ready to archive.
+
+When the user asks "is this iteration complete?", answer with exactly one verdict first:
+
+- `SUCCESS`: the CrewUp iteration is complete and archived.
+- `PARTIAL`: some work is reusable, but the strict CrewUp iteration did not fully complete.
+- `BLOCKED`: the iteration cannot continue until a blocker is resolved.
+- `FAILED`: the iteration failed and should not be treated as delivered.
+- `CANCELED`: the iteration was intentionally stopped.
+- `IN_PROGRESS`: the run is still active or waiting for input.
+
+Use `GOAL.md`, `completion-contract.json`, `RUN_STATUS.md`, `gate-check`, and `run-report.md` as evidence for that verdict.
 
 For web or full-stack runs, do not claim user-visible completion until a preview URL has been reported or a blocker explains why preview cannot be started. If a service is started, run:
 

@@ -93,6 +93,10 @@ try {
   assertSameArray(naturalCounterNextAgent.runnable.map((item) => item.agent), ["requirements-plan"], "natural counter initial runnable only requirements-plan");
   const naturalCounterState = JSON.parse(await readFile(path.join(naturalCounterRunDir, "state.json"), "utf8"));
   if (naturalCounterState.primaryLanguage !== "zh-CN") throw new Error(`Expected zh-CN primaryLanguage, got ${naturalCounterState.primaryLanguage}`);
+  assertExists(path.join(naturalCounterRunDir, "GOAL.md"), "natural counter goal contract");
+  assertExists(path.join(naturalCounterRunDir, "completion-contract.json"), "natural counter completion contract");
+  const naturalCounterContract = JSON.parse(await readFile(path.join(naturalCounterRunDir, "completion-contract.json"), "utf8"));
+  if (!naturalCounterContract.successCriteria?.length) throw new Error("Expected completion contract success criteria");
   if (!naturalCounterState.git?.createdByHarness) throw new Error(`Expected run branch to be created even with install/init dirty state:\n${JSON.stringify(naturalCounterState.git, null, 2)}`);
   assertIncludes(naturalCounterState.git.branch, "crewup/", "run branch name");
   if (!naturalCounterState.git.dirtyAtStart?.length) throw new Error("Expected dirtyAtStart to record existing install/init files");
@@ -159,6 +163,8 @@ try {
   const counterStatusOutput = runCli(appDir, ["status", counterRunId]);
   assertIncludes(counterStatusOutput, "# Run 状态", "single run localized status card");
   assertIncludes(counterStatusOutput, "## 一眼看懂", "status card localized at a glance");
+  assertIncludes(counterStatusOutput, "**迭代结论:**", "status card localized iteration verdict");
+  assertIncludes(counterStatusOutput, "**完成契约:**", "status card localized completion contract");
   assertIncludes(counterStatusOutput, "## 当前决策", "status card localized current decision");
   assertIncludes(counterStatusOutput, "**当前 Owner:** requirements-plan", "status card current owner");
   assertIncludes(counterStatusOutput, "**命令:** `npx crewup next-agent", "status card next command");
@@ -325,7 +331,9 @@ try {
   }, null, 2)}\n`, "utf8");
   const repairPlanOutput = runCli(appDir, ["repair-plan", planOnlyRunId]);
   assertIncludes(repairPlanOutput, "Repair plan generated", "repair-plan output");
+  assertIncludes(repairPlanOutput, "repair round: 1/", "repair-plan repair round output");
   assertExists(path.join(planOnlyRunDir, "logs", "repair-plan.md"), "repair-plan markdown");
+  assertExists(path.join(planOnlyRunDir, "logs", "repair-loop.json"), "repair-loop json");
   assertExists(path.join(planOnlyRunDir, "tasks", "repairs", "frontend.repair.task.md"), "frontend repair task");
   assertExists(path.join(planOnlyRunDir, "tasks", "repairs", "devops.repair.task.md"), "devops repair task");
 

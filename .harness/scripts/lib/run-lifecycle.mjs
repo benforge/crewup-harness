@@ -75,11 +75,13 @@ export async function writeRunStatus(root, runId, stateArg = null) {
   const locale = localeForState(state);
   const text = labelsFor(locale);
   const artifacts = await existingArtifacts(path.join(runDir, "artifacts"));
+  const contract = await readCompletionContract(runDir);
   const blockers = await readBlockers(runDir, state);
   const progress = progressFor({ state, artifacts, runDir });
   const owner = currentOwnerFor(state.stage);
   const nextCommand = state.nextAction?.command || "";
   const completion = completionFor({ state, progress });
+  const verdict = verdictForState(state, locale, { contract });
   const lines = [
     text.title,
     "",
@@ -89,6 +91,8 @@ export async function writeRunStatus(root, runId, stateArg = null) {
     "",
     `**${text.state}:** ${statusBadge(state.status)} / ${text.stageLabel} \`${state.stage ?? "unknown"}\` / ${text.outcomeLabel} \`${state.outcome ?? "none"}\``,
     "",
+    `**${text.verdict}:** ${verdict.label} - ${verdict.description}`,
+    "",
     `**${text.ownerNow}:** ${owner}`,
     "",
     `**${text.next}:** ${localizedNextDescription(state, locale)}`,
@@ -96,6 +100,8 @@ export async function writeRunStatus(root, runId, stateArg = null) {
     nextCommand ? `**${text.command}:** \`${nextCommand}\`` : `**${text.command}:** ${text.none}`,
     "",
     `**${text.done}:** ${completion.done ? text.yes : text.no}${completion.reason ? ` - ${localizeReason(completion.reason, locale)}` : ""}`,
+    "",
+    `**${text.goal}:** ${contract ? "`GOAL.md` / `completion-contract.json`" : text.notGenerated}`,
     "",
     text.currentDecision,
     "",
@@ -107,6 +113,8 @@ export async function writeRunStatus(root, runId, stateArg = null) {
     `| Status | ${state.status ?? "unknown"} |`,
     `| Stage | ${state.stage ?? "unknown"} |`,
     `| Outcome | ${state.outcome ?? "none"} |`,
+    `| Verdict | ${verdict.label} - ${verdict.description} |`,
+    `| Completion Contract | ${contract ? "`GOAL.md`, `completion-contract.json`" : "not generated"} |`,
     `| Health | ${state.health?.level ?? "unknown"}${state.health?.reason ? `: ${state.health.reason}` : ""} |`,
     `| Branch | ${state.git?.branch ?? "(none)"} |`,
     `| Current Owner | ${owner} |`,
@@ -134,7 +142,10 @@ export async function writeRunSummary(root, runId, { reason = "", archiveOutcome
   const runDir = path.join(root, ".harness", "runs", runId);
   const state = await readRunState(root, runId);
   const artifacts = await existingArtifacts(path.join(runDir, "artifacts"));
+  const contract = await readCompletionContract(runDir);
   const blockers = await readBlockers(runDir, state ?? {});
+  const locale = localeForState(state ?? {});
+  const verdict = verdictForState(state ?? {}, locale, { contract });
   const lines = [
     `# Run Summary: ${runId}`,
     "",
@@ -143,6 +154,8 @@ export async function writeRunSummary(root, runId, { reason = "", archiveOutcome
     `| Status | ${state?.status ?? "unknown"} |`,
     `| Stage | ${state?.stage ?? "unknown"} |`,
     `| Outcome | ${archiveOutcome || state?.outcome || "none"} |`,
+    `| Verdict | ${verdict.label} - ${verdict.description} |`,
+    `| Completion Contract | ${contract ? "GOAL.md, completion-contract.json" : "not generated"} |`,
     `| Archived | ${state?.archived ? "yes" : "no"} |`,
     `| Reason | ${reason || state?.reason || state?.health?.reason || "none"} |`,
     `| Branch | ${state?.git?.branch ?? "(none)"} |`,
@@ -188,6 +201,16 @@ async function readBlockers(runDir, state) {
     for (const line of text.split(/\r?\n/).filter((item) => /^-\s+\S/.test(item))) blockers.push(line.replace(/^-\s+/, ""));
   }
   return [...new Set(blockers.filter(Boolean))];
+}
+
+async function readCompletionContract(runDir) {
+  const target = path.join(runDir, "completion-contract.json");
+  if (!existsSync(target)) return null;
+  try {
+    return JSON.parse((await readFile(target, "utf8")).replace(/^\uFEFF/, ""));
+  } catch {
+    return null;
+  }
 }
 
 function progressFor({ state, artifacts, runDir }) {
@@ -245,6 +268,54 @@ function completionFor({ state, progress }) {
   if (state.status === "blocked") return { done: false, reason: "blocked" };
   const missing = progress.find((item) => !item.done);
   return { done: false, reason: missing ? `next incomplete step: ${missing.label}` : "not marked success" };
+}
+
+function verdictForState(state = {}, locale = "en", { contract = null } = {}) {
+  const zh = locale === "zh-CN";
+  const status = state.status ?? "unknown";
+  const outcome = state.outcome ?? "none";
+  const archived = Boolean(state.archived);
+  if (status === "done" && outcome === "success" && archived) {
+    return zh
+      ? { label: "`SUCCESS`", description: "CrewUp 迭代已完整成功并归档" }
+      : { label: "`SUCCESS`", description: "CrewUp iteration completed successfully and is archived" };
+  }
+  if (status === "done" && outcome === "success") {
+    return zh
+      ? { label: "`READY_TO_ARCHIVE`", description: "已完成但还没归档收口" }
+      : { label: "`READY_TO_ARCHIVE`", description: "completed but archive closeout is still pending" };
+  }
+  if (status === "partial" || outcome === "partial") {
+    const reason = contract
+      ? (zh ? "对照完成契约只达到部分证据或存在流程外变更" : "the completion contract is only partially satisfied or work happened outside the workflow")
+      : (zh ? "部分完成或存在绕开严格流程的变更，不算完整成功迭代" : "partially complete or contains work outside the strict workflow; not a successful iteration");
+    return zh
+      ? { label: "`PARTIAL`", description: reason }
+      : { label: "`PARTIAL`", description: reason };
+  }
+  if (status === "blocked" || outcome === "blocked") {
+    return zh
+      ? { label: "`BLOCKED`", description: "当前被阻塞，需要解决阻塞或基于本 run 继续" }
+      : { label: "`BLOCKED`", description: "blocked; resolve the blocker or continue from this run" };
+  }
+  if (status === "failed" || outcome === "failed") {
+    return zh
+      ? { label: "`FAILED`", description: "本次迭代失败，不能按成功交付使用" }
+      : { label: "`FAILED`", description: "failed; do not treat this as successful delivery" };
+  }
+  if (status === "canceled" || outcome === "canceled") {
+    return zh
+      ? { label: "`CANCELED`", description: "本次迭代已取消" }
+      : { label: "`CANCELED`", description: "iteration was canceled" };
+  }
+  if (status === "waiting_user") {
+    return zh
+      ? { label: "`WAITING_USER`", description: "等待用户确认，不算完成" }
+      : { label: "`WAITING_USER`", description: "waiting for user input; not complete" };
+  }
+  return zh
+    ? { label: "`IN_PROGRESS`", description: "仍在流程中，不算完成" }
+    : { label: "`IN_PROGRESS`", description: "still in progress; not complete" };
 }
 
 function decisionLinesFor({ state, blockers, nextCommand, locale = "en" }) {
@@ -316,6 +387,8 @@ function labelsFor(locale) {
       state: "状态",
       stageLabel: "阶段",
       outcomeLabel: "结局",
+      verdict: "迭代结论",
+      goal: "完成契约",
       ownerNow: "当前 Owner",
       next: "下一步",
       command: "命令",
@@ -326,7 +399,8 @@ function labelsFor(locale) {
       reusableArtifacts: "## 可复用产物",
       yes: "是",
       no: "否",
-      none: "无"
+      none: "无",
+      notGenerated: "未生成"
     };
   }
   return {
@@ -336,6 +410,8 @@ function labelsFor(locale) {
     state: "State",
     stageLabel: "stage",
     outcomeLabel: "outcome",
+    verdict: "Iteration Verdict",
+    goal: "Completion Contract",
     ownerNow: "Owner Now",
     next: "Next",
     command: "Command",
@@ -346,7 +422,8 @@ function labelsFor(locale) {
     reusableArtifacts: "## Reusable Artifacts",
     yes: "yes",
     no: "no",
-    none: "none"
+    none: "none",
+    notGenerated: "not generated"
   };
 }
 

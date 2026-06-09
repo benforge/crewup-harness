@@ -17,6 +17,8 @@ Read these files first:
 | File | Purpose |
 | --- | --- |
 | `RUN_STATUS.md` | Current status, owner, next step, blockers, progress |
+| `GOAL.md` | Iteration goal, success criteria, non-goals, and repair budget |
+| `completion-contract.json` | Machine-readable completion contract used by gates/status/report |
 | `RUN_SUMMARY.md` | Archive summary reusable by later runs |
 | `logs/run-report.md` | Delivery report for this run |
 | `.harness/reports/<run-id>.md` | Global report copy |
@@ -41,6 +43,7 @@ npx crewup report <run-id>
 A healthy run should satisfy:
 
 - `RUN_STATUS.md` exists and shows status, stage, owner, and next command.
+- `GOAL.md` and `completion-contract.json` exist; they define what `SUCCESS` means for this iteration.
 - If the current directory is a Git repository, the run attempts to create a `crewup/<run-id>-<slug>` branch; pre-existing uncommitted files are recorded in `state.json` under `git.dirtyAtStart`.
 - The initial `next-agent` result only allows `requirements-plan`.
 - `.harness/core-lock.json` exists after install, and `npx crewup check` verifies that the sealed CrewUp core has not drifted.
@@ -116,8 +119,21 @@ When maintaining CrewUp itself, work in the CrewUp source repository, not inside
 
 ## What Complete Means
 
+First read `Iteration Verdict` at the top of `RUN_STATUS.md`:
+
+| Verdict | Meaning | Successful completed iteration? |
+| --- | --- | --- |
+| `SUCCESS` | `status=done`, `outcome=success`, `archived=true`, with gate/report/archive evidence | Yes |
+| `READY_TO_ARCHIVE` | done/success, but archive closeout is still pending | Not fully closed yet |
+| `PARTIAL` | partially complete, or contains direct-chat work outside strict CrewUp owner-agent flow | No |
+| `BLOCKED` | blocked by environment, dependency, tool, subagent, or workflow issue | No |
+| `FAILED` | failed and should not be treated as delivery | No |
+| `CANCELED` | intentionally stopped | No |
+| `IN_PROGRESS` / `WAITING_USER` | still active or waiting for user input | No |
+
 Successful completion requires all of these:
 
+- The success criteria in `GOAL.md` / `completion-contract.json` are satisfied.
 - `state.status` is `done`.
 - `outcome` is `success`.
 - Owner artifacts were produced by the owning agents.
@@ -142,6 +158,21 @@ npx crewup finish <run-id>
 
 In `logs/run-report.md`, `deliveryStatus=closed` is based on `state.archived=true`. `logs/archive/git-commit.md` is only Git commit audit evidence: if the repository has no initial commit or commit creation is skipped by policy, the run can still be archived and closed.
 
+### A Commonly Confusing Case
+
+If you first see:
+
+```text
+Run A: done / success / archived
+```
+
+and then the user asks for startup scripts, login debugging, or service fixes that are done directly in chat without CrewUp owner agents, `native-state`, `gate-check`, and `finish`, interpret it this way:
+
+- `Run A` is a successful CrewUp iteration.
+- The later direct-chat edits are not part of `Run A`.
+- If those later edits created `Run B` but did not follow the strict workflow, archive `Run B` as `partial` or `blocked`; do not describe it as a successful CrewUp iteration.
+- To make the later edits a successful formal iteration, create a continuation run and route implementation, tests, review, release, and archive through the owning agents.
+
 ## When A Run Is Blocked
 
 Start with:
@@ -160,6 +191,7 @@ Common handling:
 | Subagent has no result | Resume that agent, or write bridge/manual result JSON |
 | Owner artifact is invalid | Resume the owner agent; do not let the main agent rewrite it |
 | tester/reviewer requires fixes | Use `repair-plan` to assign owner implementation agents |
+| Repair rounds exceed `maxRepairRounds` | Stop the loop; archive as `blocked`/`partial`, or create a narrower continuation run |
 | Preview URL fails or smoke check fails | Do not let the main agent patch business code; route to the owner agent, or create a continuation run after archive |
 | Local dependency/environment unavailable | Record blocker and archive as blocked if needed |
 | Only part of the work is done | Archive as partial and continue in a later run |
@@ -217,6 +249,7 @@ Main-agent status updates should stay short:
 ```text
 Run: <run-id>
 Status: active / requirements_plan
+Verdict: IN_PROGRESS
 Owner: requirements-plan
 Next: npx crewup next-agent <run-id>
 Status card: .harness/runs/<run-id>/RUN_STATUS.md
