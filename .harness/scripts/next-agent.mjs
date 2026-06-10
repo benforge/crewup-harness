@@ -33,13 +33,14 @@ if (json) {
 function buildReport(current) {
   const agents = current.agents ?? [];
   const byAgent = new Map(agents.map((agent) => [agent.agent, agent]));
+  const repairPlan = repairPlanState(agents, byAgent);
   const runnable = [];
   const blocked = [];
   const completed = [];
   const active = [];
   const skipped = [];
   const skippedSet = new Set();
-  const repair = repairFeedbackFor(agents);
+  const repair = repairFeedbackFor(agents, repairPlan);
   const hasPendingRepair = repair.required;
 
   for (const agent of sortByExecutionOrder(agents.map((item) => item.agent)).map((id) => byAgent.get(id)).filter(Boolean)) {
@@ -51,7 +52,7 @@ function buildReport(current) {
       });
       continue;
     }
-    if (hasCompletedResult(agent)) {
+    if (hasCompletedResult(agent, repairPlan)) {
       completed.push(agent.agent);
       continue;
     }
@@ -72,7 +73,7 @@ function buildReport(current) {
       });
       continue;
     }
-    const missing = missingPrerequisites(agent, byAgent, skippedSet);
+    const missing = missingPrerequisites(agent, byAgent, skippedSet, repairPlan);
     if (missing.length === 0) {
       runnable.push({
         agent: agent.agent,
@@ -107,18 +108,20 @@ function buildReport(current) {
   };
 }
 
-function missingPrerequisites(agent, byAgent, skippedSet = new Set()) {
+function missingPrerequisites(agent, byAgent, skippedSet = new Set(), repairPlan = null) {
   const missing = [];
   for (const prerequisite of agent.requires_completed_agents ?? []) {
     if (skippedSet.has(prerequisite)) continue;
     if (isImplementationAgentUnassigned(prerequisite, { root, runId })) continue;
-    if (!hasCompletedResult(byAgent.get(prerequisite))) missing.push(prerequisite);
+    if (!hasCompletedResult(byAgent.get(prerequisite), repairPlan)) missing.push(prerequisite);
   }
   return missing;
 }
 
-function hasCompletedResult(agent) {
-  return Boolean(agent?.handle && agent?.result_captured_at && agent?.result_status === "completed" && !agentRequiresRepair(agent));
+function hasCompletedResult(agent, repairPlan = null) {
+  if (!agent) return false;
+  if (repairPlan?.staleVerificationAgents?.has(agent.agent)) return false;
+  return Boolean(agent.handle && agent.result_captured_at && agent.result_status === "completed" && !agentRequiresRepair(agent));
 }
 
 function printReport(report) {
@@ -165,10 +168,11 @@ function instructionFor({ runnable, active, blocked, repair }) {
   return "No runnable, active, or blocked agents remain.";
 }
 
-function repairFeedbackFor(agents) {
+function repairFeedbackFor(agents, repairPlan = null) {
   const feedback = [];
   for (const agent of agents) {
     if (!["tester", "reviewer"].includes(agent.agent)) continue;
+    if (repairPlan?.staleVerificationAgents?.has(agent.agent)) continue;
     if (!agentRequiresRepair(agent)) continue;
     const payload = readResultPayload(agent);
     const requiredFixes = Array.isArray(payload.requiredFixes) ? payload.requiredFixes : [];
@@ -185,12 +189,109 @@ function repairFeedbackFor(agents) {
       blockingIssues: asArray(payload.blockingIssues).length
     });
   }
+  if (repairPlan?.required) {
+    feedback.push({
+      agent: "repair-plan",
+      targetAgents: repairPlan.targetAgents,
+      requiredFixes: repairPlan.pendingTargetAgents.length,
+      blockingIssues: 0
+    });
+  }
   return {
     required: feedback.length > 0,
     sources: feedback.map((item) => item.agent),
     targetAgents: [...new Set(feedback.flatMap((item) => item.targetAgents))],
     feedback,
     command: `npx crewup repair-plan ${runId}`
+  };
+}
+
+function repairPlanState(agents, byAgent) {
+  const planPath = path.join(root, ".harness", "runs", runId, "logs", "repair-plan.json");
+  const empty = {
+    exists: false,
+    required: false,
+    targetAgents: [],
+    pendingTargetAgents: [],
+    repairedTargetAgents: [],
+    staleVerificationAgents: new Set()
+  };
+  if (!existsSync(planPath)) return empty;
+
+  let plan = null;
+  try {
+    plan = JSON.parse(readFileSync(planPath, "utf8").replace(/^\uFEFF/, ""));
+  } catch {
+    return empty;
+  }
+
+  const generatedAtMs = Date.parse(plan.generatedAt ?? "");
+  if (!Number.isFinite(generatedAtMs)) return empty;
+  const targetAgents = asArray(plan.targetAgents).map((item) => String(item).trim()).filter(Boolean);
+  if (targetAgents.length === 0) return empty;
+
+  const pendingTargetAgents = [];
+  const repairedTargetAgents = [];
+  let latestRepairMs = generatedAtMs;
+  for (const target of targetAgents) {
+    const agent = byAgent.get(target);
+    const capturedMs = Date.parse(agent?.result_captured_at ?? "");
+    const repaired = Boolean(
+      agent?.handle
+      && agent?.result_status === "completed"
+      && Number.isFinite(capturedMs)
+      && capturedMs > generatedAtMs
+      && !agentRequiresRepair(agent)
+    );
+    if (repaired) {
+      repairedTargetAgents.push(target);
+      latestRepairMs = Math.max(latestRepairMs, capturedMs);
+    } else {
+      pendingTargetAgents.push(target);
+    }
+  }
+
+  if (pendingTargetAgents.length > 0) {
+    return {
+      exists: true,
+      required: true,
+      targetAgents,
+      pendingTargetAgents,
+      repairedTargetAgents,
+      staleVerificationAgents: new Set()
+    };
+  }
+
+  const staleVerificationAgents = new Set();
+  const tester = byAgent.get("tester");
+  const testerMs = Date.parse(tester?.result_captured_at ?? "");
+  const testerClean = Boolean(
+    tester?.handle
+    && tester?.result_status === "completed"
+    && Number.isFinite(testerMs)
+    && testerMs > latestRepairMs
+    && !agentRequiresRepair(tester)
+  );
+  if (tester && !testerClean) staleVerificationAgents.add("tester");
+
+  const reviewer = byAgent.get("reviewer");
+  const reviewerMs = Date.parse(reviewer?.result_captured_at ?? "");
+  const reviewerClean = Boolean(
+    reviewer?.handle
+    && reviewer?.result_status === "completed"
+    && Number.isFinite(reviewerMs)
+    && reviewerMs > Math.max(latestRepairMs, testerClean ? testerMs : latestRepairMs)
+    && !agentRequiresRepair(reviewer)
+  );
+  if (reviewer && !reviewerClean) staleVerificationAgents.add("reviewer");
+
+  return {
+    exists: true,
+    required: false,
+    targetAgents,
+    pendingTargetAgents,
+    repairedTargetAgents,
+    staleVerificationAgents
   };
 }
 

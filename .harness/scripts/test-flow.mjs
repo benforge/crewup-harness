@@ -284,12 +284,18 @@ try {
     throw new Error(`Tester fixRequired should route to repair, not reviewer:\n${JSON.stringify(repairAfterTester, null, 2)}`);
   }
   assertSameArray(repairAfterTester.repair.targetAgents, ["frontend"], "tester required fixes target frontend repair");
+  runCli(appDir, ["repair-plan", architectureDispatchRunId]);
   runCli(appDir, ["native-state", architectureDispatchRunId, "mark-resumed", "tester"]);
   const nativeAfterTesterResume = JSON.parse(await readFile(path.join(architectureNativeDir, "native-state.json"), "utf8"));
   const resumedTester = nativeAfterTesterResume.agents.find((agent) => agent.agent === "tester");
   if (resumedTester.result_status !== null || resumedTester.result_captured_at !== null || resumedTester.fixRequired !== false) {
     throw new Error(`mark-resumed should clear stale tester result metadata:\n${JSON.stringify(resumedTester, null, 2)}`);
   }
+  const repairFromPlanAfterTesterResume = JSON.parse(runCli(appDir, ["next-agent", architectureDispatchRunId, "--json"]));
+  if (repairFromPlanAfterTesterResume.action !== "repair" || !repairFromPlanAfterTesterResume.repair.sources.includes("repair-plan")) {
+    throw new Error(`Unresolved repair-plan should keep routing to owner repair even if tester metadata was cleared:\n${JSON.stringify(repairFromPlanAfterTesterResume, null, 2)}`);
+  }
+  assertSameArray(repairFromPlanAfterTesterResume.repair.targetAgents, ["frontend"], "repair-plan preserves frontend repair target");
 
   const planOnlyPlan = JSON.parse(await readFile(path.join(planOnlyRunDir, "logs", "native-subagents", "native-subagent-plan.json"), "utf8"));
   assertSameArray(

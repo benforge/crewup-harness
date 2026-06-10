@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.19
+
+- Fixed `next-agent` repair routing so an unresolved `logs/repair-plan.json` keeps reviewer/release blocked even if native-state result metadata was later cleared or reconciled.
+- Added repair-plan timeline handling: owner agents must complete after the repair plan, then tester/reviewer results before the repair are treated as stale and verification is rerun instead of skipping ahead.
+- Added regression coverage for the real-world case where tester requested frontend repair, repair-plan existed, and `next-agent` previously allowed reviewer too early.
+
 ## 0.3.18
 
 - Fixed `native-state reconcile-results` so result JSON files with a matching `agent` field are validated against the current reconciled agent instead of the top-level CLI argument.
