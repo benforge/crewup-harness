@@ -192,6 +192,9 @@ Common handling:
 | Result file exists but was not captured | Run `npx crewup native-state <run-id> reconcile-results`, then `npx crewup report <run-id>` |
 | `next-agent` shows `action: wait` | Wait for the active agent result; this is not a user decision point, so do not ask the user to choose reviewer or repair |
 | `next-agent` shows `action: repair` | Run `repair-plan` first and route tester/reviewer required fixes to owners; do not start reviewer/release |
+| `next-agent` shows `action: done` or `closed` | The run is closed; do not start more agents. Use a continuation run for follow-up work |
+| Result files changed but the run still loops in an old repair-plan | Run `native-state diagnose`, `native-state reconcile-results`, and `next-agent`; if needed, ask the owner for a result-only closeout and rerun `mark-result` |
+| tester/reviewer wrote `status=fix-required` | Invalid status; use `status=completed` plus `fixRequired=true`, then refresh `repair-plan` |
 | Owner artifact is invalid | Resume the owner agent; do not let the main agent rewrite it |
 | tester/reviewer requires fixes | Use `repair-plan` to assign owner implementation agents |
 | Repair rounds exceed `maxRepairRounds` | Mark the current run open `blocked`/`partial`, then ask the user whether to continue, narrow scope, or explicitly close |

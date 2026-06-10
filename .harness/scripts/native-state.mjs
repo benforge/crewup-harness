@@ -92,11 +92,13 @@ switch (command) {
         process.exit(1);
       }
       enforceRequirementsPlanConfirmation({ status: value, resultJsonPath, parsedJson });
+      const latestWriteAt = await latestResultWriteAt([resultPath, resultJsonPath]);
       if (
         agent.result_captured_at
         && agent.result_status === value
         && normalizePath(agent.result_path) === normalizePath(resultPath)
         && normalizePath(agent.result_json_path) === normalizePath(resultJsonPath)
+        && !isResultFileNewerThanCapture({ latestWriteAt, capturedAt: agent.result_captured_at })
       ) {
         console.log(`Result already captured for ${agentId}; no native-state changes needed.`);
         process.exit(0);
@@ -656,8 +658,10 @@ async function reconcileResults(current) {
     const parsedJson = await readResultJson(resultJsonPath, { expectedAgent: agent.agent });
     const status = parsedJson.status;
     if (!["completed", "blocked", "needs_input"].includes(status)) continue;
+    const latestWriteAt = await latestResultWriteAt([resultPath, resultJsonPath]);
+    const hasNewerResultFile = isResultFileNewerThanCapture({ latestWriteAt, capturedAt: agent.result_captured_at });
     const retainedCompleted = status === "completed" && agent.retention?.retain_after_result;
-    const nextStatus = agent.result_captured_at
+    const nextStatus = agent.result_captured_at && !hasNewerResultFile
       ? agent.status
       : retainedCompleted ? agent.retention.retained_status_after_completed_result ?? "waiting_review" : status;
     Object.assign(agent, {
@@ -665,7 +669,7 @@ async function reconcileResults(current) {
       result_status: status,
       result_path: resultPath,
       result_json_path: resultJsonPath,
-      result_captured_at: agent.result_captured_at ?? new Date().toISOString(),
+      result_captured_at: hasNewerResultFile || !agent.result_captured_at ? new Date().toISOString() : agent.result_captured_at,
       summary: parsedJson.summary ?? null,
       fixRequired: parsedJson.fixRequired === true,
       targetAgents: Array.isArray(parsedJson.targetAgents) ? parsedJson.targetAgents : [],
@@ -682,6 +686,25 @@ async function reconcileResults(current) {
   } else {
     console.log(`Reconciled native results: ${changed}`);
   }
+}
+
+async function latestResultWriteAt(paths) {
+  let latest = 0;
+  for (const item of paths.filter(Boolean)) {
+    const target = resolveWorkspacePath(item);
+    if (!existsSync(target)) continue;
+    const info = await stat(target).catch(() => null);
+    if (info) latest = Math.max(latest, info.mtimeMs);
+  }
+  return latest > 0 ? new Date(latest).toISOString() : "";
+}
+
+function isResultFileNewerThanCapture({ latestWriteAt, capturedAt }) {
+  const latest = Date.parse(latestWriteAt ?? "");
+  const captured = Date.parse(capturedAt ?? "");
+  if (!Number.isFinite(latest)) return false;
+  if (!Number.isFinite(captured)) return true;
+  return latest > captured + 1000;
 }
 
 async function syncRunLifecycleAfterReconcile(current) {

@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { sortByExecutionOrder } from "./lib/execution-order.mjs";
 import { implementationPlanSkipReason, isImplementationAgentUnassigned } from "./lib/implementation-plan-scope.mjs";
+import { readRunState } from "./lib/run-lifecycle.mjs";
 
 const root = process.cwd();
 const args = process.argv.slice(2);
@@ -22,7 +23,8 @@ if (!existsSync(statePath)) {
 }
 
 const state = JSON.parse(stripBom(await readFile(statePath, "utf8")));
-const report = buildReport(state);
+const runState = await readRunState(root, runId).catch(() => null);
+const report = finalRunReport(runState) ?? buildReport(state);
 
 if (json) {
   console.log(JSON.stringify(report, null, 2));
@@ -105,6 +107,41 @@ function buildReport(current) {
     completed,
     skipped,
     next: runnable[0]?.agent ?? null
+  };
+}
+
+function finalRunReport(current) {
+  if (!current || (!current.archived && !["done", "canceled", "failed"].includes(current.status))) return null;
+  const done = current.status === "done" && current.outcome === "success" && current.archived;
+  return {
+    runId: current.runId ?? runId,
+    generatedAt: new Date().toISOString(),
+    action: done ? "done" : "closed",
+    userInputRequired: false,
+    repairRequired: false,
+    repair: {
+      required: false,
+      sources: [],
+      targetAgents: [],
+      feedback: [],
+      command: `npx crewup repair-plan ${runId}`
+    },
+    waitFor: [],
+    instruction: done
+      ? "Run is already done and archived. Do not start more agents; create a continuation run for follow-up work."
+      : "Run is closed. Do not start more agents unless the run is explicitly reopened.",
+    runnable: [],
+    active: [],
+    blocked: [],
+    completed: [],
+    skipped: [],
+    next: null,
+    state: {
+      status: current.status,
+      stage: current.stage,
+      outcome: current.outcome,
+      archived: Boolean(current.archived)
+    }
   };
 }
 

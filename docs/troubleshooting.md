@@ -94,6 +94,67 @@ npx crewup native-state <run-id> diagnose
 
 如果诊断提示某个 agent 运行过久但没有捕获结果，应恢复同一个子 agent 做 result-only closeout，不要让主 agent 代写。
 
+## Run 已经成功归档，但 next-agent 还像能继续
+
+以 `npx crewup status <run-id>` 和 `npx crewup gate-check <run-id>` 为准：
+
+```bash
+npx crewup status <run-id>
+npx crewup gate-check <run-id>
+```
+
+如果状态是 `done / success / archived` 且 gate 通过，这个 run 已经收尾。不要继续启动子 agent；后续新需求或归档后发现的问题应创建 continuation run。
+
+CrewUp 0.3.20 起，`next-agent` 对已关闭或已归档 run 会返回 `action=done|closed`、`next=null`、`runnable=[]`，避免主 agent 误继续旧 run。
+
+## result 文件已更新，但流程仍卡在旧 repair-plan
+
+这通常是子 agent 覆盖了自己的 `*.result.json`，但 native-state 捕获时间还是旧的。处理顺序：
+
+```bash
+npx crewup native-state <run-id> diagnose
+npx crewup native-state <run-id> reconcile-results
+npx crewup next-agent <run-id>
+```
+
+如果仍然卡住，要求对应 owner agent 做 result-only closeout，然后重新运行：
+
+```bash
+npx crewup native-state <run-id> mark-result <agent> completed .harness/runs/<run-id>/logs/native-subagents/<agent>.result.md
+npx crewup next-agent <run-id>
+```
+
+不要让主 agent 手写 owner artifact 或业务代码。CrewUp 0.3.20 起，同一路径 result 文件被更新后，`mark-result` / `reconcile-results` 会刷新捕获时间，避免 repair-plan 时间线卡死。
+
+## tester/reviewer 写了不合法 status
+
+合法 result status 只有：
+
+```text
+completed
+blocked
+needs_input
+```
+
+如果 tester/reviewer 发现需要修复，不要写 `fix-required`。正确写法是：
+
+```json
+{
+  "status": "completed",
+  "fixRequired": true,
+  "targetAgents": ["frontend"],
+  "requiredFixes": []
+}
+```
+
+然后运行：
+
+```bash
+npx crewup native-state <run-id> mark-result tester completed
+npx crewup repair-plan <run-id> --refresh
+npx crewup next-agent <run-id>
+```
+
 ## 主 agent 修改了业务代码
 
 正式 CrewUp run 中这不应该发生。处理方式：

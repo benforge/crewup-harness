@@ -195,6 +195,10 @@ try {
   assertExists(path.join(appDir, ".harness", "reports", `${counterRunId}.md`), "global canceled run report");
   const canceledStatusOutput = runCli(appDir, ["status", counterRunId]);
   assertIncludes(canceledStatusOutput, "| Status | canceled |", "canceled status card");
+  const canceledNextAgent = JSON.parse(runCli(appDir, ["next-agent", counterRunId, "--json"]));
+  if (canceledNextAgent.next !== null || canceledNextAgent.runnable.length !== 0 || !["closed", "done"].includes(canceledNextAgent.action)) {
+    throw new Error(`Closed run must not expose runnable agents:\n${JSON.stringify(canceledNextAgent, null, 2)}`);
+  }
   const canceledReport = await readFile(path.join(appDir, ".harness", "runs", counterRunId, "logs", "run-report.md"), "utf8");
   assertIncludes(canceledReport, "| deliveryStatus | closed |", "archived run report is closed even without archive commit");
 
@@ -296,6 +300,15 @@ try {
     throw new Error(`Unresolved repair-plan should keep routing to owner repair even if tester metadata was cleared:\n${JSON.stringify(repairFromPlanAfterTesterResume, null, 2)}`);
   }
   assertSameArray(repairFromPlanAfterTesterResume.repair.targetAgents, ["frontend"], "repair-plan preserves frontend repair target");
+  const frontendBeforeRecapture = JSON.parse(await readFile(path.join(architectureNativeDir, "native-state.json"), "utf8")).agents.find((agent) => agent.agent === "frontend");
+  await sleep(1100);
+  await writeFile(path.join(architectureNativeDir, "frontend.result.md"), "# Frontend Result\n\n## Status\n\ncompleted\n\nRepair result refreshed.\n", "utf8");
+  await writeFile(path.join(architectureNativeDir, "frontend.result.json"), `${JSON.stringify({ agent: "frontend", status: "completed", summary: "frontend repair result refreshed" }, null, 2)}\n`, "utf8");
+  runCli(appDir, ["native-state", architectureDispatchRunId, "mark-result", "frontend", "completed"]);
+  const frontendAfterRecapture = JSON.parse(await readFile(path.join(architectureNativeDir, "native-state.json"), "utf8")).agents.find((agent) => agent.agent === "frontend");
+  if (Date.parse(frontendAfterRecapture.result_captured_at) <= Date.parse(frontendBeforeRecapture.result_captured_at)) {
+    throw new Error(`mark-result should refresh captured_at when the same result file is rewritten:\n${JSON.stringify({ before: frontendBeforeRecapture, after: frontendAfterRecapture }, null, 2)}`);
+  }
 
   const planOnlyPlan = JSON.parse(await readFile(path.join(planOnlyRunDir, "logs", "native-subagents", "native-subagent-plan.json"), "utf8"));
   assertSameArray(
@@ -402,7 +415,15 @@ try {
       }
     ],
     targetAgents: ["frontend", "devops"],
-    blockers: []
+    blockers: [],
+    blockingIssues: [
+      {
+        owner: "frontend",
+        severity: "high",
+        summary: "Protected route runtime remains blocked.",
+        details: "The app loops during auth validation instead of entering the protected shell."
+      }
+    ]
   }, null, 2)}\n`, "utf8");
   const repairPlanOutput = runCli(appDir, ["repair-plan", planOnlyRunId]);
   assertIncludes(repairPlanOutput, "Repair plan generated", "repair-plan output");
@@ -414,6 +435,8 @@ try {
   const frontendRepairTask = await readFile(path.join(planOnlyRunDir, "tasks", "repairs", "frontend.repair.task.md"), "utf8");
   assertIncludes(frontendRepairTask, "Restore the Admin shell entry so the build can run.", "repair-plan supports description-only fixes");
   assertIncludes(frontendRepairTask, "AC-02", "repair-plan supports relatedAcceptanceCriteria");
+  assertIncludes(frontendRepairTask, "Protected route runtime remains blocked.", "repair-plan renders object blocking issue summary");
+  assertNotIncludes(frontendRepairTask, "[object Object]", "repair-plan does not render object blocking issues as [object Object]");
   const repairRefreshOutput = runCli(appDir, ["repair-plan", planOnlyRunId, "--refresh"]);
   assertIncludes(repairRefreshOutput, "refresh: true", "repair-plan refresh output");
   const repairLoopAfterRefresh = JSON.parse(await readFile(path.join(planOnlyRunDir, "logs", "repair-loop.json"), "utf8"));
@@ -694,6 +717,10 @@ function assertSameArray(actual, expected, label) {
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
     throw new Error(`${label} order mismatch.\nExpected: ${expected.join(" -> ")}\nActual: ${actual.join(" -> ")}`);
   }
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function listTaskNames(dir) {

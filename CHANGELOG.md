@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.20
+
+- Hardened `next-agent` closeout behavior: done, canceled, failed, or archived runs now return `action=done|closed`, `next=null`, and no runnable agents.
+- Hardened native result recapture: `native-state mark-result` and `reconcile-results` now refresh `result_captured_at` when an existing result file path is rewritten, preventing stale repair-plan timeline loops.
+- Improved `repair-plan` normalization for object-shaped `blockingIssues`, `owner`, and `agent` fields so repair tasks remain readable and do not render `[object Object]`.
+- Added regression coverage for archived-run dispatch, same-path result recapture, and object-shaped repair feedback.
+- Expanded troubleshooting/runbook docs for stale repair loops, invalid tester/reviewer statuses, and closed-run next-agent behavior.
+
 ## 0.3.19
 
 - Fixed `next-agent` repair routing so an unresolved `logs/repair-plan.json` keeps reviewer/release blocked even if native-state result metadata was later cleared or reconciled.

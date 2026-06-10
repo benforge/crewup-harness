@@ -159,6 +159,9 @@ npx crewup audit <run-id>
 | 结果文件存在但没登记 | 先运行 `npx crewup native-state <run-id> reconcile-results`，再运行 `npx crewup report <run-id>` |
 | `next-agent` 显示 `action: wait` | 等 active agent 写入 result；这不是用户决策点，不要询问用户选择 reviewer 或 repair |
 | `next-agent` 显示 `action: repair` | 先执行 `repair-plan`，把 tester/reviewer 的 required fixes 回派 owner；不要启动 reviewer/release |
+| `next-agent` 显示 `action: done` 或 `closed` | run 已收尾或关闭；不要继续启动 agent，后续工作走 continuation run |
+| result 文件已更新但仍卡旧 repair-plan | 运行 `native-state diagnose`、`native-state reconcile-results`、`next-agent`；必要时让 owner 做 result-only closeout 后重新 `mark-result` |
+| tester/reviewer 写了 `status=fix-required` | 这是非法 status；改为 `status=completed` + `fixRequired=true`，再刷新 `repair-plan` |
 | 子 agent 运行太久没捕获结果 | 要求同一个子 agent 做 result-only closeout，不让主 agent 代写 |
 | owner artifact 不合格 | 恢复 owner agent 修复，不让主 agent 代写 |
 | tester/reviewer 要求修复 | `repair-plan` 分配给 owner implementation agent |

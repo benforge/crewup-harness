@@ -96,7 +96,7 @@ if (nextRound > maxRepairRounds) {
 function normalizeFixes(sourceAgent, result) {
   const fixes = [];
   for (const item of result.requiredFixes ?? []) {
-    const targetAgents = normalizeTargets(item.targetAgents ?? result.targetAgents);
+    const targetAgents = normalizeTargets(item.targetAgents ?? item.owner ?? item.agent ?? result.targetAgents);
     if (targetAgents.length === 0) continue;
     fixes.push({
       id: item.id ?? `${sourceAgent}-${fixes.length + 1}`,
@@ -105,24 +105,25 @@ function normalizeFixes(sourceAgent, result) {
       severity: item.severity ?? "medium",
       scope: item.scope ?? "",
       acceptanceCriteria: item.acceptanceCriteria ?? item.relatedAcceptanceCriteria ?? [],
-      summary: item.summary ?? item.description ?? item.requiredChange ?? String(item),
-      evidence: item.evidence ?? "",
-      requiredChange: item.requiredChange ?? item.description ?? ""
+      summary: textFromValue(item.summary ?? item.description ?? item.requiredChange ?? item.details ?? item),
+      evidence: textFromValue(item.evidence ?? ""),
+      requiredChange: textFromValue(item.requiredChange ?? item.description ?? item.details ?? "")
     });
   }
   for (const issue of result.blockingIssues ?? []) {
-    const targetAgents = normalizeTargets(result.targetAgents);
+    const targetAgents = normalizeTargets(issue.targetAgents ?? issue.owner ?? issue.agent ?? result.targetAgents);
     if (targetAgents.length === 0) continue;
+    const summary = textFromValue(issue.summary ?? issue.description ?? issue.details ?? issue);
     fixes.push({
       id: `${sourceAgent}-blocking-${fixes.length + 1}`,
       sourceAgent,
       targetAgents,
       severity: "high",
-      scope: "",
+      scope: issue.scope ?? "",
       acceptanceCriteria: [],
-      summary: String(issue),
-      evidence: "",
-      requiredChange: "Resolve the blocking issue and rerun verification."
+      summary,
+      evidence: textFromValue(issue.evidence ?? ""),
+      requiredChange: textFromValue(issue.requiredChange ?? issue.description ?? issue.details ?? "Resolve the blocking issue and rerun verification.")
     });
   }
   return fixes;
@@ -130,6 +131,30 @@ function normalizeFixes(sourceAgent, result) {
 
 function normalizeTargets(value) {
   return [...new Set((Array.isArray(value) ? value : [value]).filter(Boolean).map((item) => String(item).trim()).filter(Boolean))];
+}
+
+function textFromValue(value) {
+  if (value == null) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (Array.isArray(value)) return value.map(textFromValue).filter(Boolean).join("; ");
+  if (typeof value === "object") {
+    const preferred = [
+      value.summary,
+      value.description,
+      value.details,
+      value.message,
+      value.requiredChange,
+      value.impact
+    ].map(textFromValue).find(Boolean);
+    if (preferred) return preferred;
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return String(value);
+    }
+  }
+  return String(value);
 }
 
 function renderSummary(summary) {
