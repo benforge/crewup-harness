@@ -222,6 +222,7 @@ Tool fallback logging does not authorize the main agent to perform the owning ag
 - Keep only state, key files, test command/result, blockers, target repair agents, and next step.
 - Use run log paths for detail instead of duplicating long content.
 - Prefer `npx crewup status <run-id>` and `.harness/runs/<run-id>/RUN_STATUS.md` as the user-facing source of truth for current state.
+- When the user asks whether a run is done, why it is stuck, what went wrong, or what they should do next, run `npx crewup explain <run-id>` first and summarize that output. Do not infer the answer from chat memory.
 - Status summaries should use this compact shape: current run, status, stage, owner, completed, waiting/blocker, next command, done yes/no.
 
 ## User-Facing Reporting
@@ -234,6 +235,7 @@ Status: <status> / <stage>
 Verdict: <SUCCESS|PARTIAL|BLOCKED|FAILED|CANCELED|IN_PROGRESS>
 Owner: <current owner>
 Next: <next command or runnable agent>
+Why: <one-line explanation from crewup explain>
 Status card: .harness/runs/<run-id>/RUN_STATUS.md
 Details: .harness/runs/<run-id>/logs/run-report.md
 ```

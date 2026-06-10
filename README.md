@@ -161,6 +161,7 @@ npx crewup run "使用 CrewUp 做一个最小 counter web app，跑完整 workfl
 | `npx crewup run --dry-run "..."` | 预览 run 命名、profile 和 agent 路由 |
 | `npx crewup status` / `npx crewup runs` | 列出所有 run，查找 runId |
 | `npx crewup status <run-id>` | 查看某个 run 的状态卡 |
+| `npx crewup explain <run-id>` | 解释 run 为什么卡住、是否完成、下一步只该做什么 |
 | `npx crewup next-agent <run-id>` | 查看当前真正可启动的子 agent |
 | `npx crewup clarify <run-id> --interactive` | 在终端中回答需求澄清问题 |
 | `npx crewup native-state <run-id> diagnose` | 诊断子 agent handle、result 和状态差异 |
@@ -212,6 +213,7 @@ CrewUp 支持这些结局：
 CrewUp 通过几层机制保证流程稳定：
 
 - `next-agent` 是唯一调度权威，防止 requirements/architect/implementation 提前并行。
+- `explain` 是排查入口，统一回答 run 是否完成、为什么卡住、下一步做什么。
 - `native-state` 要求真实 handle 和 result 文件，防止主 agent 伪造子 agent 完成。
 - `artifact provenance` 检查 owner artifact 是否由正确 agent 产出。
 - `sealed core` 检查用户项目里的 `.harness` 核心是否被业务 run 修改。

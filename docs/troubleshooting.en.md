@@ -2,32 +2,40 @@
 
 [中文](./troubleshooting.md) | English
 
-## Garbled Multilingual Text In The Terminal
+This guide answers one practical question: when a CrewUp run looks stuck, confusing, or incomplete, where should you look and what is the next safe action?
 
-CrewUp reads and writes text files as UTF-8. If Chinese or other multilingual text appears garbled in PowerShell, cmd, remote terminals, or older terminal emulators, the issue is usually terminal rendering, not file corruption.
+## Start With explain
 
-Typical symptom: Chinese text turns into unreadable mixed characters, symbols, or question marks in the terminal, while the same file looks correct in a UTF-8-aware editor.
-
-## Check Whether The File Is Actually Valid
-
-Read the file explicitly as UTF-8 with Node:
+If you do not know whether a run is complete, blocked, waiting for the user, waiting for a subagent, or already closed, run:
 
 ```bash
-node -e "console.log(require('fs').readFileSync(process.argv[1], 'utf8'))" .harness/runs/<run-id>/artifacts/requirement-plan.md
+npx crewup explain <run-id>
+```
+
+It reports:
+
+- verdict: `SUCCESS`, `IN_PROGRESS`, `WAITING_USER`, `WAITING_AGENT`, `NEEDS_REPAIR`, `BLOCKED`, `PARTIAL`, `FAILED`, `CANCELED`
+- status, stage, outcome, and archive state
+- whether another agent is authorized
+- whether owner repair is required
+- gate/native-state issues
+- the next safe action
+
+When the main agent answers “is this run done / why is it stuck / what should I do next”, it should run this command first instead of relying on chat memory.
+
+## Garbled Multilingual Text
+
+CrewUp reads and writes files as UTF-8. If Chinese or other multilingual text appears garbled in PowerShell, cmd, remote terminals, or older terminal emulators, the issue is usually terminal rendering, not file corruption.
+
+Verify the file with Node:
+
+```bash
+node -e "console.log(require('fs').readFileSync(process.argv[1], 'utf8'))" .harness/runs/<run-id>/RUN_STATUS.md
 ```
 
 If Node renders it correctly while PowerShell/cmd does not, the problem is terminal rendering.
 
-## Windows Recommendation
-
-Run:
-
-```bash
-npx crewup doctor
-npx crewup doctor --encoding-help
-```
-
-One-time UTF-8 setup for the current terminal:
+Windows one-time setup:
 
 ```powershell
 chcp 65001
@@ -36,96 +44,47 @@ chcp 65001
 $OutputEncoding = [System.Text.UTF8Encoding]::new()
 ```
 
-For a persistent PowerShell profile:
-
-```powershell
-notepad $PROFILE
-```
-
-```powershell
-chcp 65001 > $null
-[Console]::InputEncoding = [System.Text.UTF8Encoding]::new()
-[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new()
-$OutputEncoding = [System.Text.UTF8Encoding]::new()
-```
-
-PowerShell 7 + Windows Terminal is recommended.
-
-## macOS / Linux Recommendation
-
-Most modern terminals are already UTF-8. Check with:
+You can also run:
 
 ```bash
-locale
+npx crewup doctor --encoding-help
+npx crewup doctor --encoding-profile
 ```
 
-If your locale is not UTF-8, set it in your shell profile:
-
-```bash
-export LANG=en_US.UTF-8
-export LC_ALL=en_US.UTF-8
-```
-
-## CrewUp's Policy
-
-- Files and artifacts are written as UTF-8.
-- Machine contracts, JSON keys, status values, commands, and paths stay in English.
-- CLI output stays short and path-based when possible.
-- Long multilingual content should live in Markdown files and be opened in an editor.
-- `doctor` reports terminal encoding issues, but does not automatically modify the user's system profile.
+Windows Terminal + PowerShell 7 is recommended. macOS/Linux terminals are usually UTF-8 by default; check with `locale`.
 
 ## Subagent Orchestration Stalls
 
 Start with:
 
 ```bash
+npx crewup explain <run-id>
 npx crewup next-agent <run-id>
 npx crewup native-state <run-id> diagnose
 ```
 
 Common causes:
 
-- the agent is not currently runnable
 - an upstream agent has no real handle/result
-- result files exist but were not captured with `mark-result`
-- a bridge/manual agent did not write result JSON
-- API keys or external agent login state are missing
+- result files exist but were not captured with `mark-result` or `reconcile-results`
+- an agent is still running and `next-agent` returns `action=wait`
+- tester/reviewer requires fixes and `next-agent` returns `action=repair`
+- bridge/manual mode did not write result JSON
+- API keys or external agent login state are unavailable
 
-If diagnostics say an agent has been running too long without a captured result, resume that same subagent for a result-only closeout. Do not let the main agent write owner artifacts or business code.
+If diagnostics say an agent ran too long without a captured result, resume that same subagent for a result-only closeout. Do not let the main agent write owner artifacts or business code.
 
-## The Run Is Archived But next-agent Looks Runnable
+## tester/reviewer Requires Repair
 
-Use `status` and `gate-check` as the source of truth:
+tester/reviewer findings must route back to owner agents. The main agent should not patch files directly.
 
-```bash
-npx crewup status <run-id>
-npx crewup gate-check <run-id>
-```
-
-If the run is `done / success / archived` and the gate passes, the run is closed. Do not start more agents; create a continuation run for follow-up work or bugs found after archive.
-
-Starting in CrewUp 0.3.20, `next-agent` returns `action=done|closed`, `next=null`, and `runnable=[]` for closed or archived runs.
-
-## Result Files Changed But The Run Still Loops In repair-plan
-
-This usually means a subagent overwrote its `*.result.json`, but native-state still has the older capture timestamp. Use:
+Recommended sequence:
 
 ```bash
-npx crewup native-state <run-id> diagnose
 npx crewup native-state <run-id> reconcile-results
+npx crewup repair-plan <run-id> --refresh
 npx crewup next-agent <run-id>
 ```
-
-If it still stalls, ask the owning subagent for a result-only closeout and then recapture:
-
-```bash
-npx crewup native-state <run-id> mark-result <agent> completed .harness/runs/<run-id>/logs/native-subagents/<agent>.result.md
-npx crewup next-agent <run-id>
-```
-
-Starting in CrewUp 0.3.20, `mark-result` and `reconcile-results` refresh the capture timestamp when the same result file path has newer contents, preventing stale repair-plan timeline loops.
-
-## tester/reviewer Wrote An Invalid status
 
 Valid result statuses are only:
 
@@ -135,7 +94,7 @@ blocked
 needs_input
 ```
 
-If tester/reviewer found required fixes, do not write `fix-required`. Use:
+When tester/reviewer has required fixes, use:
 
 ```json
 {
@@ -146,10 +105,62 @@ If tester/reviewer found required fixes, do not write `fix-required`. Use:
 }
 ```
 
-Then run:
+Do not write `status=fix-required`.
+
+## Closed Runs Should Not Continue
+
+If `crewup explain <run-id>` or `next-agent` shows:
+
+```text
+action=done
+action=closed
+```
+
+the run is complete, canceled, failed, or archive-closed. Do not start more agents.
+
+For UI, preview, deployment, login, or functional issues found later, create a continuation run:
 
 ```bash
-npx crewup native-state <run-id> mark-result tester completed
-npx crewup repair-plan <run-id> --refresh
+npx crewup continue <run-id> "Fix the issue found after archive"
+```
+
+## blocked Does Not Mean Finished
+
+A blocker should keep the run open by default:
+
+```bash
+npx crewup explain <run-id>
+npx crewup native-state <run-id> reconcile-results
 npx crewup next-agent <run-id>
 ```
+
+Only close a non-success run when the user explicitly abandons it, accepts partial completion, or wants to preserve a failed state:
+
+```bash
+npx crewup archive <run-id> --outcome=blocked --reason="..." --close
+npx crewup archive <run-id> --outcome=partial --reason="..." --close
+npx crewup cancel <run-id> --reason="scope changed"
+```
+
+## .harness Was Modified In A User Project
+
+Business runs should not modify the CrewUp core:
+
+```text
+.harness/scripts/**
+.harness/config/**
+.harness/orchestrator/**
+.harness/agents/**
+.harness/templates/**
+.harness/contracts/**
+.harness/rules/**
+```
+
+If `npx crewup check` reports sealed core drift:
+
+```bash
+npx crewup install --force
+npx crewup check
+```
+
+If this is a CrewUp product bug, fix it in the CrewUp source repository, test it, and publish an upgrade. Do not patch `.harness` inside a user's business run.

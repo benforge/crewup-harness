@@ -23,6 +23,8 @@ const scriptByCommand = {
   continue: "continue-run.mjs",
   status: "status.mjs",
   runs: "status.mjs",
+  explain: "flow-health.mjs",
+  health: "flow-health.mjs",
   "prepare-run": "prepare-run.mjs",
   next: "next.mjs",
   report: "report.mjs",
@@ -262,6 +264,7 @@ Usage:
   crewup run "use CrewUp to ..."
   crewup status [run-id]
   crewup runs
+  crewup explain <run-id>
   crewup next-agent <run-id>
   crewup clarify <run-id>
   crewup native-state <run-id> diagnose
@@ -290,6 +293,7 @@ Core workflow:
   run              Create and prepare a formal run; formal runs are the core CrewUp work unit
   status           Show one run status card, or list runs when no run id is provided
   runs             Alias for status list
+  explain          Explain where a run is, why it is stuck/open/done, and the next safe action
   next-agent       Show currently runnable subagents; implementation agents are gated by architecture plan assignments
   clarify          Render requirements-plan clarification questions for user confirmation
   native-state     Register, reconcile, and diagnose native subagent handles and results

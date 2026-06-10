@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.21
+
+- Added `crewup explain <run-id>` / `crewup health <run-id>` as the single diagnostic entry point for confusing, stuck, open, or closed runs.
+- Updated main-agent rules so status/completion/blocker answers should be based on `crewup explain` instead of chat memory.
+- Hardened run-health wording for success, blocked, partial, failed, canceled, and closed states so archived runs do not appear runnable.
+- Restored clean Chinese/English run status wording in `RUN_STATUS.md` generation and rewrote runbook/troubleshooting docs without mojibake.
+- Added flow coverage for `crewup explain` on active and closed runs.
+
 ## 0.3.20
 
 - Hardened `next-agent` closeout behavior: done, canceled, failed, or archived runs now return `action=done|closed`, `next=null`, and no runnable agents.

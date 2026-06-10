@@ -170,6 +170,11 @@ try {
   assertIncludes(counterStatusOutput, "**命令:** `npx crewup next-agent", "status card next command");
   assertIncludes(counterStatusOutput, `| Run | ${counterRunId} |`, "single run status id");
   assertExists(path.join(appDir, ".harness", "runs", counterRunId, "RUN_STATUS.md"), "run status markdown");
+  const counterExplainOutput = runCli(appDir, ["explain", counterRunId]);
+  assertIncludes(counterExplainOutput, "# CrewUp Run Health", "explain heading");
+  assertIncludes(counterExplainOutput, "## What This Means", "explain meaning section");
+  assertIncludes(counterExplainOutput, "## Next Steps", "explain next steps section");
+  assertIncludes(counterExplainOutput, `npx crewup next-agent ${counterRunId}`, "explain includes next command for active run");
   const runsListOutput = runCli(appDir, ["runs"]);
   assertIncludes(runsListOutput, "# CrewUp Runs", "runs list heading");
   assertIncludes(runsListOutput, counterRunId, "runs list includes counter run");
@@ -199,6 +204,9 @@ try {
   if (canceledNextAgent.next !== null || canceledNextAgent.runnable.length !== 0 || !["closed", "done"].includes(canceledNextAgent.action)) {
     throw new Error(`Closed run must not expose runnable agents:\n${JSON.stringify(canceledNextAgent, null, 2)}`);
   }
+  const canceledExplainOutput = runCli(appDir, ["explain", counterRunId]);
+  assertIncludes(canceledExplainOutput, "Verdict: `", "explain renders closed verdict");
+  assertIncludes(canceledExplainOutput, "Do not start more agents", "explain prevents closed run continuation");
   const canceledReport = await readFile(path.join(appDir, ".harness", "runs", counterRunId, "logs", "run-report.md"), "utf8");
   assertIncludes(canceledReport, "| deliveryStatus | closed |", "archived run report is closed even without archive commit");
 

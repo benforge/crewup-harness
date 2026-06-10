@@ -2,32 +2,40 @@
 
 中文 | [English](./troubleshooting.en.md)
 
-## 终端中文乱码
+这份文档只回答一件事：当一个 CrewUp run 看起来卡住、混乱、无法判断是否完成时，应该看哪里、跑什么命令、下一步怎么安全处理。
 
-CrewUp 文件统一按 UTF-8 读写。如果你在 PowerShell、cmd、某些远程终端或旧终端里看到中文变成乱码，通常是终端显示编码问题，不代表文件损坏。
+## 先跑 explain
 
-典型现象：中文在终端里变成不可读字符，但用 VS Code、Notepad++ 或其他 UTF-8 编辑器打开文件是正常的。
-
-## 先判断文件是否真的损坏
-
-用 Node 按 UTF-8 读取：
+如果你不知道当前 run 到底是成功、阻塞、等待用户、等待子 agent，还是已经关闭，先运行：
 
 ```bash
-node -e "console.log(require('fs').readFileSync(process.argv[1], 'utf8'))" .harness/runs/<run-id>/artifacts/requirement-plan.md
+npx crewup explain <run-id>
 ```
 
-如果 Node 输出正常，而 PowerShell/cmd 输出乱码，问题在终端显示层。
+它会输出：
 
-## Windows 推荐设置
+- 当前结论：`SUCCESS`、`IN_PROGRESS`、`WAITING_USER`、`WAITING_AGENT`、`NEEDS_REPAIR`、`BLOCKED`、`PARTIAL`、`FAILED`、`CANCELED`
+- 当前状态：status、stage、outcome、archived
+- 是否还有可调度 agent
+- 是否需要 owner agent 修复
+- gate/native-state 诊断问题
+- 下一步只应该做什么
 
-先运行：
+主 agent 回答“这个 run 完成了吗 / 为什么卡住 / 下一步做什么”时，也应该先跑这个命令，不能只靠聊天记忆判断。
+
+## 中文乱码
+
+CrewUp 文件统一用 UTF-8 读写。若你在 PowerShell、cmd、远程终端或旧终端里看到中文乱码，通常是终端显示编码问题，不一定是文件损坏。
+
+先用 Node 按 UTF-8 读取验证：
 
 ```bash
-npx crewup doctor
-npx crewup doctor --encoding-help
+node -e "console.log(require('fs').readFileSync(process.argv[1], 'utf8'))" .harness/runs/<run-id>/RUN_STATUS.md
 ```
 
-当前终端临时切换 UTF-8：
+如果 Node 输出正常，但 PowerShell/cmd 输出乱码，问题在终端显示层。
+
+Windows 临时设置：
 
 ```powershell
 chcp 65001
@@ -36,97 +44,47 @@ chcp 65001
 $OutputEncoding = [System.Text.UTF8Encoding]::new()
 ```
 
-长期生效可以把以下内容放进 PowerShell profile：
-
-```powershell
-notepad $PROFILE
-```
-
-```powershell
-chcp 65001 > $null
-[Console]::InputEncoding = [System.Text.UTF8Encoding]::new()
-[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new()
-$OutputEncoding = [System.Text.UTF8Encoding]::new()
-```
-
-推荐使用 PowerShell 7 + Windows Terminal。
-
-## macOS / Linux 推荐设置
-
-大多数现代终端默认就是 UTF-8。检查：
+也可以查看内置建议：
 
 ```bash
-locale
+npx crewup doctor --encoding-help
+npx crewup doctor --encoding-profile
 ```
 
-如果不是 UTF-8，在 shell profile 中设置：
-
-```bash
-export LANG=en_US.UTF-8
-export LC_ALL=en_US.UTF-8
-```
-
-## CrewUp 的处理原则
-
-- 文件和 artifacts 始终按 UTF-8 写入。
-- 机器契约、JSON key、状态值、命令和路径保持英文。
-- CLI 尽量输出短状态和文件路径。
-- 大段中文内容优先写入 Markdown 文件，建议用编辑器打开。
-- `doctor` 负责提示终端编码问题，但不会自动修改用户系统配置。
+推荐 Windows Terminal + PowerShell 7。macOS/Linux 通常默认就是 UTF-8，可用 `locale` 检查。
 
 ## 子 agent 没有继续
 
-先看：
+先运行：
 
 ```bash
+npx crewup explain <run-id>
 npx crewup next-agent <run-id>
 npx crewup native-state <run-id> diagnose
 ```
 
 常见原因：
 
-- 当前 agent 不是 runnable。
-- 上游 agent 没有真实 handle/result。
-- result 文件存在但没有 `mark-result`。
-- native 工具不可用。
-- bridge/manual 模式没有写回 result JSON。
-- API key 或外部 agent 登录状态未配置。
+- 上游 agent 没有真实 handle/result
+- result 文件存在，但没有被 `mark-result` 或 `reconcile-results` 登记
+- 当前有 agent 正在运行，`next-agent` 返回 `action=wait`
+- tester/reviewer 要求修复，`next-agent` 返回 `action=repair`
+- bridge/manual 模式没有写回 result JSON
+- API key 或外部 agent 登录状态不可用
 
-如果诊断提示某个 agent 运行过久但没有捕获结果，应恢复同一个子 agent 做 result-only closeout，不要让主 agent 代写。
+如果诊断提示某个 agent 运行太久但没有结果，应该恢复同一个子 agent 做 result-only closeout。不要让主 agent 代写 owner artifact 或业务代码。
 
-## Run 已经成功归档，但 next-agent 还像能继续
+## tester/reviewer 要求修复
 
-以 `npx crewup status <run-id>` 和 `npx crewup gate-check <run-id>` 为准：
+tester/reviewer 发现问题时，正确路径是回到 owner agent，不是让主 agent 直接改文件。
 
-```bash
-npx crewup status <run-id>
-npx crewup gate-check <run-id>
-```
-
-如果状态是 `done / success / archived` 且 gate 通过，这个 run 已经收尾。不要继续启动子 agent；后续新需求或归档后发现的问题应创建 continuation run。
-
-CrewUp 0.3.20 起，`next-agent` 对已关闭或已归档 run 会返回 `action=done|closed`、`next=null`、`runnable=[]`，避免主 agent 误继续旧 run。
-
-## result 文件已更新，但流程仍卡在旧 repair-plan
-
-这通常是子 agent 覆盖了自己的 `*.result.json`，但 native-state 捕获时间还是旧的。处理顺序：
+推荐顺序：
 
 ```bash
-npx crewup native-state <run-id> diagnose
 npx crewup native-state <run-id> reconcile-results
+npx crewup repair-plan <run-id> --refresh
 npx crewup next-agent <run-id>
 ```
-
-如果仍然卡住，要求对应 owner agent 做 result-only closeout，然后重新运行：
-
-```bash
-npx crewup native-state <run-id> mark-result <agent> completed .harness/runs/<run-id>/logs/native-subagents/<agent>.result.md
-npx crewup next-agent <run-id>
-```
-
-不要让主 agent 手写 owner artifact 或业务代码。CrewUp 0.3.20 起，同一路径 result 文件被更新后，`mark-result` / `reconcile-results` 会刷新捕获时间，避免 repair-plan 时间线卡死。
-
-## tester/reviewer 写了不合法 status
 
 合法 result status 只有：
 
@@ -136,7 +94,7 @@ blocked
 needs_input
 ```
 
-如果 tester/reviewer 发现需要修复，不要写 `fix-required`。正确写法是：
+如果 tester/reviewer 有必修项，应使用：
 
 ```json
 {
@@ -147,24 +105,44 @@ needs_input
 }
 ```
 
-然后运行：
+不要写 `status=fix-required`。
+
+## 已关闭 run 不应继续
+
+如果 `crewup explain <run-id>` 或 `next-agent` 显示：
+
+```text
+action=done
+action=closed
+```
+
+说明这个 run 已经完成、取消、失败或归档关闭。不要继续启动子 agent。
+
+后续发现 UI、预览、部署、登录或功能问题时，应创建 continuation run：
 
 ```bash
-npx crewup native-state <run-id> mark-result tester completed
-npx crewup repair-plan <run-id> --refresh
+npx crewup continue <run-id> "修复归档后发现的问题"
+```
+
+## blocked 不等于结束
+
+阻塞默认应该保持 run open，并继续在当前 run 内修复：
+
+```bash
+npx crewup explain <run-id>
+npx crewup native-state <run-id> reconcile-results
 npx crewup next-agent <run-id>
 ```
 
-## 主 agent 修改了业务代码
+只有用户明确表示放弃、关闭、接受部分结果或保存失败现场时，才关闭非成功 run：
 
-正式 CrewUp run 中这不应该发生。处理方式：
+```bash
+npx crewup archive <run-id> --outcome=blocked --reason="..." --close
+npx crewup archive <run-id> --outcome=partial --reason="..." --close
+npx crewup cancel <run-id> --reason="scope changed"
+```
 
-1. 运行 `npx crewup audit <run-id>`。
-2. 运行 `npx crewup gate-check <run-id>`。
-3. 如果 tester/reviewer 有 required fixes，使用 `repair-plan` 分配回 owner agent。
-4. 不要让主 agent 继续直接改业务文件。
-
-## 用户项目里的 `.harness` 被修改
+## 用户项目里的 .harness 被修改
 
 业务 run 不应该修改 harness core：
 
@@ -182,6 +160,7 @@ npx crewup next-agent <run-id>
 
 ```bash
 npx crewup install --force
+npx crewup check
 ```
 
-如果这是 CrewUp 产品自身 bug，应回到 CrewUp 源码仓库修复、测试、发版，而不是在用户项目 run 中顺手修 core。
+如果这是 CrewUp 产品自身 bug，应回到 CrewUp 源码仓库修复、测试、发版，而不是在用户项目的业务 run 里顺手修 `.harness`。

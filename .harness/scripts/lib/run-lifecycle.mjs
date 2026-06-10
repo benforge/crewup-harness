@@ -277,25 +277,23 @@ function verdictForState(state = {}, locale = "en", { contract = null } = {}) {
   const archived = Boolean(state.archived);
   if (status === "done" && outcome === "success" && archived) {
     return zh
-      ? { label: "`SUCCESS`", description: "CrewUp 迭代已完整成功并归档" }
+      ? { label: "`SUCCESS`", description: "CrewUp 迭代已成功完成并归档" }
       : { label: "`SUCCESS`", description: "CrewUp iteration completed successfully and is archived" };
   }
   if (status === "done" && outcome === "success") {
     return zh
-      ? { label: "`READY_TO_ARCHIVE`", description: "已完成但还没归档收口" }
+      ? { label: "`READY_TO_ARCHIVE`", description: "已完成，但归档收口仍待执行" }
       : { label: "`READY_TO_ARCHIVE`", description: "completed but archive closeout is still pending" };
   }
   if (status === "partial" || outcome === "partial") {
     const reason = contract
-      ? (zh ? "对照完成契约只达到部分证据或存在流程外变更" : "the completion contract is only partially satisfied or work happened outside the workflow")
-      : (zh ? "部分完成或存在绕开严格流程的变更，不算完整成功迭代" : "partially complete or contains work outside the strict workflow; not a successful iteration");
-    return zh
-      ? { label: "`PARTIAL`", description: reason }
-      : { label: "`PARTIAL`", description: reason };
+      ? (zh ? "完成契约只被部分满足，或存在工作流外变更" : "the completion contract is only partially satisfied or work happened outside the workflow")
+      : (zh ? "部分完成，或存在绕开严格工作流的变更，不算完整成功迭代" : "partially complete or contains work outside the strict workflow; not a successful iteration");
+    return { label: "`PARTIAL`", description: reason };
   }
   if (status === "blocked" || outcome === "blocked") {
     return zh
-      ? { label: "`BLOCKED`", description: "当前被阻塞，需要解决阻塞或基于本 run 继续" }
+      ? { label: "`BLOCKED`", description: "当前被阻塞，需要先解决阻塞或基于本 run 继续" }
       : { label: "`BLOCKED`", description: "blocked; resolve the blocker or continue from this run" };
   }
   if (status === "failed" || outcome === "failed") {
@@ -323,7 +321,7 @@ function decisionLinesFor({ state, blockers, nextCommand, locale = "en" }) {
   if (state.nextAction?.type === "wait") {
     return zh
       ? [
-          "- 当前已有子 agent 正在运行，暂无新的 runnable agent。",
+          "- 当前已有子 agent 正在运行，暂时没有新的 runnable agent。",
           "- 等待该子 agent 写入 result 后，先登记 result，再重新运行 `next-agent`。",
           "- 这不是用户决策点；不要询问用户选择 reviewer 或 repair 分支。"
         ]
@@ -336,9 +334,9 @@ function decisionLinesFor({ state, blockers, nextCommand, locale = "en" }) {
   if (state.nextAction?.type === "repair") {
     return zh
       ? [
-          "- tester/reviewer 已返回 required fixes，需要回派 owner agent 修复。",
+          "- tester/reviewer 已返回 required fixes，需要回到 owner agent 修复。",
           nextCommand ? `- 先执行：\`${nextCommand}\`。` : "- 先生成 repair-plan。",
-          "- 不要启动 reviewer/release，也不要让主 agent 直接修业务代码。"
+          "- 不要启动 reviewer/release，也不要让主 agent 直接修改业务代码。"
         ]
       : [
           "- tester/reviewer returned required fixes; route repair to owner agents.",
@@ -364,18 +362,18 @@ function decisionLinesFor({ state, blockers, nextCommand, locale = "en" }) {
       ? [
           "- 这个 run 当前被阻塞。",
           ...(blockers.length ? blockers.map((item) => `- 阻塞原因：${item}`) : ["- 阻塞原因：未记录。"]),
-          "- 可以归档为 blocked，或准备好后创建 continuation run。"
+          "- 优先在当前 open run 内修复；只有用户明确关闭时才归档为 blocked。"
         ]
       : [
           "- This run is blocked.",
           ...(blockers.length ? blockers.map((item) => `- Blocker: ${item}`) : ["- Blocker: none recorded."]),
-          "- Archive as blocked or create a continuation run when ready."
+          "- Keep the run open and repair in this run first; close as blocked only when the user explicitly accepts that state."
         ];
   }
   if (state.status === "partial") {
     return zh
-      ? ["- 这个 run 部分完成。", "- 可复用产物见下方列表。", "- 可以归档为 partial，或基于这个 run 继续。"]
-      : ["- This run is partially complete.", "- Reusable artifacts are listed below.", "- Archive as partial or continue from this run."];
+      ? ["- 这个 run 部分完成。", "- 可复用产物见下方列表。", "- 优先继续当前 open run；只有用户接受部分结果时才关闭为 partial。"]
+      : ["- This run is partially complete.", "- Reusable artifacts are listed below.", "- Keep the run open by default; close as partial only when the user accepts partial completion."];
   }
   if (state.status === "done") {
     if (zh) return state.archived
@@ -389,7 +387,7 @@ function decisionLinesFor({ state, blockers, nextCommand, locale = "en" }) {
   if (state.status === "failed") return zh ? ["- 这个 run 执行失败。重试前先查看阻塞和归档摘要。"] : ["- This run failed. Review blockers and archive summary before retrying."];
   return zh
     ? [
-        "- 继续执行下一个允许的 CrewUp 步骤。",
+        "- 继续执行下一个被授权的 CrewUp 步骤。",
         nextCommand ? `- 使用 \`${nextCommand}\`，并且只启动 runnable 列表里的 agent。` : "- 当前没有记录命令；诊断后重新运行 `npx crewup status <run-id>`。",
         "- 主 agent 只汇报状态和路径，不粘贴完整子 agent 输出。"
       ]
@@ -412,7 +410,7 @@ function labelsFor(locale) {
       run: "Run",
       state: "状态",
       stageLabel: "阶段",
-      outcomeLabel: "结局",
+      outcomeLabel: "结果",
       verdict: "迭代结论",
       goal: "完成契约",
       ownerNow: "当前 Owner",
@@ -458,12 +456,12 @@ function localizedNextDescription(state, locale) {
   if (locale !== "zh-CN") return text || "No next action recorded.";
   if (!text) return "未记录下一步。";
   if (text === "Review and answer the clarification card or requested approval.") return "查看并回答需求澄清卡或确认请求。";
-  if (text === "Run the next allowed CrewUp agent or gate command.") return "运行下一个允许的 CrewUp agent 或 gate 命令。";
-  if (text === "Run the next allowed CrewUp agent or transition gate.") return "运行下一个允许的 CrewUp agent 或阶段门禁。";
+  if (text === "Run the next allowed CrewUp agent or gate command.") return "运行下一个被授权的 CrewUp agent 或 gate 命令。";
+  if (text === "Run the next allowed CrewUp agent or transition gate.") return "运行下一个被授权的 CrewUp agent 或阶段门禁。";
   if (text === "Run reached done; archive closeout is still pending.") return "Run 已到 done，仍需执行归档收口。";
   if (text === "No active next action.") return "没有活跃的下一步。";
   if (/is running; wait for its result/i.test(text)) return text.replace(" is running; wait for its result before deciding downstream routing.", " 正在运行；等待它写入 result 后再决定下游路由。");
-  if (/found required fixes/i.test(text)) return text.replace(" found required fixes; generate a repair plan and route work to owner agents.", " 发现 required fixes；生成 repair-plan 并回派 owner agent。");
+  if (/found required fixes/i.test(text)) return text.replace(" found required fixes; generate a repair plan and route work to owner agents.", " 发现 required fixes；生成 repair-plan 并回到 owner agent。");
   if (/needs user input/i.test(text)) return "requirements-plan 需要用户输入。";
   return text;
 }
@@ -492,9 +490,9 @@ function localizeReason(reason, locale) {
     return `下一个未完成步骤：${localizeProgressLabel(reason.replace("next incomplete step: ", ""), locale)}`;
   }
   return {
-    "success outcome recorded": "已记录成功结局",
-    "success outcome recorded and archived": "已记录成功结局并归档",
-    "success outcome recorded; archive pending": "已记录成功结局，归档待完成",
+    "success outcome recorded": "已记录成功结果",
+    "success outcome recorded and archived": "已记录成功结果并归档",
+    "success outcome recorded; archive pending": "已记录成功结果，归档待完成",
     "canceled outcome": "已取消",
     "failed outcome": "已失败",
     blocked: "被阻塞",
