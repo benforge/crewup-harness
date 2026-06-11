@@ -134,7 +134,7 @@ export OPENAI_API_KEY="sk-..."
 CLI：
 
 ```bash
-npx crewup run "使用 CrewUp 做一个最小 counter web app，跑完整 workflow。验收标准：页面显示 counter，初始值为 0；可以 +1、-1、reset；刷新后数值保留；build/test 通过。范围：只做一个很小的前端实现。"
+npx crewup run --mode=strict "使用 CrewUp 做一个最小 counter web app，跑完整 workflow。验收标准：页面显示 counter，初始值为 0；可以 +1、-1、reset；刷新后数值保留；build/test 通过。范围：只做一个很小的前端实现。"
 ```
 
 聊天窗口：
@@ -143,9 +143,11 @@ npx crewup run "使用 CrewUp 做一个最小 counter web app，跑完整 workfl
 使用 CrewUp 做一个最小 counter web app，跑完整 workflow。验收标准：页面显示 counter，初始值为 0；可以 +1、-1、reset；刷新后数值保留；build/test 通过。范围：只做一个很小的前端实现。
 ```
 
-如果是在聊天里提出需求，主 agent 应该自己运行 `npx crewup run "<需求>"`，拿到 runId 后继续 `npx crewup next-agent <run-id>`。用户不需要为了拿 runId 手动跑命令。
+如果是在聊天里提出需求，用户必须明确 CrewUp 模式，例如“使用 CrewUp strict”。主 agent 应该自己运行 `npx crewup run --mode=<mode> "<需求>"`，拿到 runId 后继续 `npx crewup next-agent <run-id>` 或 `npx crewup drive <run-id>`。用户不需要为了拿 runId 手动跑命令。
 
 ## 常用命令
+
+日常不需要记住所有脚本。普通使用者优先使用 `doctor`、`init`、`check`、`run --mode=...`、`status/runs`、`explain`、`drive`、`finish`、`archive`、`cancel`、`continue`；strict 操作所需的 `next-agent`、`native-state`、`audit`、`gate-check`、`report` 通常由主 agent 代为执行。完整分层见 [命令与完成态治理](./docs/command-governance.md)。
 
 | 命令 | 作用 |
 | --- | --- |
@@ -157,7 +159,11 @@ npx crewup run "使用 CrewUp 做一个最小 counter web app，跑完整 workfl
 | `npx crewup inspect --no-ai` | 无 AI 扫描项目结构 |
 | `npx crewup init --agent codex --yes` | 生成项目适配层 |
 | `npx crewup check` | 校验配置、脚本、模板、文档和 sealed core |
-| `npx crewup run "..."` | 创建正式 run |
+| `npx crewup run --mode=lite "..."` | 创建轻量实现 run |
+| `npx crewup run --mode=strict "..."` | 创建正式多 agent run |
+| `npx crewup run --mode=strict --risk=high "..."` | 创建高风险 full profile run |
+| `npx crewup run --mode=plan "..."` | 创建只规划、不写代码 run |
+| `npx crewup run --mode=discovery "..."` | 创建项目/模块盘点 run |
 | `npx crewup run --dry-run "..."` | 预览 run 命名、profile 和 agent 路由 |
 | `npx crewup status` / `npx crewup runs` | 列出所有 run，查找 runId |
 | `npx crewup status <run-id>` | 查看某个 run 的状态卡 |
@@ -240,7 +246,10 @@ npm run release:preflight
 | --- | --- |
 | [快速开始](./docs/getting-started.md) | 安装、API key、第一次 run 和排查 |
 | [工作流](./docs/harness-workflow.md) | 阶段、owner artifact、调度和 gate |
+| [模式治理](./docs/mode-governance.md) | 聊天怎么指定模式、每种模式生成什么、怎么算完成、卡住怎么办 |
+| [Lite](./docs/lite-v2.md) | 显式启用的轻量实现流程，适合低风险小范围任务 |
 | [Runbook](./docs/runbook.md) | 怎么判断正常、完成、卡住、取消和继续 |
+| [命令治理](./docs/command-governance.md) | 常用/内部/维护命令分层，以及完成、未完成、阻塞、取消后的状态规则 |
 | [Troubleshooting](./docs/troubleshooting.md) | 终端编码、乱码判断和跨平台修复 |
 | [本地测试](./docs/local-testing.md) | 使用 `npm pack` 和临时项目测试 CrewUp |
 | [测试矩阵](./docs/test-matrix.md) | 不同改动应该跑哪些验证命令 |
@@ -255,3 +264,33 @@ npm run release:preflight
 CrewUp 更适合长期迭代的大型项目、团队项目、复杂重构、全栈系统和需要严格 AI 开发流程的代码库。
 
 如果只是一次性小修、小问答、临时脚本或非常小的个人实验，可以不启用 CrewUp。CrewUp 的价值在于把 AI 开发从“聊天里的临场发挥”变成可追踪、可审计、可继续、可归档的工程流程。
+## Lite 轻量流程
+
+`lite` 是显式启用的轻量实现流程，内部 profile 是 `lite-v2`，用于低风险、小范围任务，例如 UI 样式调整、移动端布局修复、单模块 bugfix 或小功能。它不会替换现有 strict 流程；真实 run 必须显式指定 `--mode`。
+
+启用方式：
+
+```bash
+npx crewup run --mode=lite "修复 Admin 移动端横向溢出，跑 build/test"
+```
+
+聊天里可以这样说：
+
+```text
+使用 CrewUp lite，不要走 strict 多 agent 审计流程。只改前端样式和交互，完成 build/test/preview-smoke，并更新 validation.md 和 summary.md。
+```
+
+`lite` 会生成：
+
+```text
+.harness/runs/<run-id>/spec.md
+.harness/runs/<run-id>/tasks.md
+.harness/runs/<run-id>/validation.md
+.harness/runs/<run-id>/summary.md
+```
+
+它不会创建 native subagent tasks，也不会生成 `logs/native-subagents/native-subagent-plan.json`。主 agent 可以在任务范围内直接实现，但 `finish` 会拒绝仍处于 pending 状态的 `validation.md` 或 `summary.md`。
+
+数据库、auth、安全、部署、跨模块大功能和需要审计证据的任务仍应使用 strict 或 `strict --risk=high` 流程。
+
+详细说明见 [Lite 轻量流程](./docs/lite-v2.md)。

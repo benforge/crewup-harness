@@ -21,6 +21,7 @@ import {
 } from "./lib/delegation-guard.mjs";
 import { hasTemplatePlaceholder } from "./lib/placeholder-detector.mjs";
 import { isDocsOnlyAgentSet, isLiteImplementationOnlyAgentSet } from "./lib/agent-roles.mjs";
+import { isImplementationAgentUnassigned } from "./lib/implementation-plan-scope.mjs";
 import { verifyCoreLock } from "./lib/core-lock.mjs";
 
 const root = process.cwd();
@@ -239,6 +240,7 @@ async function checkNativeState() {
   }
 
   for (const agent of native.agents ?? []) {
+    const unassignedImplementation = isImplementationAgentUnassigned(agent.agent, { root, runId });
     const resultPathExists = agent.result_path && existsSync(resolveWorkspacePath(agent.result_path));
     const resultJsonPathExists = agent.result_json_path && existsSync(resolveWorkspacePath(agent.result_json_path));
     if (resultJsonPathExists) {
@@ -257,17 +259,17 @@ async function checkNativeState() {
     if (!agent.result_captured_at && (resultPathExists || resultJsonPathExists)) {
       problems.push(`Native result files exist but native-state has not captured result for ${agent.agent}. Record the real handle/result or rerun the subagent; do not fabricate a handle.`);
     }
-    if (["running"].includes(agent.status)) warnings.push(`Native agent is still running: ${agent.agent}`);
-    if (gateMode === "completion" && ["verify", "review", "release", "done"].includes(state.stage) && !native.fallback && agent.status === "planned" && !agent.handle && !agent.result_captured_at) {
+    if (["running"].includes(agent.status) && !unassignedImplementation) warnings.push(`Native agent is still running: ${agent.agent}`);
+    if (gateMode === "completion" && ["verify", "review", "release", "done"].includes(state.stage) && !native.fallback && agent.status === "planned" && !agent.handle && !agent.result_captured_at && !unassignedImplementation) {
       problems.push(`Native agent was planned but never executed before ${state.stage}: ${agent.agent}`);
     }
     if (["completed", "blocked", "needs_input", "waiting_review", "ready_to_close", "closed"].includes(agent.status) && !agent.handle) {
       problems.push(`Native agent has captured/terminal status without a real spawn handle: ${agent.agent}`);
     }
-    if (state.stage === "done" && agent.close_required && agent.status !== "closed") {
+    if (state.stage === "done" && agent.close_required && agent.status !== "closed" && !unassignedImplementation) {
       problems.push(`Native agent must be closed before done/archive: ${agent.agent} (${agent.status})`);
     }
-    if (agent.status === "ready_to_close" && !agent.close_confirmed) {
+    if (agent.status === "ready_to_close" && !agent.close_confirmed && !unassignedImplementation) {
       problems.push(`Native agent is ready_to_close but not closed: ${agent.agent}`);
     }
     if (agent.result_captured_at && (!agent.result_path || !existsSync(resolveWorkspacePath(agent.result_path)))) {

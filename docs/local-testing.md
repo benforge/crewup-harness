@@ -57,7 +57,7 @@ npm run harness:test-flow
 
 - run 创建
 - plan-only 路由
-- strict/full workflow 路由
+- strict workflow 路由
 - `requirements-plan -> requirements -> architect` 顺序
 - `next-agent` runnable / blocked 输出
 - architecture-owned implementation dispatch
@@ -96,7 +96,7 @@ npm install -D "C:\Users\me\Documents\New project\crewup-harness-<version>.tgz"
 ## 最小 run 案例
 
 ```bash
-npx crewup run "使用 CrewUp 做一个最小 counter web app，跑完整 workflow。验收标准：页面显示 counter，初始值为 0；可以 +1、-1、reset；刷新后数值保留；build/test 通过。范围：只做一个很小的前端实现。"
+npx crewup run --mode=strict "使用 CrewUp 做一个最小 counter web app，跑完整 workflow。验收标准：页面显示 counter，初始值为 0；可以 +1、-1、reset；刷新后数值保留；build/test 通过。范围：只做一个很小的前端实现。"
 ```
 
 随后检查：
@@ -155,3 +155,20 @@ npx crewup install --force
 ```
 
 如果是 CrewUp 产品 bug，在 CrewUp 源码仓库补测试、修复并发布。
+
+## Lite 测试覆盖
+
+`npm run harness:test-flow` 已覆盖：
+
+- 显式 `--mode=lite` 创建 run。
+- `lite` 生成 `spec.md`、`tasks.md`、`validation.md`、`summary.md`。
+- `lite` 不生成 native subagent tasks 和 native plan。
+- pending 状态下 `finish` 会失败。
+- 更新 `validation.md` 和 `summary.md` 后可以 success 归档。
+
+修改 `lite` 模式、轻量收口、模板或文档入口时，至少运行：
+
+```bash
+npm run harness:check
+npm run harness:test-flow
+```

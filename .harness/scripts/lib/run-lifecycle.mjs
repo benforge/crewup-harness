@@ -1,6 +1,7 @@
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
+import { modeLabel } from "./workflow-modes.mjs";
 
 export const finalStatuses = new Set(["done", "canceled", "failed"]);
 
@@ -74,6 +75,7 @@ export async function writeRunStatus(root, runId, stateArg = null) {
   const state = normalizeRunState(stateArg ?? JSON.parse(await readFile(path.join(runDir, "state.json"), "utf8")));
   const locale = localeForState(state);
   const text = labelsFor(locale);
+  const mode = modeLabel({ profile: state.workflowProfile });
   const artifacts = await existingArtifacts(path.join(runDir, "artifacts"));
   const contract = await readCompletionContract(runDir);
   const blockers = await readBlockers(runDir, state);
@@ -89,6 +91,8 @@ export async function writeRunStatus(root, runId, stateArg = null) {
     "",
     `**${text.run}:** \`${runId}\``,
     "",
+    `**Mode:** \`${mode}\` / profile \`${state.workflowProfile ?? "unknown"}\``,
+    "",
     `**${text.state}:** ${statusBadge(state.status)} / ${text.stageLabel} \`${state.stage ?? "unknown"}\` / ${text.outcomeLabel} \`${state.outcome ?? "none"}\``,
     "",
     `**${text.verdict}:** ${verdict.label} - ${verdict.description}`,
@@ -99,6 +103,8 @@ export async function writeRunStatus(root, runId, stateArg = null) {
     "",
     nextCommand ? `**${text.command}:** \`${nextCommand}\`` : `**${text.command}:** ${text.none}`,
     "",
+    ...userActionLines(state, runId),
+    ...(state.status === "waiting_user" ? [""] : []),
     `**${text.done}:** ${completion.done ? text.yes : text.no}${completion.reason ? ` - ${localizeReason(completion.reason, locale)}` : ""}`,
     "",
     `**${text.goal}:** ${contract ? "`GOAL.md` / `completion-contract.json`" : text.notGenerated}`,
@@ -110,6 +116,8 @@ export async function writeRunStatus(root, runId, stateArg = null) {
     "| Field | Value |",
     "| --- | --- |",
     `| Run | ${runId} |`,
+    `| Mode | ${mode} |`,
+    `| Workflow Profile | ${state.workflowProfile ?? "unknown"} |`,
     `| Status | ${state.status ?? "unknown"} |`,
     `| Stage | ${state.stage ?? "unknown"} |`,
     `| Outcome | ${state.outcome ?? "none"} |`,
@@ -136,6 +144,23 @@ export async function writeRunStatus(root, runId, stateArg = null) {
     ""
   ];
   await writeFile(path.join(runDir, "RUN_STATUS.md"), `${lines.join("\n")}\n`, "utf8");
+}
+
+function userActionLines(state, runId) {
+  if (state.status !== "waiting_user") return [];
+  return [
+    "## ACTION REQUIRED: 需要你回答",
+    "",
+    "CrewUp 正在等待用户确认，暂时不会继续 requirements/architecture/implementation。",
+    "",
+    "请使用以下任一方式回答：",
+    "",
+    `- 查看问题卡：\`npx crewup clarify ${runId}\``,
+    `- 终端交互回答：\`npx crewup clarify ${runId} --interactive\``,
+    `- 直接提交答案：\`npx crewup clarify ${runId} --answers=\"Q-01:A;Q-02:B\"\``,
+    "",
+    "回答保存后，主 agent 会恢复 requirements-plan 并继续 CrewUp 流程。"
+  ];
 }
 
 export async function writeRunSummary(root, runId, { reason = "", archiveOutcome = "" } = {}) {

@@ -36,7 +36,7 @@ native_subagents:
     close_audit_required: true
     handle_required_after_spawn: true
     fallback_reason_required: true
-    slow_result_capture_minutes: 10
+    slow_result_capture_minutes: 45
     status_values:
       - "planned"
       - "running"

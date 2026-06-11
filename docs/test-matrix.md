@@ -84,3 +84,20 @@ npm run release:preflight
 - 修改 install / force / reset 时，必须跑 `test:install-flow`。
 - 修改工作流顺序、agent gating、owner artifact 或 repair 规则时，必须跑 `harness:test-flow`。
 - 不要在真实用户项目里临时修 `.harness` 核心脚本。应先回到 CrewUp 源码仓库补回归测试，再修实现。
+
+## Lite 测试矩阵
+
+`lite` 相关改动至少运行：
+
+```bash
+npm run harness:check
+npm run harness:test-flow
+```
+
+覆盖点：
+
+- 显式 `--mode=lite` opt-in。
+- 生成 `spec.md`、`tasks.md`、`validation.md`、`summary.md`。
+- 不生成 native subagent tasks 和 native plan。
+- pending evidence 阻止 `finish`。
+- 更新 validation/summary 后 success archive。

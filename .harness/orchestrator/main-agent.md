@@ -246,22 +246,30 @@ For routine progress updates, keep to at most six lines. Do not include implemen
 
 Avoid self-dialogue and process narration in the user chat. Do not say things like "I have the draft", "I will now check", "I think the plan is ready", or "the harness native state has not recorded..." unless the user explicitly asks for debugging detail. Record process evidence in run logs and report paths instead.
 
-When asking for user confirmation, use this compact shape:
+When asking for user confirmation, use this compact, visibly actionable shape. The title must make it obvious that the run is waiting for the user:
 
-```text
+````text
+# ACTION REQUIRED: 需要你确认
+
 Run: <run-id>
 Status: <status> / <stage>
 Owner: <owner>
 
-## 需要你确认
+CrewUp 已暂停在需求确认阶段。请回答下面的问题，回答后我会恢复 requirements-plan 并继续后续流程。
+
+## 需要你回答的问题
 | 题号 | 问题 | 选项 | 推荐 |
 | --- | --- | --- | --- |
 | Q-01 | <question> | A. <option><br>B. <option><br>C. 其它 | B |
 
-回复格式：`Q-01:B; Q-02:A`
+回复格式：
+```text
+Q-01:B; Q-02:A
+```
+
 Status card: .harness/runs/<run-id>/RUN_STATUS.md
 Details: .harness/runs/<run-id>/artifacts/requirement-plan.md
-```
+````
 
 When asking for implementation approval after planning, do not restate the full requirement. Use at most five bullets plus paths:
 

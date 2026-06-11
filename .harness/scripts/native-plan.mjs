@@ -82,8 +82,10 @@ for (const taskFile of taskFiles) {
   const spawnName = `${runId}:${agentId}`;
   const resultPath = `.harness/runs/${runId}/logs/native-subagents/${agentId}.result.md`;
   const resultJsonPath = `.harness/runs/${runId}/logs/native-subagents/${agentId}.result.json`;
+  const progressPath = `.harness/runs/${runId}/logs/native-subagents/${agentId}.progress.md`;
   const allowedPatternsWithResult = unique([
     ...allowedPatterns,
+    progressPath,
     resultPath,
     resultJsonPath
   ]);
@@ -114,6 +116,7 @@ for (const taskFile of taskFiles) {
     prompt_path: path.relative(root, promptPath).replaceAll("\\", "/"),
     result_path: resultPath,
     result_json_path: resultJsonPath,
+    progress_path: progressPath,
     handoff_path: `.harness/runs/${runId}/logs/agent-bridge/${agentId}.handoff.md`,
     state: "planned",
     requires_completed_agents: prerequisites,
@@ -190,10 +193,11 @@ if (!isNativeAgentEnvironment(agentEnvironment)) {
   process.exit(0);
 }
 
-const plan = {
+  const plan = {
   runId,
   generatedAt: new Date().toISOString(),
   mode: nativeConfig.mode,
+  runtime: nativeConfig.runtime ?? {},
   max_parallel_subagents: nativeConfig.safety?.max_parallel_subagents ?? 4,
   retention_capacity: nativeConfig.retention?.capacity ?? {},
   lifecycle: nativeConfig.lifecycle,
@@ -256,6 +260,7 @@ async function mergeNativeState(plan) {
     generatedAt: plan.generatedAt,
     updatedAt: new Date().toISOString(),
     fallback: previous.fallback ?? null,
+    runtime: plan.runtime,
     retention_capacity: plan.retention_capacity,
     agents: [
       ...(previous.agents ?? []).filter((agent) => !plan.tasks.some((task) => task.agent === agent.agent)),
@@ -268,6 +273,7 @@ async function mergeNativeState(plan) {
         prompt_path: task.prompt_path,
         result_path: task.result_path,
         result_json_path: task.result_json_path,
+        progress_path: task.progress_path,
         wait_group: task.wait_group,
         requires_completed_agents: task.requires_completed_agents,
         status: existing.status ?? "planned",
@@ -320,6 +326,9 @@ function renderSpawnPrompt({ agentId, agentType, profile, primaryLanguage = "en"
     "- Work only inside your responsibility and allowed write scope.",
     "- Formal artifacts owned by you must be written by you to the allowed artifact files; do not return artifact body text for the main agent to copy.",
     "- If you cannot write your owned artifact, return `blocked` or `needs_input`; do not ask the main agent to write it for you.",
+    `- Progress checkpoint: before any long command or broad edit, and after each meaningful milestone, update ${progressPathFor(agentId)} with current step, files touched, command running, and next intended action.`,
+    "- Keep progress checkpoints brief. They are for liveness and recovery, not final reporting.",
+    "- If you hit a blocker, write the final result files immediately with `status: blocked` instead of continuing silently.",
     "- Result files are subagent-owned audit outputs; write them yourself. The main agent may only register them with `native-state mark-result` after they already exist.",
     "- Do not ask the main agent to create, summarize, or copy your `<agent>.result.md` / `<agent>.result.json` files.",
     "- JSON must use `artifactUpdates` and `artifactsUpdated`; do not use `artifacts` as a substitute.",
@@ -331,7 +340,7 @@ function renderSpawnPrompt({ agentId, agentType, profile, primaryLanguage = "en"
     "- If you are requirements-plan and user decisions are missing, return `needs_input` with structured `clarificationQuestions`; the main agent will transport those options to the user.",
     "- If you are requirements-plan on the first pass, return `needs_input` unless prior user answers and `userConfirmed: true` are already present; do not answer your own questions.",
     "- If you are requirements-plan, return at most 3 clarification questions per round, with concise lettered options where possible; keep the last option as `其它` / `Other` unless the choice is intentionally exhaustive.",
-    "- If you are requirements-plan, make `artifacts/requirement-plan.md` include a scannable `Clarification Card` with compact tables for confirmed facts, needed decisions, non-goals, acceptance preview, and ready-to-continue status.",
+    "- If you are requirements-plan, make `artifacts/requirement-plan.md` include a scannable `Clarification Card` with an obvious `ACTION REQUIRED: 需要用户回答` section, compact tables for confirmed facts, needed decisions, non-goals, acceptance preview, ready-to-continue status, and a copyable reply format such as `Q-01:B; Q-02:A`.",
     "- Keep the final result concise and follow the output contract.",
     "",
     "## Allowed Write Scope",
@@ -364,6 +373,7 @@ function renderSpawnPrompt({ agentId, agentType, profile, primaryLanguage = "en"
     "",
     `Write the Markdown result file: ${resultPathFor(agentId, "md")}`,
     `Write the JSON result file: ${resultPathFor(agentId, "json")}`,
+    `During work, update progress checkpoint: ${progressPathFor(agentId)}`,
     "",
     "```text",
     `Agent: ${agentId}`,
@@ -508,6 +518,7 @@ function renderPlanMarkdown(plan) {
     lines.push(`- prompt: ${task.prompt_path}`);
     lines.push(`- result: ${task.result_path}`);
     lines.push(`- result_json: ${task.result_json_path}`);
+    lines.push(`- progress: ${task.progress_path}`);
     lines.push(`- close_required: ${task.close_required}`);
     lines.push(`- retain_after_result: ${task.retention.retain_after_result}`);
     lines.push(`- write_owner: ${task.write_owner}`);
@@ -530,6 +541,10 @@ function renderPlanMarkdown(plan) {
 
 function resultPathFor(agentId, ext) {
   return `.harness/runs/${runId}/logs/native-subagents/${agentId}.result.${ext}`;
+}
+
+function progressPathFor(agentId) {
+  return `.harness/runs/${runId}/logs/native-subagents/${agentId}.progress.md`;
 }
 
 function resolveProfile(policy, agentId) {

@@ -53,6 +53,12 @@ try {
   const missingGate = runInstalledScript(appDir, ".harness/scripts/gate-check.mjs", ["missing-run"], { expectedStatus: 1 });
   assertNotIncludes(missingGate, "SyntaxError", "gate-check syntax error");
 
+  const implicitRunOutput = runCliWithStatus(appDir, [
+    "run",
+    "Use CrewUp to create a real run without an explicit mode."
+  ], { expectedStatus: 1 });
+  assertIncludes(implicitRunOutput, "requires an explicit mode", "real run without mode is rejected");
+
   const planOnlyOutput = runCli(appDir, [
     "run",
     "--dry-run",
@@ -75,8 +81,44 @@ try {
   assertIncludes(tinyLiteOutput, "workflow_profile: lite", "tiny formal run may stay lite");
   assertIncludes(tinyLiteOutput, "needs_requirements_plan: true", "lite still keeps requirements planning");
 
+  const liteV2DryRunOutput = runCli(appDir, [
+    "run",
+    "--dry-run",
+    "--profile=lite-v2",
+    "Use CrewUp lite-v2 to make a tiny frontend copy change and validate it."
+  ]);
+  assertIncludes(liteV2DryRunOutput, "workflow_profile: lite-v2", "lite-v2 is explicit opt-in");
+  assertIncludes(liteV2DryRunOutput, "needs_requirements_plan: false", "lite-v2 skips requirements planning");
+
+  const liteV2RunOutput = runCli(appDir, [
+    "run",
+    "--mode=lite",
+    "Use CrewUp lite-v2 to make a tiny frontend copy change and validate it."
+  ]);
+  const liteV2RunId = extractRunId(liteV2RunOutput);
+  if (!liteV2RunId) throw new Error(`Failed to detect lite-v2 runId from output: ${liteV2RunOutput}`);
+  const liteV2RunDir = path.join(appDir, ".harness", "runs", liteV2RunId);
+  assertExists(path.join(liteV2RunDir, "spec.md"), "lite-v2 spec");
+  assertExists(path.join(liteV2RunDir, "tasks.md"), "lite-v2 tasks");
+  assertExists(path.join(liteV2RunDir, "validation.md"), "lite-v2 validation");
+  assertExists(path.join(liteV2RunDir, "summary.md"), "lite-v2 summary");
+  const liteV2TaskNames = await listTaskNames(path.join(liteV2RunDir, "tasks"));
+  assertSameArray(liteV2TaskNames, [], "lite-v2 does not create native agent tasks");
+  assertNotExists(path.join(liteV2RunDir, "logs", "native-subagents", "native-subagent-plan.json"), "lite-v2 skips native plan");
+  const liteV2PendingFinish = runCliWithStatus(appDir, ["finish", liteV2RunId], { expectedStatus: 1 });
+  assertIncludes(liteV2PendingFinish, "update validation.md, summary.md", "lite-v2 finish blocks pending evidence");
+  await writeFile(path.join(liteV2RunDir, "validation.md"), "# Lite Validation\n\n## Result\n\n- status: passed\n\n## Commands\n\n| Command | Result | Notes |\n| --- | --- | --- |\n| npm test | passed | simulated in flow test |\n\n## Acceptance Criteria Check\n\n- [x] AC-01: passed\n- [x] AC-02: passed\n- [x] AC-03: passed\n\n## Risks Or Skips\n\n- none\n", "utf8");
+  await writeFile(path.join(liteV2RunDir, "summary.md"), "# Lite Summary\n\n## Outcome\n\n- Completed simulated lite-v2 run.\n\n## Changed Files\n\n- none\n\n## Validation\n\n- npm test passed in simulated record.\n\n## Residual Risks\n\n- none\n", "utf8");
+  const liteV2FinishOutput = runCli(appDir, ["finish", liteV2RunId]);
+  assertIncludes(liteV2FinishOutput, "Run archived", "lite-v2 finish archives success");
+  const liteV2FinishedState = JSON.parse(await readFile(path.join(liteV2RunDir, "state.json"), "utf8"));
+  if (liteV2FinishedState.status !== "done" || liteV2FinishedState.outcome !== "success" || liteV2FinishedState.archived !== true) {
+    throw new Error(`Expected lite-v2 run to archive as success:\n${JSON.stringify(liteV2FinishedState, null, 2)}`);
+  }
+
   const naturalCounterRunOutput = runCli(appDir, [
     "run",
+    "--mode=strict",
     "使用 CrewUp 做一个最小 counter web app，跑完整 workflow。页面显示一个计数器，默认是 0，可以加一、减一、重置，刷新后数字还在。"
   ]);
   const naturalCounterRunId = extractRunId(naturalCounterRunOutput);
@@ -105,6 +147,7 @@ try {
 
   const planOnlyRunOutput = runCli(appDir, [
     "run",
+    "--mode=plan",
     "\u7528 CrewUp \u89c4\u5212\u4e00\u4e2a\u5168\u6808\u535a\u5ba2\u7cfb\u7edf\u3002\u5f53\u524d\u9636\u6bb5\u53ea\u505a\u9700\u6c42\u6f84\u6e05\u3001\u6280\u672f\u9009\u578b\u5efa\u8bae\u3001\u76ee\u5f55\u7ed3\u6784\u8bbe\u8ba1\u3001\u6a21\u5757\u8fb9\u754c\u3001\u5f00\u53d1\u9636\u6bb5\u62c6\u5206\u548c\u9a8c\u6536\u6807\u51c6\uff0c\u4e0d\u5199\u4e1a\u52a1\u4ee3\u7801\u3002\u7cfb\u7edf\u5305\u542b C \u7aef\u535a\u5ba2\u524d\u53f0\u3001Admin \u540e\u53f0\u3001\u540e\u7aef API\u3001\u6570\u636e\u5e93\u3002"
   ]);
   assertIncludes(planOnlyRunOutput, "profile: plan_only", "plan-only formal run profile");
@@ -116,10 +159,16 @@ try {
   const planOnlyTaskNames = sortByExecutionOrder(await listTaskNames(path.join(planOnlyRunDir, "tasks")));
   assertSameMembers(planOnlyTaskNames, ["architect", "requirements", "requirements-plan", "reviewer"], "plan-only task assignment");
   assertNotExists(path.join(planOnlyRunDir, "artifacts", "requirement-plan.md"), "main-authored requirement-plan artifact");
+  for (const file of ["planning.md", "acceptance.md", "architecture-plan.md", "implementation-plan.md", "review.md", "validation.md", "summary.md"]) {
+    assertExists(path.join(planOnlyRunDir, file), `plan root artifact ${file}`);
+  }
+  const planPendingFinish = runCliWithStatus(appDir, ["finish", planOnlyRunId], { expectedStatus: 1 });
+  assertIncludes(planPendingFinish, "Cannot finish plan run", "plan finish blocks pending root evidence");
 
   const requirementPlanTask = await readFile(path.join(planOnlyRunDir, "tasks", "requirements-plan.task.md"), "utf8");
   assertIncludes(requirementPlanTask, "Original Request Summary", "requirements-plan English heading");
   assertIncludes(requirementPlanTask, "Clarification Card", "requirements-plan clarification card heading");
+  assertIncludes(requirementPlanTask, "ACTION REQUIRED", "requirements-plan task requires obvious user action prompt");
   assertIncludes(requirementPlanTask, "Impact Scope Candidates", "requirements-plan impact heading");
   assertIncludes(requirementPlanTask, "Human-facing summaries, handoff notes, blockers, and coordination comments should match the user's primary language", "human-facing language-following rule");
   assertIncludes(requirementPlanTask, "question text, option labels, option descriptions", "requirements-plan clarification wording rule");
@@ -139,6 +188,7 @@ try {
 
   const counterRunOutput = runCli(appDir, [
     "run",
+    "--mode=strict",
     "\u4f7f\u7528 CrewUp \u505a\u4e00\u4e2a\u6700\u5c0f counter web app\uff0c\u8dd1\u5b8c\u6574 workflow\u3002\u9a8c\u6536\u6807\u51c6\uff1a\u9875\u9762\u663e\u793a counter\uff0c\u521d\u59cb\u503c\u4e3a 0\uff1b\u53ef\u4ee5 +1\u3001-1\u3001reset\uff1b\u5237\u65b0\u540e\u6570\u503c\u4fdd\u7559\uff1bbuild/test \u901a\u8fc7\u3002\u8303\u56f4\uff1a\u53ea\u505a\u4e00\u4e2a\u5f88\u5c0f\u7684\u524d\u7aef\u5b9e\u73b0\uff1b\u4e0d\u9700\u8981 backend\u3001database\u3001auth\u3001routing\u3002"
   ]);
   const counterRunId = extractRunId(counterRunOutput);
@@ -239,6 +289,7 @@ try {
 
   const architectureDispatchOutput = runCli(appDir, [
     "run",
+    "--mode=strict",
     "Use CrewUp to implement a tiny catalog app with frontend, backend API, and database candidates. Let the architecture plan decide the actual implementation agents."
   ]);
   const architectureDispatchRunId = extractRunId(architectureDispatchOutput);
@@ -253,8 +304,17 @@ try {
   const architectureNextAgent = JSON.parse(runCli(appDir, ["next-agent", architectureDispatchRunId, "--json"]));
   assertSameArray(architectureNextAgent.runnable.map((item) => item.agent), ["frontend"], "implementation dispatch follows architecture plan assignment");
   assertSameMembers(architectureNextAgent.skipped.map((item) => item.agent), ["backend", "database", "devops"], "unassigned implementation candidates are skipped");
+  const driveSpawnOutput = runCli(appDir, ["drive", architectureDispatchRunId]);
+  assertIncludes(driveSpawnOutput, "- action: spawn", "drive reports spawn action");
+  assertIncludes(driveSpawnOutput, "- do: Start only frontend.", "drive gives human-safe spawn instruction");
   const unassignedBackendSpawn = runCliWithStatus(appDir, ["native-state", architectureDispatchRunId, "mark-spawned", "backend", "backend-handle"], { expectedStatus: 1 });
   assertIncludes(unassignedBackendSpawn, "implementation-plan.md is missing or does not assign backend", "unassigned backend spawn is blocked");
+  const prunePreview = JSON.parse(runCli(appDir, ["repair-state", architectureDispatchRunId, "--prune-unassigned-implementation"]));
+  assertIncludes(JSON.stringify(prunePreview), "pruned unassigned implementation candidates", "repair-state previews unassigned candidate prune");
+  runCli(appDir, ["repair-state", architectureDispatchRunId, "--prune-unassigned-implementation", "--apply"]);
+  assertNotExists(path.join(architectureDispatchRunDir, "tasks", "backend.task.md"), "repair-state prunes unassigned backend task");
+  assertNotExists(path.join(architectureDispatchRunDir, "tasks", "database.task.md"), "repair-state prunes unassigned database task");
+  assertNotExists(path.join(architectureDispatchRunDir, "tasks", "devops.task.md"), "repair-state prunes unassigned devops task");
   runCli(appDir, ["native-state", architectureDispatchRunId, "mark-spawned", "frontend", "frontend-handle"]);
   const architectureNativeDir = path.join(architectureDispatchRunDir, "logs", "native-subagents");
   await writeFile(path.join(architectureNativeDir, "frontend.result.md"), "# Frontend Result\n\n## Status\n\ncompleted\n", "utf8");
@@ -274,6 +334,32 @@ try {
   }
   assertSameArray(waitForTester.waitFor, ["tester"], "next-agent waits for active tester result");
   assertIncludes(waitForTester.instruction, "Do not ask the user to choose", "wait instruction prevents user branch selection");
+  const driveWaitOutput = runCli(appDir, ["drive", architectureDispatchRunId]);
+  assertIncludes(driveWaitOutput, "- action: wait", "drive reports wait action");
+  assertIncludes(driveWaitOutput, "Do not restart", "drive wait output prevents restart");
+  const staleTesterState = JSON.parse(await readFile(path.join(architectureNativeDir, "native-state.json"), "utf8"));
+  staleTesterState.runtime = {
+    ...(staleTesterState.runtime ?? {}),
+    slow_result_capture_minutes: 10
+  };
+  const staleTester = staleTesterState.agents.find((agent) => agent.agent === "tester");
+  staleTester.spawned_at = new Date(Date.now() - 11 * 60 * 1000).toISOString();
+  await writeFile(path.join(architectureNativeDir, "native-state.json"), `${JSON.stringify(staleTesterState, null, 2)}\n`, "utf8");
+  await writeFile(path.join(architectureNativeDir, "tester.progress.md"), "# Progress\n\n- still running smoke checks\n", "utf8");
+  const activeWithProgress = JSON.parse(runCli(appDir, ["next-agent", architectureDispatchRunId, "--json"]));
+  if (activeWithProgress.action !== "wait") {
+    throw new Error(`Recent progress checkpoint should keep active tester in wait state:\n${JSON.stringify(activeWithProgress, null, 2)}`);
+  }
+  await rm(path.join(architectureNativeDir, "tester.progress.md"));
+  const staleTesterNext = JSON.parse(runCli(appDir, ["next-agent", architectureDispatchRunId, "--json"]));
+  if (staleTesterNext.action !== "stale" || staleTesterNext.waitFor.length !== 0) {
+    throw new Error(`Stale tester should produce stale/no-wait next-agent result:\n${JSON.stringify(staleTesterNext, null, 2)}`);
+  }
+  assertSameArray(staleTesterNext.stale.map((item) => item.agent), ["tester"], "next-agent reports stale active tester");
+  assertIncludes(staleTesterNext.instruction, "result-only closeout", "stale instruction asks for closeout before blocking");
+  const driveStaleOutput = runCli(appDir, ["drive", architectureDispatchRunId]);
+  assertIncludes(driveStaleOutput, "- action: stale", "drive reports stale action");
+  assertIncludes(driveStaleOutput, "result-only closeout", "drive stale output asks for closeout");
   await writeFile(path.join(architectureNativeDir, "tester.result.md"), "# Tester Result\n\nStatus: completed\n\nFix required.\n", "utf8");
   await writeFile(path.join(architectureNativeDir, "tester.result.json"), `${JSON.stringify({
     status: "completed",
@@ -328,6 +414,8 @@ try {
   if (!requirementsPlanNativeTask) throw new Error("Missing requirements-plan native task");
   assertIncludes(requirementsPlanNativeTask.allowed_patterns.join("\n"), `.harness/runs/${planOnlyRunId}/logs/native-subagents/requirements-plan.result.md`, "requirements-plan result md allowed pattern");
   assertIncludes(requirementsPlanNativeTask.allowed_patterns.join("\n"), `.harness/runs/${planOnlyRunId}/logs/native-subagents/requirements-plan.result.json`, "requirements-plan result json allowed pattern");
+  assertIncludes(requirementsPlanNativeTask.allowed_patterns.join("\n"), `.harness/runs/${planOnlyRunId}/logs/native-subagents/requirements-plan.progress.md`, "requirements-plan progress checkpoint allowed pattern");
+  assertIncludes(requirementsPlanNativeTask.progress_path, "requirements-plan.progress.md", "requirements-plan native task records progress path");
 
   const requirementsPlanSpawn = await readFile(path.join(planOnlyRunDir, "logs", "native-subagents", "requirements-plan.spawn.md"), "utf8");
   assertIncludes(requirementsPlanSpawn, "Result files are subagent-owned audit outputs", "subagent-owned result prompt");
@@ -335,6 +423,8 @@ try {
   assertIncludes(requirementsPlanSpawn, "do not use `artifacts` as a substitute", "native prompt rejects artifacts alias");
   assertIncludes(requirementsPlanSpawn, "repairOf", "native prompt repair lineage field");
   assertIncludes(requirementsPlanSpawn, "previousResultPath", "native prompt previous result field");
+  assertIncludes(requirementsPlanSpawn, "Progress checkpoint", "native prompt requires progress checkpoint");
+  assertIncludes(requirementsPlanSpawn, "requirements-plan.progress.md", "native prompt names progress checkpoint path");
 
   const toolFallbackOutput = runCli(appDir, [
     "tool-fallback",
@@ -386,7 +476,9 @@ try {
   assertIncludes(clarificationCapture, "requirements-plan: needs_input", "requirements-plan needs_input captured");
   const clarifyOutput = runCli(appDir, ["clarify", planOnlyRunId]);
   assertIncludes(clarifyOutput, "Q-01", "clarify renders question id");
-  assertIncludes(clarifyOutput, "## 需要你选择", "clarify renders compact choice card");
+  assertIncludes(clarifyOutput, "ACTION REQUIRED", "clarify renders obvious action-required banner");
+  assertIncludes(clarifyOutput, "## 需要你回答的问题", "clarify renders compact choice card");
+  assertIncludes(clarifyOutput, "可直接复制的回复格式", "clarify shows copyable answer format");
   assertIncludes(clarifyOutput, "C. Other", "clarify keeps an Other option");
   const clarifyAnswersOutput = runCli(appDir, ["clarify", planOnlyRunId, "--answers=Q-01:A"]);
   assertIncludes(clarifyAnswersOutput, "Clarification answers saved", "clarify saves answers");
@@ -498,6 +590,7 @@ async function stopSmokeServer() {
 async function createStrictFrontendRun(appDir) {
   const output = runCli(appDir, [
     "run",
+    "--mode=strict",
     "\u7528 crewup \u73b0\u5728\u505a\u4e00\u4e2a\u6700\u5c0f\u53ef\u8fd0\u884c MVP\uff1a\u5b9e\u73b0\u4e00\u4e2a\u672c\u5730\u5f85\u529e\u5217\u8868\u5e94\u7528\uff0c\u5fc5\u987b\u5305\u542b\u5f00\u53d1\u5b9e\u73b0\u3002\u5f53\u524d run \u5fc5\u987b\u5b8c\u6574\u8d70\u5f00\u53d1\u95ed\u73af\uff1a\u9700\u6c42\u786e\u8ba4\u3001\u67b6\u6784/\u5b9e\u73b0\u8ba1\u5212\u3001frontend \u5b9e\u73b0\u3001tester \u9a8c\u8bc1\u3001reviewer \u5ba1\u67e5\u3001release \u603b\u7ed3\u3002\u9a8c\u6536\uff1a\u53ef\u4ee5\u6dfb\u52a0\u5f85\u529e\u3001\u5237\u65b0\u540e\u4fdd\u7559\u3001\u53ef\u4ee5\u6807\u8bb0\u5b8c\u6210\u3001\u53ef\u4ee5\u5220\u9664\u3001build \u901a\u8fc7\u3002"
   ]);
   const runId = extractRunId(output);

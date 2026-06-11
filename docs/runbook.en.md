@@ -4,6 +4,8 @@
 
 Use this runbook to decide whether a CrewUp run is healthy, complete, blocked, or ready to continue. It is written for real users, not only harness maintainers.
 
+For command tiers, commands regular users can ignore, and the full `lite` / `strict` / `plan` / `discovery` completion definitions, use [Command And Completion Governance](./command-governance.en.md) as the source of truth.
+
 ## Where To Look First
 
 Every formal task is a run:
@@ -25,7 +27,7 @@ Read these files first:
 | `artifacts/preview-smoke.md` | Preview URL evidence for web/full-stack runs |
 | `logs/archive/archive-summary.md` | Archive reason and outcome |
 
-Useful commands:
+Useful diagnostic and closeout commands:
 
 ```bash
 npx crewup status
@@ -122,6 +124,19 @@ npx crewup finish <run-id>
 ```
 
 `finish` is the success closeout path. Archive alone does not mean success unless `outcome=success`.
+
+### Lite Closeout
+
+For `lite` runs, `finish` checks the lightweight evidence files instead of the strict native subagent gates:
+
+- `spec.md`
+- `tasks.md`
+- `validation.md`
+- `summary.md`
+
+`validation.md` and `summary.md` must be updated from their pending template state. If they are still pending, `finish` exits with an error and keeps the run open.
+
+Detailed guide: [Lite Lightweight Flow](./lite-v2.en.md).
 
 ## When A Run Is Stuck
 

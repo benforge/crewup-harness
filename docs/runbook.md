@@ -4,6 +4,8 @@
 
 这份 runbook 用来判断一个 CrewUp run 是否正常、是否完成、卡住时怎么处理。它面向真实使用者，不要求用户理解所有内部脚本。
 
+命令分层、哪些命令日常不用、以及 `lite` / `strict` / `plan` / `discovery` 的完整完成态定义，以 [命令与完成态治理](./command-governance.md) 为准。
+
 ## 先看哪里
 
 每个正式工作都对应一个 run：
@@ -25,7 +27,7 @@
 | `artifacts/preview-smoke.md` | Web/full-stack run 的预览 URL 验证证据 |
 | `logs/archive/archive-summary.md` | 归档原因和结果 |
 
-常用命令：
+排查和收口时常用命令：
 
 ```bash
 npx crewup status
@@ -215,3 +217,16 @@ Details: .harness/runs/<run-id>/logs/run-report.md
 ```
 
 不要粘贴完整子 agent 输出、完整日志、完整 context pack 或多个候选下一步。需要细节时给路径。
+
+## Lite 收口规则
+
+`lite` run 的 `finish` 不走 strict native subagent gates，而是检查轻量证据文件：
+
+- `spec.md`
+- `tasks.md`
+- `validation.md`
+- `summary.md`
+
+其中 `validation.md` 和 `summary.md` 必须从 pending 模板状态更新为真实验证和结果记录。如果仍是 pending，`finish` 会失败并保持 run open。
+
+详细说明见 [Lite 轻量流程](./lite-v2.md)。

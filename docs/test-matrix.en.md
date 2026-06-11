@@ -33,7 +33,7 @@ Covers:
 - `.harness/core-lock.json` generation and sealed core drift detection
 - `doctor` / `check` in an installed target project
 
-## Full Workflow Matrix
+## Strict Workflow Matrix
 
 ```bash
 npm run harness:test-flow
@@ -42,6 +42,9 @@ npm run harness:test-flow
 Covers:
 
 - run creation and semantic runId generation
+- explicit `lite` opt-in behavior
+- `lite` lightweight files: `spec.md`, `tasks.md`, `validation.md`, `summary.md`
+- `lite` pending-finish protection and success archive
 - run branch creation and dirty baseline recording
 - `requirements-plan -> requirements -> architect` ordering
 - implementation agents waiting for exact `implementation-plan.md` assignments
@@ -70,6 +73,7 @@ Covers:
 | Change type | Recommended test |
 | --- | --- |
 | install, upgrade, core-lock, CLI install | `npm run test:install-flow` |
+| `lite` mode, lightweight closeout, docs links | `npm run harness:test-flow` + `npm run harness:check` |
 | agent ordering, run lifecycle, gates, repair | `npm run harness:test-flow` |
 | small docs or config changes | `npm run harness:check` |
 | before publishing | `npm run release:preflight` |

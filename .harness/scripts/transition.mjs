@@ -22,6 +22,7 @@ import {
 } from "./lib/delegation-guard.mjs";
 import { hasTemplatePlaceholder } from "./lib/placeholder-detector.mjs";
 import { codeImplementationAgentIds, isDocsOnlyAgentSet, isLiteImplementationOnlyAgentSet } from "./lib/agent-roles.mjs";
+import { isImplementationAgentUnassigned } from "./lib/implementation-plan-scope.mjs";
 import { writeRunStatus } from "./lib/run-lifecycle.mjs";
 
 const root = process.cwd();
@@ -232,6 +233,7 @@ function requireNoOpenNativeAgents() {
   if (!existsSync(nativeStatePath)) return;
   const native = JSON.parse(readFileSync(nativeStatePath, "utf8"));
   const open = (native.agents ?? []).filter((agent) => {
+    if (isImplementationAgentUnassigned(agent.agent, { root, runId })) return false;
     if (agent.status === "closed") return false;
     if (agent.close_required) return true;
     return ["planned", "running", "waiting_review", "ready_to_close", "needs_input", "blocked", "error"].includes(agent.status);

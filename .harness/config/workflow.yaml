@@ -210,6 +210,17 @@ workflow:
         - "impact_scope_known"
         - "verification_recorded"
         - "review_recorded"
+    lite-v2:
+      description: "Experimental lightweight opt-in run: spec, tasks, direct implementation, validation, and summary without strict native subagent provenance."
+      experimental: true
+      default: false
+      run_type: "lite_implementation"
+      no_code: false
+      default_agents: []
+      required_gates:
+        - "lite_spec_recorded"
+        - "lite_validation_recorded"
+        - "lite_summary_recorded"
     standard:
       description: "Normal formal feature/change run with requirements, architecture, implementation, verification, review, and release summary."
       run_type: "feature"

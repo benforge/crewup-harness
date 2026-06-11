@@ -1,12 +1,15 @@
-import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
+import { implementationAgentIds } from "./lib/agent-roles.mjs";
+import { isImplementationAgentUnassigned } from "./lib/implementation-plan-scope.mjs";
 
 const root = process.cwd();
 const args = process.argv.slice(2);
 const apply = args.includes("--apply");
 const closeoutOnly = args.includes("--closeout-only");
 const reopenBlocked = args.includes("--reopen-blocked");
+const pruneUnassignedImplementation = args.includes("--prune-unassigned-implementation");
 const runArg = args.find((arg) => !arg.startsWith("--"));
 const runsRoot = path.join(root, ".harness", "runs");
 
@@ -35,6 +38,7 @@ for (const runId of runIds) {
   const before = { stage: state.stage, status: state.status, archived: Boolean(state.archived) };
   const next = { ...state };
   const notes = [];
+  const pruneNotes = [];
 
   if (closeoutOnly && !isCloseoutRepairAllowed(next)) {
     repairs.push({ runId, action: "skip", reason: "closeout-only requires a final or archived run", before, after: before });
@@ -78,7 +82,11 @@ for (const runId of runIds) {
     notes.push("added transitions array");
   }
 
-  if (notes.length === 0) {
+  if (pruneUnassignedImplementation) {
+    pruneNotes.push(...await pruneUnassignedImplementationAgents(runId, { apply }));
+  }
+
+  if (notes.length === 0 && pruneNotes.length === 0) {
     repairs.push({ runId, action: "none", before, after: before });
     continue;
   }
@@ -89,13 +97,13 @@ for (const runId of runIds) {
     {
       id: "repair-state-2026-05",
       at: next.updatedAt,
-      notes
+      notes: [...notes, ...pruneNotes]
     }
   ];
 
   if (apply) {
     await writeFile(statePath, `${JSON.stringify(next, null, 2)}\n`, "utf8");
-    await writeRepairAudit(runId, { before, after: { stage: next.stage, status: next.status, archived: Boolean(next.archived) }, notes, closeoutOnly });
+    await writeRepairAudit(runId, { before, after: { stage: next.stage, status: next.status, archived: Boolean(next.archived) }, notes: [...notes, ...pruneNotes], closeoutOnly });
   }
 
   repairs.push({
@@ -103,11 +111,11 @@ for (const runId of runIds) {
     action: apply ? "applied" : "would_apply",
     before,
     after: { stage: next.stage, status: next.status },
-    notes
+    notes: [...notes, ...pruneNotes]
   });
 }
 
-console.log(JSON.stringify({ apply, closeoutOnly, reopenBlocked, repairs }, null, 2));
+console.log(JSON.stringify({ apply, closeoutOnly, reopenBlocked, pruneUnassignedImplementation, repairs }, null, 2));
 
 function isCloseoutRepairAllowed(state) {
   return Boolean(state.archived) || ["done", "canceled", "failed", "blocked", "partial"].includes(state.status);
@@ -149,4 +157,55 @@ async function inferStageFromNativeState(runId) {
 function stageRank(stage) {
   const order = ["intake", "requirements_plan", "requirements_confirm", "plan", "implement", "verify", "review", "release", "done"];
   return order.indexOf(stage) >= 0 ? order.indexOf(stage) : -1;
+}
+
+async function pruneUnassignedImplementationAgents(runId, { apply = false } = {}) {
+  const notes = [];
+  const runDir = path.join(runsRoot, runId);
+  const nativeStatePath = path.join(runDir, "logs", "native-subagents", "native-state.json");
+  if (!existsSync(nativeStatePath)) return notes;
+
+  const nativeState = JSON.parse(await readFile(nativeStatePath, "utf8"));
+  const agents = Array.isArray(nativeState.agents) ? nativeState.agents : [];
+  const keep = [];
+  const pruned = [];
+
+  for (const agent of agents) {
+    if (!implementationAgentIds.has(agent.agent)) {
+      keep.push(agent);
+      continue;
+    }
+    if (!isImplementationAgentUnassigned(agent.agent, { root, runId })) {
+      keep.push(agent);
+      continue;
+    }
+    if (agent.handle || agent.result_captured_at || agent.result_status) {
+      keep.push(agent);
+      notes.push(`kept unassigned ${agent.agent} because it has execution evidence`);
+      continue;
+    }
+    pruned.push(agent.agent);
+  }
+
+  if (pruned.length === 0) return notes;
+  notes.push(`pruned unassigned implementation candidates: ${pruned.join(", ")}`);
+
+  if (!apply) return notes;
+
+  nativeState.agents = keep;
+  nativeState.updated_at = new Date().toISOString();
+  await writeFile(nativeStatePath, `${JSON.stringify(nativeState, null, 2)}\n`, "utf8");
+
+  for (const agent of pruned) {
+    const taskPath = path.join(runDir, "tasks", `${agent}.task.md`);
+    if (existsSync(taskPath)) await rm(taskPath, { force: true });
+    for (const suffix of [".spawn.md", ".handoff.md"]) {
+      const target = suffix === ".spawn.md"
+        ? path.join(runDir, "logs", "native-subagents", `${agent}${suffix}`)
+        : path.join(runDir, "logs", "agent-bridge", `${agent}${suffix}`);
+      if (existsSync(target)) await rm(target, { force: true });
+    }
+  }
+
+  return notes;
 }

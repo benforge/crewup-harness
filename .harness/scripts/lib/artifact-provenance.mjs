@@ -89,7 +89,13 @@ async function collectNativeResults(root, logsDir) {
   for (const agent of native?.agents ?? []) {
     if (!agent.result_captured_at || agent.result_status !== "completed") continue;
     const resultJson = agent.result_json_path ? await readJson(resolveWorkspacePath(root, agent.result_json_path)) : null;
-    for (const item of resultJson?.artifactUpdates ?? resultJson?.artifactsUpdated ?? []) {
+    const artifactItems = [
+      ...asArray(agent.artifactUpdates),
+      ...asArray(agent.artifactsUpdated),
+      ...asArray(resultJson?.artifactUpdates),
+      ...asArray(resultJson?.artifactsUpdated)
+    ];
+    for (const item of dedupeArtifactItems(artifactItems)) {
       entries.push({
         agent: resultJson.agent ?? agent.agent,
         artifact: normalizeArtifactPath(item.path ?? item),
@@ -101,6 +107,21 @@ async function collectNativeResults(root, logsDir) {
     }
   }
   return entries;
+}
+
+function asArray(value) {
+  if (Array.isArray(value)) return value;
+  return value == null ? [] : [value];
+}
+
+function dedupeArtifactItems(items) {
+  const byPath = new Map();
+  for (const item of items) {
+    const pathValue = typeof item === "string" ? item : item?.path;
+    if (!pathValue) continue;
+    byPath.set(normalizeArtifactPath(pathValue), item);
+  }
+  return [...byPath.values()];
 }
 
 async function collectBridgeResults(root, logsDir) {

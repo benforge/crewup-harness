@@ -8,7 +8,7 @@ CrewUp 是显式启用的严格 AI engineering harness。没有明确的 CrewUp 
 
 有效入口有两种：
 
-- CLI：用户运行 `npx crewup run "..."`。
+- CLI：用户运行 `npx crewup run --mode=<lite|strict|plan|discovery> "..."`。
 - 聊天：用户明确说“使用 CrewUp / 按 harness 流程 / 继续某个 run”。这时主 agent 应自己运行 `npx crewup run`，提取 runId，然后继续 `next-agent` 调度。
 
 聊天入口不应该要求用户先手动生成 runId。
@@ -163,3 +163,29 @@ npm run release:preflight
 ```
 
 这会覆盖配置完整性、临时项目安装、run 创建、任务顺序、owner artifact gate、implementation dispatch、repair-plan、archive closeout 和基础发布打包检查。
+
+## Lite 显式轻量流程
+
+`lite` 是显式启用的轻量路径，内部 profile 是 `lite-v2`，不是 strict 工作流。它用于低风险、小范围实现任务，适合 native subagent provenance 比任务本身更重的场景。
+
+```bash
+npx crewup run --mode=lite "修复一个小 UI 问题并记录验证"
+```
+
+它的 run 结构是：
+
+```text
+input.md
+spec.md
+tasks.md
+validation.md
+summary.md
+state.json
+RUN_STATUS.md
+```
+
+`lite` 不生成 native subagent tasks，不创建 `native-subagent-plan.json`，也不要求 `requirements-plan -> requirements -> architect -> tester -> reviewer -> release`。主 agent 可以在任务范围内直接实现。`finish` 会检查 `validation.md` 和 `summary.md` 不再是 pending 后才归档 success。
+
+数据库、auth、安全、部署、跨模块或需要审计证据的任务仍应使用 strict 或 `strict --risk=high`。
+
+详细说明见 [Lite 轻量流程](./lite-v2.md)。

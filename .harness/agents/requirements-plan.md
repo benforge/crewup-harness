@@ -67,6 +67,12 @@ The `Clarification Card` must be the first user-facing review surface. Use compa
 ```markdown
 ## Clarification Card
 
+### ACTION REQUIRED: 需要用户回答
+
+- 当前 run 暂停在需求确认阶段。
+- 请用户按题号选择答案，例如：`Q-01:B`。
+- 用户回答保存后，requirements-plan 才能继续完成正式需求。
+
 ### Confirmed Facts
 
 | Area | Confirmed |
@@ -96,9 +102,10 @@ The `Clarification Card` must be the first user-facing review surface. Use compa
 ### Ready To Continue
 
 - [ ] 用户已确认这张需求确认卡。
+- Reply format: `Q-01:B; Q-02:A`
 ```
 
-Keep the card readable in a chat preview. Avoid dense paragraphs.
+Keep the card readable in a chat preview. Avoid dense paragraphs. The action section must be obvious enough that a user understands they need to answer before the run can continue.
 
 ## Clarification Question Format
 

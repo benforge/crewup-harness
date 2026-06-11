@@ -74,6 +74,29 @@ Common causes:
 
 If diagnostics say an agent ran too long without a captured result, resume that same subagent for a result-only closeout. Do not let the main agent write owner artifacts or business code.
 
+If `next-agent` returns `action=stale`, the active native subagent has no recent result or progress checkpoint. The threshold comes from `.harness/config/native-subagents.yaml` at `runtime.slow_result_capture_minutes`; the template default is now 45 minutes. Ask for one result-only closeout, then diagnose or mark the run blocked instead of waiting indefinitely. Recent `logs/native-subagents/<agent>.progress.md` updates keep the agent in normal wait state.
+
+## Lite Issues
+
+`lite` does not use native subagents by default. If a `lite` run looks stuck, check:
+
+```text
+.harness/runs/<run-id>/spec.md
+.harness/runs/<run-id>/tasks.md
+.harness/runs/<run-id>/validation.md
+.harness/runs/<run-id>/summary.md
+```
+
+Common cases:
+
+| Symptom | Fix |
+| --- | --- |
+| `finish` says `update validation.md, summary.md` | Replace pending template entries with real validation and outcome evidence |
+| No native subagent plan exists | Expected for `lite`; implement directly or switch to strict if audit is required |
+| Task turns out high-risk | Stop `lite`, record the reason, and create a strict or `strict --risk=high` run |
+
+Guide: [Lite Lightweight Flow](./lite-v2.en.md).
+
 ## tester/reviewer Requires Repair
 
 tester/reviewer findings must route back to owner agents. The main agent should not patch files directly.

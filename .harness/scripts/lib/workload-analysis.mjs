@@ -1,6 +1,6 @@
 import { negatedScopes, stripNegatedScopeText } from "./scope-negation.mjs";
 
-const defaultProfiles = new Set(["discovery", "plan_only", "lite", "standard", "full"]);
+const defaultProfiles = new Set(["discovery", "plan_only", "lite", "lite-v2", "standard", "full"]);
 
 const highRiskSignals = [
   /\u751f\u4ea7|\u771f\u5b9e\u6570\u636e|\u5220\u9664|\u8fc1\u79fb|\u8986\u76d6|\u91cd\u7f6e|\u56de\u6eda|\u5bc6\u94a5|\u6743\u9650|\u9274\u6743|\u8ba4\u8bc1/i,
@@ -45,7 +45,7 @@ export function analyzeWorkload(inputText, { requestedProfile = "auto" } = {}) {
   const inferredProfile = profileForScore(complexityScore, signals);
   const workflowProfile = chooseRequestedProfile(requestedProfile, inferredProfile, signals);
   const runType = runTypeForProfile(workflowProfile, signals);
-  const needsRequirementsPlan = true;
+  const needsRequirementsPlan = !["lite-v2"].includes(workflowProfile);
   const primaryLanguage = detectPrimaryLanguage(text);
 
   return {
@@ -106,10 +106,10 @@ export function detectPrimaryLanguage(text) {
 }
 
 function chooseRequestedProfile(requested, inferred, signals) {
-  if (!requested || requested === "auto") return inferred;
-  if (!defaultProfiles.has(requested)) return "standard";
-  if (!["full", "plan_only", "discovery"].includes(requested) && (signals.highRisk || signals.strictWorkflow)) return "full";
-  return requested;
+  const normalized = normalizeRequestedProfile(requested);
+  if (!normalized || normalized === "auto") return inferred;
+  if (!defaultProfiles.has(normalized)) return "standard";
+  return normalized;
 }
 
 function collectSignals(text) {
@@ -153,9 +153,15 @@ function profileForScore(score, signals) {
 function runTypeForProfile(profile, signals) {
   if (profile === "discovery") return "discovery";
   if (profile === "plan_only") return "plan_only";
+  if (profile === "lite-v2") return "lite_implementation";
   if (signals.highRisk) return "high_risk_feature";
   if (profile === "lite") return "implementation";
   return "feature";
+}
+
+function normalizeRequestedProfile(requested) {
+  if (requested === "lite_v2") return "lite-v2";
+  return requested;
 }
 
 function complexityLevel(score) {

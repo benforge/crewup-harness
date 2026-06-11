@@ -7,11 +7,12 @@ import { inferOverlayScopeMatches, loadProjectOverlay, overlayRuleFilesForAgent,
 import { analyzeWorkload, renderWorkloadAnalysisMarkdown } from "./lib/workload-analysis.mjs";
 import { hasPositiveMatch, isScopeNegated, negatedScopes, stripNegatedScopeText } from "./lib/scope-negation.mjs";
 import { implementationAgentIds, isDocsOnlyAgentSet } from "./lib/agent-roles.mjs";
+import { profileFromMode } from "./lib/workflow-modes.mjs";
 
 const root = process.cwd();
 const args = process.argv.slice(2);
 const runId = args.find((arg) => !arg.startsWith("--"));
-const requestedProfile = valueOf("--profile=") ?? "auto";
+const requestedProfile = valueOf("--profile=") ?? profileFromMode(valueOf("--mode="), valueOf("--risk=") ?? "normal") ?? "auto";
 
 if (!runId) {
   console.error("Please provide runId, for example: npm run harness:prepare-run -- 2026-05-14-001-blog-mvp");
@@ -40,7 +41,9 @@ const impactScopesConfig = resolveImpactScopes(projectProfile, projectOverlay.pr
 const workloadAnalysis = analyzeWorkload(input, { requestedProfile });
 const workflowProfile = workloadAnalysis.workflowProfile;
 const impactScopes = detectImpactScopes(input, impactScopesConfig, projectOverlay.profile);
-const selectedAgents = selectAgents(input, agentsConfig, impactScopesConfig, projectProfile, workflowProfile, impactScopes, workloadAnalysis);
+const selectedAgents = workflowProfile === "lite-v2"
+  ? []
+  : selectAgents(input, agentsConfig, impactScopesConfig, projectProfile, workflowProfile, impactScopes, workloadAnalysis);
 
 for (const entry of await readdir(tasksDir, { withFileTypes: true })) {
   if (entry.isFile() && (entry.name.endsWith(".task.md") || entry.name === "main-agent-summary.md")) {
@@ -55,6 +58,13 @@ for (const agentId of selectedAgents) {
 }
 
 await writeFile(path.join(tasksDir, "main-agent-summary.md"), buildMainSummary(selectedAgents, workflowProfile, impactScopes), "utf8");
+if (workflowProfile === "lite-v2") {
+  await writeLiteV2Artifacts({ input, impactScopes });
+} else if (workflowProfile === "plan_only") {
+  await writePlanArtifacts({ input, impactScopes });
+} else if (workflowProfile === "discovery") {
+  await writeDiscoveryArtifacts({ input, impactScopes });
+}
 await mkdir(path.join(runDir, "logs"), { recursive: true });
 await writeFile(path.join(runDir, "logs", "workload-analysis.json"), `${JSON.stringify(workloadAnalysis, null, 2)}\n`, "utf8");
 await writeFile(path.join(runDir, "logs", "workload-analysis.md"), renderWorkloadAnalysisMarkdown(workloadAnalysis), "utf8");
@@ -389,6 +399,8 @@ function outputContractFor(agentId) {
     "requirements-plan": [
       "- `requirement-plan.md` must use the exact headings from Artifact Schema.",
       "- The `Clarification Card` section must be the first user-facing review surface and use compact Markdown tables/bullets.",
+      "- The clarification card must start with an obvious `ACTION REQUIRED: 需要用户回答` section that says the run is paused until the user answers.",
+      "- Include a copyable reply format such as `Q-01:B; Q-02:A` in the card.",
       "- The card must include `Confirmed Facts`, `Decisions Needed`, `Non-Goals Snapshot`, `Acceptance Preview`, and `Ready To Continue` subsections.",
       "- Write all user-facing card content, question text, option labels, option descriptions, summaries, blockers, and handoff notes in the user's primary language.",
       "- Keep required headings, JSON field names, status values, file paths, and commands in English.",
@@ -587,12 +599,282 @@ async function updateRunState({ workflowProfile, workloadAnalysis }) {
     ];
   }
 
+  if (workflowProfile === "lite-v2") {
+    state.stage = "implement";
+    state.owners = ["main"];
+    state.confirmations = state.confirmations ?? {};
+    state.confirmations.implementation_approved_at = state.confirmations.implementation_approved_at ?? now;
+    state.nextAction = {
+      type: "lite-v2",
+      description: "Implement the scoped change directly, then record validation and summary.",
+      command: `npx crewup finish ${runId}`
+    };
+    const lastTransition = state.transitions?.at(-1);
+    if (lastTransition?.reason !== "lite_v2_prepared") {
+      state.transitions = [
+        ...(state.transitions ?? []),
+        {
+          from: lastTransition?.to ?? "requirements_plan",
+          to: "implement",
+          at: now,
+          reason: "lite_v2_prepared"
+        }
+      ];
+    }
+  }
+
   state.updatedAt = now;
   await writeFile(statePath, `${JSON.stringify(state, null, 2)}\n`, "utf8");
 }
 
 function isDocsOnlyRun(agentList) {
   return isDocsOnlyAgentSet(agentList);
+}
+
+async function writeLiteV2Artifacts({ input: inputText, impactScopes }) {
+  const now = new Date().toISOString();
+  await writeFile(path.join(runDir, "spec.md"), renderLiteSpec({ inputText, impactScopes, now }), "utf8");
+  await writeFile(path.join(runDir, "tasks.md"), renderLiteTasks({ impactScopes, now }), "utf8");
+  await writeFile(path.join(runDir, "validation.md"), renderLiteValidation({ now }), "utf8");
+  await writeFile(path.join(runDir, "summary.md"), renderLiteSummary({ now }), "utf8");
+}
+
+async function writePlanArtifacts({ input: inputText, impactScopes }) {
+  const now = new Date().toISOString();
+  await writeFile(path.join(runDir, "planning.md"), renderPlanRootArtifact({ inputText, impactScopes, now }), "utf8");
+  await writeFile(path.join(runDir, "acceptance.md"), renderPendingRootArtifact("Acceptance", now, "plan"), "utf8");
+  await writeFile(path.join(runDir, "architecture-plan.md"), renderPendingRootArtifact("Architecture Plan", now, "plan"), "utf8");
+  await writeFile(path.join(runDir, "implementation-plan.md"), renderPendingRootArtifact("Implementation Plan", now, "plan"), "utf8");
+  await writeFile(path.join(runDir, "review.md"), renderPendingRootArtifact("Review", now, "plan"), "utf8");
+  await writeFile(path.join(runDir, "validation.md"), renderNoCodeValidation({ now, profile: "plan" }), "utf8");
+  await writeFile(path.join(runDir, "summary.md"), renderPendingRootArtifact("Summary", now, "plan"), "utf8");
+}
+
+async function writeDiscoveryArtifacts({ input: inputText, impactScopes }) {
+  const now = new Date().toISOString();
+  await writeFile(path.join(runDir, "discovery.md"), renderDiscoveryRootArtifact({ inputText, impactScopes, now }), "utf8");
+  await writeFile(path.join(runDir, "module-map.md"), renderPendingRootArtifact("Module Map", now, "discovery"), "utf8");
+  await writeFile(path.join(runDir, "tech-map.md"), renderPendingRootArtifact("Tech Map", now, "discovery"), "utf8");
+  await writeFile(path.join(runDir, "risk-map.md"), renderPendingRootArtifact("Risk Map", now, "discovery"), "utf8");
+  await writeFile(path.join(runDir, "next-runs.md"), renderPendingRootArtifact("Next Runs", now, "discovery"), "utf8");
+  await writeFile(path.join(runDir, "review.md"), renderPendingRootArtifact("Review", now, "discovery"), "utf8");
+  await writeFile(path.join(runDir, "summary.md"), renderPendingRootArtifact("Summary", now, "discovery"), "utf8");
+}
+
+function renderPlanRootArtifact({ inputText, impactScopes, now }) {
+  return `# Planning
+
+## Goal
+
+- ${oneLine(inputText) || "Create a no-code plan."}
+
+## Scope
+
+- Impact scopes: ${impactScopes.length ? impactScopes.join(", ") : "(not detected)"}
+- This is a no-code CrewUp plan run.
+
+## Required Outputs
+
+- planning.md
+- acceptance.md
+- architecture-plan.md
+- implementation-plan.md
+- review.md
+- validation.md
+- summary.md
+
+## Metadata
+
+- generatedAt: ${now}
+- profile: plan
+`;
+}
+
+function renderDiscoveryRootArtifact({ inputText, impactScopes, now }) {
+  return `# Discovery
+
+## Goal
+
+- ${oneLine(inputText) || "Discover project structure and module boundaries."}
+
+## Scope
+
+- Impact scopes: ${impactScopes.length ? impactScopes.join(", ") : "(not detected)"}
+- This is a no-code CrewUp discovery run.
+
+## Required Outputs
+
+- discovery.md
+- module-map.md
+- tech-map.md
+- risk-map.md
+- next-runs.md
+- review.md
+- summary.md
+
+## Metadata
+
+- generatedAt: ${now}
+- profile: discovery
+`;
+}
+
+function renderPendingRootArtifact(title, now, profile) {
+  return `# ${title}
+
+## Status
+
+- pending
+
+## Notes
+
+- This file is part of the fixed ${profile} run structure.
+
+## Metadata
+
+- generatedAt: ${now}
+- profile: ${profile}
+`;
+}
+
+function renderNoCodeValidation({ now, profile }) {
+  return `# Validation
+
+## Result
+
+- status: pending
+
+## No-Code Guard
+
+- [ ] No business code changes were made.
+
+## Metadata
+
+- generatedAt: ${now}
+- profile: ${profile}
+`;
+}
+
+function renderLiteSpec({ inputText, impactScopes, now }) {
+  return `# Lite Spec
+
+## Goal
+
+- ${oneLine(inputText) || "Complete the requested lightweight change."}
+
+## Scope
+
+- Impact scopes: ${impactScopes.length ? impactScopes.join(", ") : "(not detected; keep changes minimal and task-scoped)"}
+- Use this lite-v2 run only for low-risk, scoped implementation work.
+
+## Non-Goals
+
+- Do not make unrelated refactors.
+- Do not change database, authentication, deployment, or production-risk behavior unless the user explicitly asked to leave lite-v2.
+- Do not claim strict CrewUp audit provenance for this run.
+
+## Acceptance Criteria
+
+- [ ] AC-01: The requested scoped change is implemented.
+- [ ] AC-02: Relevant validation is recorded in \`validation.md\`.
+- [ ] AC-03: Residual risks or skipped checks are documented.
+
+## Risks
+
+- Lite-v2 is an opt-in lightweight path and does not require native subagent provenance.
+
+## Metadata
+
+- generatedAt: ${now}
+- profile: lite-v2
+`;
+}
+
+function renderLiteTasks({ impactScopes, now }) {
+  return `# Lite Tasks
+
+## Plan
+
+- [ ] Review \`input.md\` and \`spec.md\`.
+- [ ] Implement only the scoped change.
+- [ ] Run relevant build, test, lint, or preview checks when available.
+- [ ] Update \`validation.md\` with command results.
+- [ ] Update \`summary.md\` with outcome, changed files, validation, and risks.
+
+## Allowed Scope
+
+- Impact scopes: ${impactScopes.length ? impactScopes.join(", ") : "(not detected)"}
+- Keep changes inside the user's request and discovered project scope.
+
+## Validation Commands
+
+- Add exact commands before or after running them.
+
+## Metadata
+
+- generatedAt: ${now}
+- profile: lite-v2
+`;
+}
+
+function renderLiteValidation({ now }) {
+  return `# Lite Validation
+
+## Result
+
+- status: pending
+
+## Commands
+
+| Command | Result | Notes |
+| --- | --- | --- |
+| pending | pending | Add build/test/lint/preview-smoke results here. |
+
+## Acceptance Criteria Check
+
+- [ ] AC-01: pending
+- [ ] AC-02: pending
+- [ ] AC-03: pending
+
+## Risks Or Skips
+
+- none
+
+## Metadata
+
+- generatedAt: ${now}
+- profile: lite-v2
+`;
+}
+
+function renderLiteSummary({ now }) {
+  return `# Lite Summary
+
+## Outcome
+
+- pending
+
+## Changed Files
+
+- pending
+
+## Validation
+
+- pending
+
+## Residual Risks
+
+- none
+
+## Metadata
+
+- generatedAt: ${now}
+- profile: lite-v2
+`;
+}
+
+function oneLine(value) {
+  return String(value ?? "").trim().split(/\r?\n/).map((line) => line.trim()).filter(Boolean)[0] ?? "";
 }
 
 

@@ -164,3 +164,26 @@ npx crewup check
 ```
 
 如果这是 CrewUp 产品自身 bug，应回到 CrewUp 源码仓库修复、测试、发版，而不是在用户项目的业务 run 里顺手修 `.harness`。
+
+## Lite 排查
+
+`lite` 默认不使用 native subagents。如果 `lite` run 看起来卡住，先检查：
+
+```text
+.harness/runs/<run-id>/spec.md
+.harness/runs/<run-id>/tasks.md
+.harness/runs/<run-id>/validation.md
+.harness/runs/<run-id>/summary.md
+```
+
+常见情况：
+
+| 现象 | 处理 |
+| --- | --- |
+| `finish` 提示 `update validation.md, summary.md` | 把 pending 模板内容替换成真实验证和结果记录 |
+| 没有 native subagent plan | 这是 `lite` 的预期行为；需要审计时改用 strict |
+| 任务执行中发现高风险范围 | 停止 `lite`，记录原因，重新创建 strict 或 `strict --risk=high` run |
+
+strict 下如果 `next-agent` 返回 `action=stale`，说明 active native subagent 长时间没有 result 或 progress checkpoint。默认阈值来自 `.harness/config/native-subagents.yaml` 的 `runtime.slow_result_capture_minutes`。先要求同一个子 agent 做一次 result-only closeout；仍无结果时再诊断或记录 blocked，不要无限等待。
+
+详细说明见 [Lite 轻量流程](./lite-v2.md)。

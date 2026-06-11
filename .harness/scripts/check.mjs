@@ -85,6 +85,7 @@ const requiredPaths = [
   ".harness/scripts/verify.mjs",
   ".harness/scripts/integrations.mjs",
   ".harness/scripts/archive.mjs",
+  ".harness/scripts/drive.mjs",
   ".harness/scripts/cancel.mjs",
   ".harness/scripts/continue-run.mjs",
   ".harness/scripts/context-pack.mjs",
@@ -128,6 +129,7 @@ const requiredPaths = [
   ".harness/scripts/lib/scope-negation.mjs",
   ".harness/scripts/lib/implementation-plan-scope.mjs",
   ".harness/scripts/lib/run-lifecycle.mjs",
+  ".harness/scripts/lib/workflow-modes.mjs",
   ".harness/scripts/lib/terminal-encoding.mjs",
   ".harness/scripts/lib/workload-analysis.mjs",
   "docs/harness-core-boundary.md",
@@ -304,9 +306,32 @@ async function checkTextEncoding() {
     0x7039,
     0x20AC
   ].map((code) => `\\u${code.toString(16).padStart(4, "0")}`).join("")}]`);
+  const mojibakeTokens = [
+    0x6D93,
+    0x6D63,
+    0x5BF0,
+    0x95C2,
+    0x690B,
+    0x9410,
+    0x7441,
+    0x7A0B,
+    0x937E,
+    0x4E63,
+    0x4E7A,
+    0x4E64,
+    0x4E6E,
+    0x4E7C,
+    0x4E6B,
+    0x9286,
+    0x951B,
+    0x9428,
+    0x9359,
+    0x93C4
+  ].map((code) => String.fromCodePoint(code));
   for (const file of files) {
     const content = await readFile(file, "utf8");
-    if (suspicious.test(content)) {
+    const tokenHits = mojibakeTokens.filter((token) => content.includes(token));
+    if (suspicious.test(content) || tokenHits.length >= 2) {
       errors.push(`Suspicious mojibake or replacement characters: ${path.relative(root, file).replaceAll("\\", "/")}`);
     }
   }
@@ -558,6 +583,11 @@ async function checkNativeSubagents() {
 
   if (!config.runtime?.state_file || !config.runtime?.result_file_pattern || !config.runtime?.close_audit_required) {
     errors.push(`${rel} runtime must define state_file, result_file_pattern, and close_audit_required`);
+  }
+
+  const slowMinutes = Number(config.runtime?.slow_result_capture_minutes);
+  if (!Number.isInteger(slowMinutes) || slowMinutes < 15 || slowMinutes > 180) {
+    errors.push(`${rel} runtime.slow_result_capture_minutes must be an integer between 15 and 180`);
   }
 
   const statuses = new Set(config.runtime?.status_values ?? []);

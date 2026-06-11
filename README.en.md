@@ -38,7 +38,7 @@ A strict workflow does not skip roles just because a task is small. CrewUp reduc
 
 ## Core Capabilities
 
-- Explicit activation: formal workflow starts only through `npx crewup run` or a clear chat request to use CrewUp / harness
+- Explicit activation: real runs require an explicit mode such as `--mode=lite`, `--mode=strict`, `--mode=plan`, or `--mode=discovery`
 - Main-agent boundary: the main agent orchestrates, checks, and summarizes; it does not write owner artifacts or business code
 - Ordered dispatch: `next-agent` returns only subagents whose prerequisites are complete
 - Stable front door: the first runnable agent in a formal run should be `requirements-plan`, not an implementation agent
@@ -111,25 +111,33 @@ npx crewup install --reset
 CLI:
 
 ```bash
-npx crewup run "Use CrewUp to plan and implement a todo MVP with requirements, architecture, frontend implementation, tester verification, reviewer review, and release summary. Keep the implementation small."
+npx crewup run --mode=strict "Use CrewUp to plan and implement a todo MVP with requirements, architecture, frontend implementation, tester verification, reviewer review, and release summary. Keep the implementation small."
 ```
 
 Chat:
 
 ```text
-Use CrewUp to plan and implement a tiny Todo MVP. Keep the full flow: requirements, architecture, implementation, tester, reviewer, release. Let requirements and architecture confirm the scope, then dispatch implementation agents from the architecture plan.
+Use CrewUp strict to plan and implement a tiny Todo MVP. Keep the full flow: requirements, architecture, implementation, tester, reviewer, release. Let requirements and architecture confirm the scope, then dispatch implementation agents from the architecture plan.
 ```
 
-When CrewUp is requested in chat, the main agent should run `npx crewup run "<user request>"`, extract the runId, then call `npx crewup next-agent <run-id>` and continue orchestration. Users do not need to manually create a runId first.
+When CrewUp is requested in chat, the user must name the mode. The main agent should run `npx crewup run --mode=<mode> "<user request>"`, extract the runId, then call `npx crewup next-agent <run-id>` or `npx crewup drive <run-id>` and continue orchestration. Users do not need to manually create a runId first.
 
 Requests without an explicit CrewUp signal remain normal assistant work.
+
+Mode examples:
+
+- `Use CrewUp lite to fix this low-risk UI bug and update validation/summary.`
+- `Use CrewUp strict to add the permission system.`
+- `Use CrewUp strict, high risk, to redesign auth and database access.`
+- `Use CrewUp plan only; do not write code.`
+- `Use CrewUp discovery to map the repo and propose next runs.`
 
 ## First Full-Flow Example
 
 Use this small case to test the whole workflow without spending too much:
 
 ```text
-Use CrewUp to build a tiny counter web app and run the full workflow. Acceptance criteria: page shows counter, initial value is 0, +1/-1/reset work, value persists after refresh, build/test pass. Scope: tiny frontend only; no backend, database, auth, or routing.
+Use CrewUp strict to build a tiny counter web app and run the full workflow. Acceptance criteria: page shows counter, initial value is 0, +1/-1/reset work, value persists after refresh, build/test pass. Scope: tiny frontend only; no backend, database, auth, or routing.
 ```
 
 After the run is created, check orchestration:
@@ -146,6 +154,8 @@ If multilingual text appears garbled in a terminal, run `npx crewup doctor --enc
 
 ## Common Commands
 
+Daily users do not need to remember every script. Prefer `doctor`, `init`, `check`, `run`, `status/runs`, `explain`, `drive`, `finish`, `archive`, `cancel`, and `continue`; strict operator commands such as `next-agent`, `native-state`, `audit`, `gate-check`, and `report` are usually run by the main agent. See [Command And Completion Governance](./docs/command-governance.en.md) for the full tiering and outcome rules.
+
 | Command | Purpose |
 | --- | --- |
 | `npx crewup doctor` | Check local environment and prerequisites |
@@ -155,8 +165,13 @@ If multilingual text appears garbled in a terminal, run `npx crewup doctor --enc
 | `npx crewup inspect --no-ai` | Inspect project structure without AI |
 | `npx crewup init --agent codex --yes` | Generate project adapter and runtime config |
 | `npx crewup check` | Validate harness config, scripts, and templates |
-| `npx crewup run "..."` | Create a formal run |
+| `npx crewup run --mode=lite "..."` | Create a lightweight implementation run |
+| `npx crewup run --mode=strict "..."` | Create a formal multi-agent run |
+| `npx crewup run --mode=strict --risk=high "..."` | Create a high-risk full-profile strict run |
+| `npx crewup run --mode=plan "..."` | Create a no-code planning run |
+| `npx crewup run --mode=discovery "..."` | Create a no-code discovery run |
 | `npx crewup run --dry-run "..."` | Preview naming, profile, and agent routing |
+| `npx crewup drive <run-id>` | Deterministically reconcile, classify next action, and run scriptable closeout steps |
 | `npx crewup next-agent <run-id>` | Show currently runnable subagents and blocked prerequisites; a formal run should start with `requirements-plan` |
 | `npx crewup status` | List all runs and find a runId |
 | `npx crewup runs` | Alias for the status list view |
@@ -187,13 +202,13 @@ For internal pipeline and maintenance commands, see [Script Map](./docs/harness-
 
 ## Workflow Profiles
 
-| Profile | Best for | Rule |
+| Public mode | Internal profile | Best for |
 | --- | --- | --- |
-| `discovery` | New-project discovery, module boundaries, technical direction | Discovery and planning only |
-| `plan_only` | User explicitly asks for planning/no code | Business-code gate is active |
-| `lite` | Narrow but formal engineering tasks | Still delegated and gated |
-| `standard` | Normal multi-file engineering work | Full task, context, implementation, and verification loop |
-| `full` | High-risk, broad, multi-stage, or explicitly strict work | Strong requirements, architecture, tester, reviewer, and release gates |
+| `lite` | `lite-v2` | Low-risk narrow implementation; main agent may implement directly and must record `spec.md`, `tasks.md`, `validation.md`, and `summary.md` |
+| `strict` | `standard` | Normal formal multi-agent delivery |
+| `strict --risk=high` | `full` | High-risk, broad, multi-stage, or audit-heavy work |
+| `plan` | `plan_only` | Planning/no-code artifacts only; business-code gate is active |
+| `discovery` | `discovery` | Project/module mapping and next-run recommendations |
 
 ## When Subagents Start
 
@@ -212,6 +227,20 @@ Typical planning-to-development flow:
 If an open run hits a preview, deployment, build, or functional issue, keep repairing inside the current run and route work to the owning agent. If an archived run later shows a preview, deployment, or functional issue, create a continuation run with `npx crewup continue <run-id> "..."`. The main agent may restart/stop services and rerun preview smoke, but business-code fixes must go through the owning agents.
 
 Normally, users should describe the goal and constraints; requirements/architect artifacts and impact scope should decide which implementation agents are needed. Negation-aware routing only applies when the user has explicitly excluded a scope, so CrewUp does not start irrelevant owner agents just to confirm they are irrelevant.
+
+## Lite Lightweight Flow
+
+`lite` is an explicit opt-in path for low-risk, narrow changes. It is meant for small UI work, single-module bug fixes, and lightweight implementation tasks where the full native subagent audit chain would add more friction than value.
+
+```bash
+npx crewup run --mode=lite "Fix the Admin mobile overflow and run build/test"
+```
+
+It creates `spec.md`, `tasks.md`, `validation.md`, and `summary.md` directly under the run directory. It does not create native subagent tasks or `logs/native-subagents/native-subagent-plan.json`. The main agent may implement directly inside the scoped task, but `finish` refuses success while `validation.md` or `summary.md` still contain pending evidence.
+
+Use `lite` only by explicit request. The existing strict workflow remains unchanged and should still be used for database, auth, security, deploy, cross-module, or audit-heavy work. `--profile=lite-v2` remains available only as a compatibility alias.
+
+Detailed guide: [Lite Lightweight Flow](./docs/lite-v2.en.md).
 
 ## Directory Layout
 
@@ -261,7 +290,10 @@ See the full matrix in [Test Matrix](./docs/test-matrix.en.md).
 | Document | Topic |
 | --- | --- |
 | [Workflow](./docs/harness-workflow.en.md) | Command flow, profiles, and run lifecycle |
+| [模式治理](./docs/mode-governance.md) | 中文说明：聊天怎么指定模式、每种模式生成什么、怎么算完成、卡住怎么办 |
+| [Lite](./docs/lite-v2.en.md) | Lightweight opt-in flow for small low-risk implementation tasks |
 | [Runbook](./docs/runbook.en.md) | How to judge health, completion, blockers, cancellation, and continuation |
+| [Command Governance](./docs/command-governance.en.md) | Daily/internal/maintenance command tiers plus complete, incomplete, blocked, and canceled outcome rules |
 | [Getting Started](./docs/getting-started.en.md) | Install, API key setup, first run, and troubleshooting |
 | [Troubleshooting](./docs/troubleshooting.en.md) | Terminal encoding, mojibake checks, and cross-platform fixes |
 | [Local Testing](./docs/local-testing.en.md) | Test CrewUp locally with `npm pack` and a temporary project |

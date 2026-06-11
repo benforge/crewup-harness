@@ -114,6 +114,8 @@ switch (command) {
         result_json_path: resultJsonPath,
         result_captured_at: new Date().toISOString(),
         summary: parsedJson.summary ?? null,
+        artifactUpdates: mergedArtifactUpdates(agent, parsedJson),
+        artifactsUpdated: mergedArtifactsUpdated(agent, parsedJson),
         fixRequired: parsedJson.fixRequired === true,
         targetAgents: Array.isArray(parsedJson.targetAgents) ? parsedJson.targetAgents : [],
         requiredFixes: Array.isArray(parsedJson.requiredFixes) ? parsedJson.requiredFixes : [],
@@ -671,6 +673,8 @@ async function reconcileResults(current) {
       result_json_path: resultJsonPath,
       result_captured_at: hasNewerResultFile || !agent.result_captured_at ? new Date().toISOString() : agent.result_captured_at,
       summary: parsedJson.summary ?? null,
+      artifactUpdates: mergedArtifactUpdates(agent, parsedJson),
+      artifactsUpdated: mergedArtifactsUpdated(agent, parsedJson),
       fixRequired: parsedJson.fixRequired === true,
       targetAgents: Array.isArray(parsedJson.targetAgents) ? parsedJson.targetAgents : [],
       requiredFixes: Array.isArray(parsedJson.requiredFixes) ? parsedJson.requiredFixes : [],
@@ -729,6 +733,37 @@ function blockerReasonFor(agent) {
     ...(agent?.blockers ?? [])
   ].filter(Boolean);
   return values.length ? values.join("; ") : "";
+}
+
+function mergedArtifactUpdates(agent, parsedJson) {
+  const previous = asArray(agent?.artifactUpdates);
+  const current = asArray(parsedJson?.artifactUpdates);
+  const fromArtifactsUpdated = asArray(parsedJson?.artifactsUpdated).map((item) => typeof item === "string" ? { path: item } : item);
+  return dedupeArtifactUpdates([...previous, ...current, ...fromArtifactsUpdated]);
+}
+
+function mergedArtifactsUpdated(agent, parsedJson) {
+  const previous = asArray(agent?.artifactsUpdated).map((item) => typeof item === "string" ? item : item?.path).filter(Boolean);
+  const current = [
+    ...asArray(parsedJson?.artifactsUpdated).map((item) => typeof item === "string" ? item : item?.path),
+    ...asArray(parsedJson?.artifactUpdates).map((item) => typeof item === "string" ? item : item?.path)
+  ].filter(Boolean);
+  return [...new Set([...previous, ...current])];
+}
+
+function dedupeArtifactUpdates(items) {
+  const byPath = new Map();
+  for (const item of items) {
+    const pathValue = typeof item === "string" ? item : item?.path;
+    if (!pathValue) continue;
+    byPath.set(pathValue, typeof item === "string" ? { path: item } : { ...item, path: pathValue });
+  }
+  return [...byPath.values()];
+}
+
+function asArray(value) {
+  if (Array.isArray(value)) return value;
+  return value == null ? [] : [value];
 }
 
 function feedbackRequiresRepair(agent) {

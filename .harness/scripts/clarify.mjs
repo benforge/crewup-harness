@@ -67,9 +67,16 @@ function renderQuestions(items) {
   const card = readClarificationCardSync();
   const warning = terminalEncodingWarning({ cwd: root });
   const lines = [
-    `# 需求确认卡: ${runId}`,
+    `# ACTION REQUIRED: 需要你确认`,
     "",
-    "请先确认下面的关键选项，再继续生成正式需求产物。",
+    `Run: \`${runId}\``,
+    "",
+    "CrewUp 已暂停在需求确认阶段。请回答下面的问题，然后主 agent 才会继续生成正式需求、架构和执行计划。",
+    "",
+    "```text",
+    "请按题号回复，例如：Q-01:B; Q-02:A,C",
+    "如果选择“其它”，请在选项字母后补充说明。",
+    "```",
     ""
   ];
   if (warning) {
@@ -84,7 +91,7 @@ function renderQuestions(items) {
     lines.push(card, "");
   }
 
-  lines.push("## 需要你选择", "");
+  lines.push("## 需要你回答的问题", "");
   lines.push("| 题号 | 问题 | 选项 | 推荐 |");
   lines.push("| --- | --- | --- | --- |");
   for (const question of items) {
@@ -94,21 +101,32 @@ function renderQuestions(items) {
       : question.recommendedOptionIds;
     const optionText = options.length
       ? options.map((option) => `${option.id}. ${option.label ?? ""}${option.description ? `（${option.description}）` : ""}`).join("<br>")
-      : "请直接输入";
+      : "请直接输入文字回答";
     lines.push(`| ${question.id ?? "Q"} | ${question.question ?? ""} | ${optionText} | ${recommended || "-"} |`);
   }
 
   lines.push(
     "",
-    "## 回复格式",
+    "## 可直接复制的回复格式",
+    "",
+    "把下面内容改成你的选择后发给主 agent：",
     "",
     "```text",
-    "Q-01:A",
-    "Q-02:B",
-    "Q-03:D 其它补充说明",
+    items.map((question) => `${question.id ?? "Q"}:${suggestedAnswerFor(question)}`).join("; "),
     "```",
     "",
-    `也可以在真实终端运行：npx crewup clarify ${runId} --interactive`
+    "也可以在真实终端运行交互选择：",
+    "",
+    "```bash",
+    `npx crewup clarify ${runId} --interactive`,
+    "```",
+    "",
+    "回答保存后会写入：",
+    "",
+    `- .harness/runs/${runId}/logs/clarifications/answers.json`,
+    `- .harness/runs/${runId}/logs/clarifications/answers.md`,
+    "",
+    "下一步：主 agent 会恢复 requirements-plan，然后继续 CrewUp 流程。"
   );
   return lines.join("\n").trimEnd();
 }
@@ -122,8 +140,8 @@ function readClarificationCardSync() {
 
 async function runInteractive(items) {
   const answers = [];
-  console.log(`Clarification Questions: ${runId}`);
-  console.log("使用方向键上下移动，多选题用空格切换，回车确认。\n");
+  console.log(`ACTION REQUIRED: 需要你确认 (${runId})`);
+  console.log("使用方向键上下移动；多选题用空格切换；回车确认；Ctrl+C 退出。\n");
   for (const question of items) {
     const type = question.type ?? "free_text";
     if (type === "free_text") {
@@ -156,8 +174,13 @@ function chooseOptions(question, options, multi) {
 
     const render = () => {
       process.stdout.write("\x1Bc");
-      console.log(`${question.id} ${question.question}`);
-      console.log(multi ? "空格切换选中，回车确认。\n" : "方向键上下移动，回车确认。\n");
+      console.log(`ACTION REQUIRED: ${question.id}`);
+      console.log("");
+      console.log(question.question);
+      const recommended = asArray(question.recommendedOptionIds).join(", ");
+      if (recommended) console.log(`推荐：${recommended}`);
+      console.log("");
+      console.log(multi ? "空格切换选中，回车确认，Ctrl+C 退出。\n" : "方向键上下移动，回车确认，Ctrl+C 退出。\n");
       for (let itemIndex = 0; itemIndex < options.length; itemIndex += 1) {
         const option = options[itemIndex];
         const cursor = itemIndex === index ? ">" : " ";
@@ -264,6 +287,14 @@ function answerRecord(question, answerIds, answerText) {
 function asArray(value) {
   if (!value) return [];
   return Array.isArray(value) ? value : [value];
+}
+
+function suggestedAnswerFor(question) {
+  const recommended = asArray(question.recommendedOptionIds).filter(Boolean);
+  if (recommended.length > 0) return recommended.join(",");
+  const options = optionsForQuestion(question);
+  if (options[0]?.id) return options[0].id;
+  return "<你的回答>";
 }
 
 function optionsForQuestion(question) {

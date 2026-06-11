@@ -4,6 +4,7 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { businessPathPatterns, productDocsPath } from "./project-profile.mjs";
 import { implementationAgentIds, stageOrder, stageOwners } from "./agent-roles.mjs";
+import { isImplementationAgentUnassigned } from "./implementation-plan-scope.mjs";
 let activeBusinessPathPatterns = [
   "src/**",
   "app/**",
@@ -200,7 +201,7 @@ export function requiredNativeAgentsForStageCompletion(targetStage, { root = pro
   for (let current = 0; current <= index; current += 1) {
     required.push(...(stageOwners[stageOrder[current]] ?? []));
   }
-  return unique(required.filter((agent) => tasks.has(agent)));
+  return unique(required.filter((agent) => tasks.has(agent) && !isImplementationAgentUnassigned(agent, { root, runId })));
 }
 
 export function completedNativePrerequisitesForAgent(agentId, { root = process.cwd(), runId = "", taskAgents = null } = {}) {
@@ -215,7 +216,7 @@ export function completedNativePrerequisitesForAgent(agentId, { root = process.c
       "requirements",
       "architect",
       ...[...implementationAgentIds]
-    ].filter((agent) => tasks.has(agent));
+    ].filter((agent) => tasks.has(agent) && !isImplementationAgentUnassigned(agent, { root, runId }));
   }
   if (agentId === "reviewer") {
     const testerPrerequisites = ["tester"].filter((agent) => tasks.has(agent));
@@ -225,7 +226,7 @@ export function completedNativePrerequisitesForAgent(agentId, { root = process.c
       "requirements",
       "architect",
       ...[...implementationAgentIds]
-    ].filter((agent) => tasks.has(agent));
+    ].filter((agent) => tasks.has(agent) && !isImplementationAgentUnassigned(agent, { root, runId }));
   }
   if (agentId === "release") return ["reviewer"].filter((agent) => tasks.has(agent));
   return [];

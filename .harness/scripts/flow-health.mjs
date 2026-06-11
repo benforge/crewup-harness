@@ -103,6 +103,7 @@ function explanationFor({ state: currentState, next, gateResult, gateIssues, nat
   if (partial && currentState?.archived) return "This run is archived as partial. Do not start more agents for this run; use a continuation run for follow-up work.";
   if (closed) return "This run is closed. Do not start more agents unless the run is explicitly reopened.";
   if (blocked) return "This run is blocked. Keep it open and route the next repair to the authorized owner agent unless the user explicitly closes it.";
+  if (currentState?.status === "waiting_user") return "Action required: this run is waiting for your clarification answers before requirements and architecture can continue.";
   if (nativeIssues.length) return "Native subagent state has issues that must be fixed before reliable dispatch.";
   if (next?.action === "repair") return `tester/reviewer feedback requires owner repair: ${(next.repair?.targetAgents ?? []).join(", ") || "missing target"}.`;
   if (next?.action === "wait") return `A subagent is still active or waiting for closeout: ${(next.waitFor ?? []).join(", ") || "unknown"}.`;
@@ -118,6 +119,14 @@ function nextStepsFor({ state: currentState, next, gateResult, nativeIssues, don
   if (partial && currentState?.archived) return ["Do not start more agents for this run.", `Use \`npx crewup continue ${runId} \"...\"\` for follow-up implementation or repair.`];
   if (closed) return ["Do not start more agents for this run.", "Reopen only with an explicit repair command or create a continuation run."];
   if (blocked) return [`npx crewup native-state ${runId} diagnose`, `npx crewup native-state ${runId} reconcile-results`, `npx crewup next-agent ${runId}`];
+  if (currentState?.status === "waiting_user") {
+    return [
+      `npx crewup clarify ${runId}`,
+      `Reply with: Q-01:A;Q-02:B`,
+      `Or run: npx crewup clarify ${runId} --interactive`,
+      "After answers are saved, resume requirements-plan."
+    ];
+  }
   if (nativeIssues.length) return [`npx crewup native-state ${runId} diagnose`, `npx crewup native-state ${runId} reconcile-results`, `npx crewup next-agent ${runId}`];
   if (next?.action === "repair") return [`npx crewup repair-plan ${runId} --refresh`, `Route only these owner agents: ${(next.repair?.targetAgents ?? []).join(", ") || "(missing target)"}`];
   if (next?.action === "wait") return ["Wait for the active agent result, then capture it with native-state mark-result.", `npx crewup native-state ${runId} diagnose`];
@@ -157,6 +166,14 @@ function printHealth(health) {
   console.log("## Next Steps");
   console.log("");
   for (const step of health.nextSteps) console.log(`- ${step}`);
+  if (health.verdict === "WAITING_USER") {
+    console.log("");
+    console.log("## Reply Format");
+    console.log("");
+    console.log("```text");
+    console.log("Q-01:A; Q-02:B");
+    console.log("```");
+  }
   console.log("");
   console.log("## Paths");
   console.log("");

@@ -87,16 +87,16 @@ Look for:
 CLI:
 
 ```bash
-npx crewup run "Use CrewUp to build a tiny counter web app and run the full workflow. Acceptance criteria: page shows counter, initial value is 0, +1/-1/reset work, value persists after refresh, build/test pass. Scope: tiny frontend only; no backend, database, auth, or routing."
+npx crewup run --mode=strict "Use CrewUp to build a tiny counter web app and run the full workflow. Acceptance criteria: page shows counter, initial value is 0, +1/-1/reset work, value persists after refresh, build/test pass. Scope: tiny frontend only; no backend, database, auth, or routing."
 ```
 
 Chat:
 
 ```text
-Use CrewUp to build a tiny counter web app and run the full workflow. Acceptance criteria: page shows counter, initial value is 0, +1/-1/reset work, value persists after refresh, build/test pass. Scope: tiny frontend only; no backend, database, auth, or routing.
+Use CrewUp strict to build a tiny counter web app and run the full workflow. Acceptance criteria: page shows counter, initial value is 0, +1/-1/reset work, value persists after refresh, build/test pass. Scope: tiny frontend only; no backend, database, auth, or routing.
 ```
 
-When the user explicitly asks for CrewUp in chat, the main agent should run `npx crewup run "<request>"`, extract the runId, then continue orchestration with `next-agent`.
+When the user explicitly asks for CrewUp in chat, the user must name the mode. The main agent should run `npx crewup run --mode=<mode> "<request>"`, extract the runId, then continue orchestration with `next-agent` or `drive`.
 
 ## Observe Dispatch
 
@@ -133,6 +133,24 @@ requirements-plan
 Implementation agents are candidates at run creation time. The actual implementation dispatch should be decided by the architect-owned `artifacts/implementation-plan.md`.
 
 `lite` only means shorter requirements/architecture artifacts and smaller context budgets. It does not skip `requirements-plan -> requirements -> architect`. When `implementation-plan.md` is missing, implementation agents must remain blocked/skipped.
+
+## Lightweight `lite` Run
+
+For low-risk, narrow tasks, explicitly choose `lite`:
+
+```bash
+npx crewup run --mode=lite "Fix a small frontend layout issue and run build/test"
+```
+
+`lite` creates `spec.md`, `tasks.md`, `validation.md`, and `summary.md` directly under the run directory. It does not create native subagent tasks or a native subagent plan. The main agent may implement directly inside the scoped task, then must update `validation.md` and `summary.md` before running:
+
+```bash
+npx crewup finish <run-id>
+```
+
+Use `lite` only when explicitly requested. Use `strict` or `strict --risk=high` for database, auth, security, deploy, cross-module, or audit-heavy work.
+
+Detailed guide: [Lite Lightweight Flow](./lite-v2.en.md).
 
 ## Tool Fallback
 

@@ -6,7 +6,7 @@ CrewUp is explicit opt-in. Without a clear CrewUp/harness/run signal, the chat s
 
 There are two valid entries:
 
-- CLI entry: the user runs `npx crewup run "..."`.
+- CLI entry: the user runs `npx crewup run --mode=<lite|strict|plan|discovery> "..."`.
 - Chat entry: the user explicitly asks to use CrewUp. In this case, the main agent runs `npx crewup run` itself, extracts the runId, then continues with `next-agent`.
 
 The chat entry should not require the user to manually create a runId first.
@@ -44,9 +44,35 @@ intake -> requirements_plan -> requirements_confirm -> plan
   -> implement -> verify -> review -> release -> done
 ```
 
-Explicit strict/full-loop requests stay on the full workflow. The harness does not reduce cost by skipping roles; it reduces repeated work through clearer task contracts, narrower generated prompts, and stricter result schemas. `lite` means shorter artifacts and smaller context budgets; it does not mean skipping requirements confirmation, architecture planning, or owner assignment.
+Explicit strict requests stay on the strict workflow. The harness does not reduce cost by silently skipping roles; it reduces repeated work through clearer task contracts, narrower generated prompts, and stricter result schemas. `lite` is a separate explicit mode, not an automatic downgrade.
 
 Negation-aware routing only removes false-positive scope. If the user says `no backend/database/auth/routing` or `不需要 backend、database、auth、routing`, CrewUp should not spawn backend/database owner agents just to confirm they are irrelevant. This does not weaken the strict workflow for the remaining real scope.
+
+## Lite Opt-In Flow
+
+`lite` is an explicit lightweight path and is not the strict workflow. It maps internally to the `lite-v2` profile and exists for low-risk, scoped implementation work where native subagent provenance would be heavier than the task itself.
+
+```bash
+npx crewup run --mode=lite "Fix a small UI issue and run validation"
+```
+
+Its run shape is:
+
+```text
+input.md
+spec.md
+tasks.md
+validation.md
+summary.md
+state.json
+RUN_STATUS.md
+```
+
+`lite` does not generate native subagent tasks, does not create `native-subagent-plan.json`, and does not require `requirements-plan -> requirements -> architect -> tester -> reviewer -> release`. The main agent may implement directly inside the scoped task. `finish` checks that `validation.md` and `summary.md` are no longer pending before archiving success.
+
+Use strict or `strict --risk=high` instead for database, auth, security, deploy, cross-module, or audit-heavy work.
+
+Detailed guide: [Lite Lightweight Flow](./lite-v2.en.md).
 
 ## Run Lifecycle
 

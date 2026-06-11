@@ -4,6 +4,25 @@
 
 This document is for maintainers. It defines CrewUp's public product surface, core pipeline scripts, compatibility tools, and maintenance boundaries. Regular users do not need to memorize every `.harness/scripts` file; they mainly need the `install -> init/check -> run -> status/next-agent -> gate/report/archive/finish` path.
 
+For the user-facing rules on which commands are daily-use, which commands can be ignored, and how complete/incomplete outcomes behave, start with [Command And Completion Governance](./command-governance.en.md). This page keeps the lower-level script boundary view.
+
+## Command Governance Summary
+
+| Tier | Audience | Commands |
+| --- | --- | --- |
+| Daily primary path | Regular users and the main agent | `doctor`, `init`, `check`, `run`, `status/runs`, `explain`, `finish`, `archive`, `cancel`, `continue` |
+| strict operations | Main agent and maintainers | `next-agent`, `clarify`, `native-state`, `audit`, `gate-check`, `report`, `preview-smoke`, `dev-service` |
+| Internal pipeline | Called by `run`, `finish`, or orchestration | `prepare-run`, `spec-freeze`, `context-pack`, `native-plan/agent-plan`, `transition`, `changed-files`, `archive-status`, `archive-commit`, `token-ledger`, `knowledge-select` |
+| Optional advanced | Only when the capability is needed | `integrations`, `tool-fallback`, `knowledge`, `dashboard`, `skills:*`, `product-sync` |
+| Compatibility and maintenance | Recovery or old-run compatibility | `repair-artifacts`, `repair-plan`, `repair-state`, `orchestrate`, `verify`, `cleanup`, `next` |
+
+Governance rules:
+
+- Do not delete compatibility commands to create perceived simplicity; that can break old runs, external automation, and maintenance paths.
+- Daily users only need the primary path; the main agent runs strict operator commands.
+- Internal, optional, advanced, and maintenance commands are not user starting points.
+- Non-success stays open by default; only explicit `--close` closes partial/blocked outcomes.
+
 ## Public Product Entry Points
 
 These commands should stay stable and documented:

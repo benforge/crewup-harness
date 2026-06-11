@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.4.1
+
+- Rewrote the new Chinese mode, command-governance, and lite-v2 docs as clean UTF-8 so user-facing governance pages render correctly.
+- Replaced non-ASCII chat examples inside `workflow-modes.mjs` with ASCII examples to avoid terminal encoding drift in CLI help.
+- Hardened `crewup check` mojibake detection with additional common UTF-8/GBK corruption tokens while avoiding self-triggering on the checker source.
+
+## 0.4.0
+
+- Added explicit public run modes: `lite`, `strict`, `plan`, and `discovery`; real `crewup run` now requires an explicit mode while `--profile` remains a compatibility alias.
+- Added `crewup drive <run-id>` as a deterministic orchestration helper for reconcile, stale/wait/repair/spawn decisions, and scriptable closeout.
+- Hardened strict workflow dispatch: unassigned implementation candidates no longer block closeout, tester/reviewer wait for assigned implementation owners, and stale active agents use progress checkpoints before result-only closeout.
+- Added fixed root artifacts and hard finish gates for `lite`, `plan`, and `discovery`, including no-code business-change guards for plan/discovery.
+- Added `repair-state --prune-unassigned-implementation` for safe cleanup of legacy unassigned implementation candidates.
+- Improved clarification UX with clear `ACTION REQUIRED` prompts, copyable answer formats, interactive guidance, and status/explain surfaces that show when user input is required.
+- Refreshed command/mode governance docs and removed unused lightweight template files.
+
 ## 0.3.21
 
 - Added `crewup explain <run-id>` / `crewup health <run-id>` as the single diagnostic entry point for confusing, stuck, open, or closed runs.

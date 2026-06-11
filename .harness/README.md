@@ -37,9 +37,34 @@ intake -> requirements-plan -> requirements -> architect
 
 The main agent coordinates, registers results, runs gates, and summarizes. Formal artifacts and business code are written by owner agents.
 
+## Explicit Modes
+
+Real CrewUp runs require an explicit public mode. This keeps file layout, completion rules, and archive expectations predictable.
+
+```bash
+npx crewup run --mode=lite "Fix a small UI issue and run validation"
+npx crewup run --mode=strict "Add a feature through formal multi-agent delivery"
+npx crewup run --mode=strict --risk=high "Add a high-risk permission system"
+npx crewup run --mode=plan "Plan the comments feature; do not write code"
+npx crewup run --mode=discovery "Map this project and propose next runs"
+```
+
+`--profile` remains a compatibility alias for existing automation, but user-facing docs and chat prompts should use `--mode`.
+
+## Lite Opt-In Path
+
+`lite` is an explicit lightweight path for low-risk, scoped implementation tasks. It does not replace the strict core workflow and is not selected automatically.
+
+```bash
+npx crewup run --mode=lite "Fix a small UI issue and run validation"
+```
+
+It creates `spec.md`, `tasks.md`, `validation.md`, and `summary.md` directly under the run directory, does not create native subagent tasks, and does not require strict owner-artifact provenance. `finish` requires `validation.md` and `summary.md` to be updated from pending template state before success archive.
+
 ## Operational Notes
 
 - Use `next-agent` before spawning any subagent.
+- Use `drive` to reconcile state, classify the next action, and run scriptable closeout steps.
 - Record optional tool failures with `tool-fallback`.
 - Route tester/reviewer fixes back to owner agents.
 - Run `audit`, `gate-check`, and `report` before closing retained subagents when capacity allows.

@@ -1,6 +1,6 @@
 {
   "name": "crewup-harness",
-  "version": "0.3.21",
+  "version": "0.4.1",
   "description": "CrewUp: a reusable AI workflow harness for project-agnostic agent collaboration.",
   "author": "Ben",
   "license": "MIT",
@@ -76,6 +76,7 @@
     "harness:continue": "node .harness/scripts/continue-run.mjs",
     "harness:status": "node .harness/scripts/status.mjs",
     "harness:explain": "node .harness/scripts/flow-health.mjs",
+    "harness:drive": "node .harness/scripts/drive.mjs",
     "harness:prepare-run": "node .harness/scripts/prepare-run.mjs",
     "harness:spec-freeze": "node .harness/scripts/spec-freeze.mjs",
     "harness:transition": "node .harness/scripts/transition.mjs",

@@ -8,6 +8,25 @@
 install -> init/check -> run -> status/next-agent -> audit/gate/report -> archive/finish
 ```
 
+如果你要判断“哪些命令日常该用、哪些不用、完成/未完成后怎么处理”，优先看 [命令与完成态治理](./command-governance.md)。本页保留更底层的脚本边界和维护者视角。
+
+## 命令治理摘要
+
+| 层级 | 面向对象 | 命令 |
+| --- | --- | --- |
+| 日常主路径 | 普通用户和主 agent | `doctor`、`init`、`check`、`run`、`status/runs`、`explain`、`finish`、`archive`、`cancel`、`continue` |
+| strict 操作 | 主 agent 和维护者 | `next-agent`、`clarify`、`native-state`、`audit`、`gate-check`、`report`、`preview-smoke`、`dev-service` |
+| 内部流水线 | `run`、`finish` 或编排逻辑调用 | `prepare-run`、`spec-freeze`、`context-pack`、`native-plan/agent-plan`、`transition`、`changed-files`、`archive-status`、`archive-commit`、`token-ledger`、`knowledge-select` |
+| 可选高级 | 需要对应能力时 | `integrations`、`tool-fallback`、`knowledge`、`dashboard`、`skills:*`、`product-sync` |
+| 兼容维护 | 异常恢复或旧 run 兼容 | `repair-artifacts`、`repair-plan`、`repair-state`、`orchestrate`、`verify`、`cleanup`、`next` |
+
+治理规则：
+
+- 不删除兼容命令来制造“简洁”，避免破坏旧 run、外部自动化和维护路径。
+- 日常使用只记主路径；strict 的操作命令由主 agent 代为执行。
+- 内部、可选、高级、维护命令不作为用户开始工作的入口。
+- 非 success 默认保持 open，只有显式 `--close` 才关闭 partial/blocked。
+
 ## 公开产品入口
 
 这些命令是推荐暴露给开发者的稳定入口：

@@ -7,13 +7,17 @@ import { resolveScriptPath } from "./lib/script-root.mjs";
 import { isNativeAgentEnvironment, readAgentEnvironment } from "./lib/agent-runtime.mjs";
 import { semanticSlugFromText } from "./lib/naming.mjs";
 import { writeRunState, writeRunStatus } from "./lib/run-lifecycle.mjs";
+import { assertKnownMode, modeHelpText, modeLabel, profileFromMode } from "./lib/workflow-modes.mjs";
 
 const root = process.cwd();
 const args = process.argv.slice(2);
 const text = valueOf("--text=") ?? positionalText();
 const runIdArg = valueOf("--run=");
 const fromRunId = valueOf("--from-run=");
-const profileArg = valueOf("--profile=") ?? "auto";
+const modeArg = valueOf("--mode=");
+const riskArg = valueOf("--risk=") ?? "normal";
+const explicitProfileArg = valueOf("--profile=");
+const profileArg = explicitProfileArg ?? profileFromMode(modeArg, riskArg) ?? "auto";
 const agentsArg = valueOf("--agents=");
 const dryRun = args.includes("--dry-run");
 
@@ -25,6 +29,19 @@ if (!text?.trim() && !runIdArg) {
 
 const summary = [];
 const inputText = text?.trim() ?? "";
+
+if (!runIdArg && !dryRun && !modeArg && !explicitProfileArg) {
+  console.error(modeHelpText());
+  process.exit(1);
+}
+
+try {
+  assertKnownMode(modeArg);
+} catch (error) {
+  console.error(error.message);
+  process.exit(1);
+}
+
 const analysis = analyzeWorkload(inputText, { requestedProfile: profileArg });
 
 if (dryRun) {
@@ -57,13 +74,17 @@ summary.push("knowledge-select: related-runs");
 runText("prepare-run.mjs", [runId, `--profile=${analysis.workflowProfile}`]);
 summary.push(`prepare-run: ${analysis.workflowProfile}`);
 
-runText("spec-freeze.mjs", [runId]);
-summary.push("spec-freeze: created");
+if (analysis.workflowProfile !== "lite-v2") {
+  runText("spec-freeze.mjs", [runId]);
+  summary.push("spec-freeze: created");
+} else {
+  summary.push("lite-v2: spec/tasks prepared");
+}
 
 if (analysis.needsRequirementsPlan) summary.push("requirements-plan: delegated to subagent");
 
 const agents = agentsArg ?? await agentsFromTasks(runId);
-if (agents) {
+if (agents && analysis.workflowProfile !== "lite-v2") {
   runText("context-pack.mjs", [runId, `--agents=${agents}`]);
   runText("native-plan.mjs", [runId, `--agents=${agents}`]);
   summary.push(`native-plan: ${agents}`);
@@ -76,6 +97,8 @@ await writeRunSummary(runId, { summary, analysis });
 await writeRunStatus(root, runId);
 
 console.log(`CrewUp run prepared: ${runId}`);
+console.log(`- mode: ${modeLabel({ mode: modeArg, profile: analysis.workflowProfile, risk: riskArg })}`);
+if (modeArg === "strict") console.log(`- risk: ${riskArg}`);
 console.log(`- profile: ${analysis.workflowProfile}`);
 console.log(`- run_type: ${analysis.runType}`);
 console.log(`- complexity: ${analysis.complexityScore}/5 (${analysis.complexityLevel})`);
@@ -83,9 +106,17 @@ console.log(`- agents: ${agents || "(none)"}`);
 console.log(`- status: .harness/runs/${runId}/RUN_STATUS.md`);
 const agentEnvironment = await readAgentEnvironment(root);
 if (isNativeAgentEnvironment(agentEnvironment)) {
-  console.log("Next: read native-subagent-plan.json and start only currently runnable native subagents.");
+  if (analysis.workflowProfile === "lite-v2") {
+    console.log("Next: implement directly inside the lite-v2 scope, update validation.md and summary.md, then run: crewup finish <run-id>");
+  } else {
+    console.log("Next: read native-subagent-plan.json and start only currently runnable native subagents.");
+  }
 } else {
-  console.log("Next: external agent reads agent-bridge/*.handoff.md and writes back *.result.json.");
+  if (analysis.workflowProfile === "lite-v2") {
+    console.log("Next: implement directly inside the lite-v2 scope, update validation.md and summary.md, then run: crewup finish <run-id>");
+  } else {
+    console.log("Next: external agent reads agent-bridge/*.handoff.md and writes back *.result.json.");
+  }
 }
 
 function runText(script, scriptArgs) {

@@ -46,7 +46,7 @@ This creates a temporary project, installs the local tarball, and validates:
 - editing installed `.harness/scripts/check.mjs` makes `crewup check` detect sealed core drift
 - `doctor` and `check` work in a target project
 
-## Full Workflow Test
+## Strict Workflow Test
 
 ```bash
 npm run harness:test-flow
@@ -55,8 +55,10 @@ npm run harness:test-flow
 This creates a temporary project, installs the local package, and validates:
 
 - run creation
+- explicit `lite` opt-in run creation
+- `lite` lightweight evidence files and pending-finish protection
 - plan-only routing
-- strict/full workflow routing
+- strict workflow routing
 - `requirements-plan -> requirements -> architect` ordering
 - `next-agent` runnable / blocked output
 - architecture-owned implementation dispatch
@@ -86,7 +88,7 @@ npx crewup check
 ## Minimal Run Case
 
 ```bash
-npx crewup run "Use CrewUp to build a tiny counter web app and run the full workflow. Acceptance criteria: page shows counter, initial value is 0, +1/-1/reset work, value persists after refresh, build/test pass. Scope: tiny frontend only."
+npx crewup run --mode=strict "Use CrewUp to build a tiny counter web app and run the full workflow. Acceptance criteria: page shows counter, initial value is 0, +1/-1/reset work, value persists after refresh, build/test pass. Scope: tiny frontend only."
 ```
 
 Then inspect:
