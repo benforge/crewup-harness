@@ -191,7 +191,7 @@ When an owner artifact is incomplete, malformed, or missing required headings:
 1. Resume the owning agent first and ask it to repair the artifact.
 2. Capture the repair result with `native-state mark-result`.
 3. Require the repair result JSON to include `repairOf`, `repairReason`, and `previousResultPath` when it supersedes an earlier result.
-4. Use `repair-artifacts` only for legacy/manual structural normalization, diagnostics, or explicit maintenance work. It is not the first repair path for active owner-agent artifacts.
+4. Use owner-agent repair first for malformed or incomplete owner artifacts. Use `repair-state` only for audited lifecycle/state repair; do not normalize active owner artifacts from the main window.
 
 ## Changed-Files Guard And Native Fallback
 

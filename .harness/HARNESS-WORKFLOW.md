@@ -39,7 +39,7 @@ doctor -> install -> inspect -> init -> check -> run -> verify -> review -> fini
 `lite-v2` is a lightweight explicit profile for low-risk scoped tasks:
 
 ```bash
-npx crewup run --profile=lite-v2 "Fix a small UI issue and run validation"
+npx crewup run --mode=lite "Fix a small UI issue and discover/run the necessary project validation"
 ```
 
 It produces root-level lightweight evidence instead of strict owner artifacts:

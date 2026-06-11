@@ -1,6 +1,6 @@
 # Codex Desktop 多 Agent Runner
 
-这个 runner 用于 Codex 桌面客户端。它和 `harness:orchestrate` 的区别是：
+这个 runner 用于 Codex 桌面客户端。它和外部 bridge/result 文件写回的区别是：
 
 - Codex Desktop runner 使用桌面客户端的子 agent tabs，用户可以切换查看每个 agent 的对话过程。
 - Node orchestrator 使用 OpenAI Agents SDK，适合后台脚本化执行和 CI，但不会出现在右侧 tabs。
@@ -22,7 +22,7 @@
 9. 使用 Codex Desktop 子 agent tabs 委派任务。
 10. 收集子 agent 结果，更新 artifacts、logs、dashboard。
 11. 在需求和方案阶段结束后请求用户审核，确认后再进入开发。
-12. 运行 `harness:verify` 和 `harness:gate-check`。
+12. 收集 tester/preview smoke 证据，并运行 `harness:gate-check`。
 13. 使用用户的主要语言向用户汇总结果。
 
 ## 子 Agent 可见性

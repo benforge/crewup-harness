@@ -1,15 +1,15 @@
 <p align="center">
-  <img src="./assets/crewup-hero.svg" alt="CrewUp" width="780" />
+  <img src="./assets/crewup-hero.svg" alt="CrewUp stable AI workflow architecture" width="780" />
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/crewup-harness"><img src="https://img.shields.io/npm/v/crewup-harness?color=1f6feb" alt="npm version" /></a>
+  <a href="https://www.npmjs.com/package/crewup-harness"><img src="https://img.shields.io/npm/v/crewup-harness?color=1463ff" alt="npm version" /></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-black" alt="MIT license" /></a>
   <a href="./docs/harness-workflow.md"><img src="https://img.shields.io/badge/workflow-strict-blue" alt="strict workflow" /></a>
   <a href="./docs/runbook.md"><img src="https://img.shields.io/badge/runbook-ready-black" alt="runbook" /></a>
 </p>
 
-<h3 align="center">面向大型项目的 AI 工程工作流 Harness</h3>
+<h3 align="center">面向严肃工程交付的 AI 工作流 Harness</h3>
 
 <p align="center">
   <a href="./README.en.md">English</a>
@@ -18,61 +18,33 @@
   ·
   <a href="./docs/harness-workflow.md">工作流</a>
   ·
-  <a href="./docs/runbook.md">Runbook</a>
+  <a href="./docs/command-governance.md">命令治理</a>
   ·
   <a href="./docs/test-matrix.md">测试矩阵</a>
 </p>
 
 ---
 
-CrewUp 是一套可复用的 AI workflow harness。它不是新的模型，也不是一个 prompt 包，而是一套把需求澄清、架构设计、开发实现、测试、审查、发布和归档串起来的严格工程流程。
+CrewUp 是一套可复用的 AI engineering workflow harness。它不是 prompt 包，也不是让一个主 agent 什么都做的技巧集合，而是把一次 AI 交付拆成明确的 run、角色、产物、门禁、报告和归档。
 
-它解决的是 vibe coding 里最容易失控的部分：主 agent 职责膨胀、需求还没确认就写代码、多个子 agent 并行乱跑、测试反馈被主 agent 直接修、上下文越来越乱、一次需求到底完成还是卡住说不清。
+它解决的是 vibe coding 里最容易失控的部分：需求没澄清就开写、主 agent 越权写业务代码、多个子 agent 乱序并发、tester/reviewer 反馈被直接绕过、上下文越堆越乱，以及“到底完成没有”说不清。
 
-CrewUp 的原则很明确：
+CrewUp 的当前设计原则很简单：
 
-- 主 agent 只负责创建 run、调用 `next-agent`、调度子 agent、登记结果、跑 gate/report/archive，并向用户汇报路径和状态。
-- 正式产物由对应子 agent 生成：需求、架构、实现、测试报告、评审报告和发布摘要都有明确 owner。
-- 每次正式需求都是一个 run，有状态、有证据、有报告、有归档结果。
-- 安装 CrewUp 不代表接管所有 AI 对话；只有你明确说“使用 CrewUp / 按 harness 流程 / 继续某个 CrewUp run”时才进入严格流程。
+- 正式工作必须显式进入 CrewUp，例如 `crewup run --mode=lite|strict|plan|discovery`。
+- 主 agent 负责创建 run、调度、登记结果、跑 gate/report/archive，并向用户汇报状态。
+- 正式产物由对应 owner agent 生成：需求、架构、实现、测试报告、评审报告和发布摘要都有明确归属。
+- 非成功结果默认保持 run open；只有用户明确放弃或关闭时才 `archive --close`。
+- 长期经验通过 Memory Hints 轻量沉淀，只有显式晋级的经验才进入后续上下文。
+- 公共命令面保持精简，低价值历史入口已移除，日常只保留稳定主路径。
 
-## 为什么需要 CrewUp
+## 适合谁
 
-很多 AI 编程问题不是模型不会写代码，而是流程没有边界：
+CrewUp 更适合长期迭代的大型项目、团队项目、复杂重构、全栈系统，以及需要严格 AI 开发流程的代码库。
 
-- 需求不清楚就开始实现
-- 架构没有收口，frontend/backend/database 等 agent 同时乱跑
-- tester/reviewer 反馈后，主 agent 直接改业务文件
-- 聊天窗口塞满日志、推理、产物和返工记录
-- 一个需求到底是完成、取消、失败、部分完成还是阻塞，缺少统一状态
-- 用户项目里的 `.harness` 被业务 run 顺手修坏
+如果只是一次性小修、小问答、临时脚本或很小的个人实验，可以不启用 CrewUp。安装 CrewUp 不代表接管所有 AI 对话；只有用户明确说“使用 CrewUp / 按 harness 流程 / 继续某个 CrewUp run”时才进入正式流程。
 
-CrewUp 把这些风险变成可检查的工程约束：`run`、`owner artifact`、`next-agent`、`native-state`、`audit`、`gate-check`、`sealed core`、`report` 和 `archive`。
-
-## 工作流一览
-
-默认正式流程：
-
-```text
-requirements-plan
-  -> requirements
-  -> architect
-  -> implementation agents assigned by implementation-plan.md
-  -> tester
-  -> reviewer
-  -> release
-```
-
-关键规则：
-
-- 初始 `next-agent` 只应该允许 `requirements-plan`。
-- `requirements` 必须等 `requirements-plan` 完成并登记结果。
-- `architect` 必须等正式需求完成。
-- 实现类 agent 只是候选，只有 `implementation-plan.md` 明确分配后才启动。
-- tester/reviewer 的阻塞反馈必须回派给对应 owner agent。
-- 主 agent 不粘贴长结果，不代写 owner artifact，不代修业务代码。
-
-## 安装
+## 快速开始
 
 ```bash
 npm install -D crewup-harness
@@ -81,7 +53,7 @@ npx crewup init --agent codex --yes
 npx crewup check
 ```
 
-已有项目建议先无 AI 扫描：
+已有项目建议先做无 AI 扫描：
 
 ```bash
 npx crewup inspect --no-ai
@@ -102,11 +74,129 @@ npx crewup install --force
 - `.harness/reports/`
 - `.harness/dashboard/`
 
-只有在你明确想清空旧 `.harness/` 时才使用：
+只有在明确想清空旧 `.harness/` 时才使用：
 
 ```bash
 npx crewup install --reset
 ```
+
+## 第一次使用
+
+CLI：
+
+```bash
+npx crewup run --mode=strict "使用 CrewUp 做一个最小 counter web app，跑完整 workflow。验收标准：页面显示 counter，初始值为 0；可以 +1、-1、reset；刷新后数值保留。范围：只做一个很小的前端实现。完成后请根据项目配置自行发现并执行必要验证。"
+```
+
+聊天里可以这样说：
+
+```text
+使用 CrewUp strict 做一个最小 counter web app，跑完整 workflow。验收标准：页面显示 counter，初始值为 0；可以 +1、-1、reset；刷新后数值保留。范围：只做一个很小的前端实现。完成后请根据项目配置自行发现并执行必要验证。
+```
+
+如果是在聊天里提出需求，用户必须明确 CrewUp 模式。主 agent 应该自己运行 `npx crewup run --mode=<mode> "<需求>"`，拿到 runId 后继续 `npx crewup next-agent <run-id>` 或 `npx crewup drive <run-id>`。用户不需要为了拿 runId 手动跑命令。
+
+## 工作流一览
+
+默认 strict 流程：
+
+```text
+requirements-plan
+  -> requirements
+  -> architect
+  -> implementation agents assigned by implementation-plan.md
+  -> tester
+  -> reviewer
+  -> release
+```
+
+关键规则：
+
+- 初始 `next-agent` 只应该允许 `requirements-plan`。
+- `requirements` 必须等 `requirements-plan` 完成并登记结果。
+- `architect` 必须等正式需求完成。
+- 实现类 agent 只是候选；只有 `implementation-plan.md` 明确分配后才启动。
+- tester/reviewer 的阻塞反馈必须回派给对应 owner agent。
+- 主 agent 不粘贴长结果，不代写 owner artifact，不代修业务代码。
+
+## 常用命令
+
+普通使用者不需要记住所有 `.harness/scripts`。日常主路径优先使用：
+
+| 命令 | 作用 |
+| --- | --- |
+| `npx crewup doctor` | 检查环境、编码、可选能力和 sealed core |
+| `npx crewup install` | 安装 CrewUp harness 模板 |
+| `npx crewup install --force` | 安全升级 harness core，保留运行态数据 |
+| `npx crewup inspect --no-ai` | 无 AI 扫描项目结构 |
+| `npx crewup init --agent codex --yes` | 生成项目适配层 |
+| `npx crewup check` | 校验配置、脚本、模板、文档和 sealed core |
+| `npx crewup run --mode=lite "..."` | 创建轻量实现 run |
+| `npx crewup run --mode=strict "..."` | 创建正式多 agent run |
+| `npx crewup run --mode=strict --risk=high "..."` | 创建高风险 full profile run |
+| `npx crewup run --mode=plan "..."` | 创建只规划、不改业务代码的 run |
+| `npx crewup run --mode=discovery "..."` | 创建项目/模块盘点 run |
+| `npx crewup status` / `npx crewup runs` | 列出所有 run，查找 runId |
+| `npx crewup explain <run-id>` | 解释 run 为什么卡住、是否完成、下一步做什么 |
+| `npx crewup drive <run-id>` | 自动执行可脚本化的推进、检查和收口步骤 |
+| `npx crewup next-agent <run-id>` | 查看当前真正可启动的子 agent |
+| `npx crewup native-state <run-id> diagnose` | 诊断子 agent handle、result 和状态差异 |
+| `npx crewup native-state <run-id> reconcile-results` | 对账已存在但漏登记的子 agent result |
+| `npx crewup audit <run-id>` | 审计调度顺序、owner 边界、上下文压力和返工 |
+| `npx crewup gate-check <run-id>` | 检查 gate、产物归属和越权风险 |
+| `npx crewup preview-smoke <run-id> --url=http://localhost:3000` | 验证预览 URL 并写入 smoke 证据 |
+| `npx crewup report <run-id>` | 生成结构化交付报告 |
+| `npx crewup finish <run-id>` | 成功完成并按策略归档 run |
+| `npx crewup archive <run-id> --outcome=blocked --reason="..."` | 标记非成功状态但默认保持 run open |
+| `npx crewup archive <run-id> --outcome=blocked --reason="..." --close` | 用户明确放弃/关闭时才归档非成功 run |
+| `npx crewup cancel <run-id> --reason="..."` | 取消 run 并保留证据 |
+| `npx crewup continue <run-id> "..."` | 基于历史 run 创建延续 run |
+| `npx crewup learn <run-id>` | 从 run 中生成候选经验，不自动影响后续调度 |
+| `npx crewup learn-promote <lesson-id>` | 将候选经验显式晋级为 Memory Hints |
+
+完整分层见 [命令与完成态治理](./docs/command-governance.md)。
+
+## Memory Hints
+
+CrewUp 的知识层不会把每次 run 的长日志都塞进后续上下文。归档和学习流程会先生成候选经验，再由维护者显式晋级：
+
+```bash
+npx crewup learn <run-id>
+npx crewup learn-promote <lesson-id>
+```
+
+晋级后的经验会进入 `.harness/knowledge/memory-hints.md`，后续只按相关性选择短提示，降低 token 消耗并减少重复踩坑。详见 [Memory Hints](./docs/memory-hints.md)。
+
+## 本地验证
+
+```bash
+npm run harness:check
+npm test
+npm run test:pack-install
+npm run release:preflight
+```
+
+`release:preflight` 会运行 harness 校验、示例测试、临时项目 pack-install flow 测试和 `npm pack --dry-run`。发包前建议完整跑一遍。
+
+## 文档
+
+| 文档 | 内容 |
+| --- | --- |
+| [快速开始](./docs/getting-started.md) | 安装、API key、第一次 run 和排查 |
+| [工作流](./docs/harness-workflow.md) | 阶段、owner artifact、调度和 gate |
+| [模式治理](./docs/mode-governance.md) | 聊天怎么指定模式、每种模式生成什么、怎么判断完成 |
+| [Lite](./docs/lite-v2.md) | 显式启用的轻量实现流程 |
+| [Runbook](./docs/runbook.md) | 怎么判断正常、完成、卡住、取消和继续 |
+| [命令治理](./docs/command-governance.md) | 命令分层和完成态治理 |
+| [Memory Hints](./docs/memory-hints.md) | 候选经验、显式晋级和低 token 复用 |
+| [Troubleshooting](./docs/troubleshooting.md) | 终端编码、乱码判断和跨平台修复 |
+| [本地测试](./docs/local-testing.md) | 使用 `npm pack` 和临时项目测试 CrewUp |
+| [测试矩阵](./docs/test-matrix.md) | 不同改动应该跑哪些验证 |
+| [核心边界](./docs/harness-core-boundary.md) | `.harness` 核心、项目适配层和运行态边界 |
+| [Agent 能力矩阵](./docs/harness-agent-capabilities.md) | Codex/Claude/Cursor/Trae/Manual 支持边界 |
+| [Agent 选择](./docs/harness-agent-selection.md) | `init` 选择项和适配层策略 |
+| [Universal Agent Bridge](./docs/universal-agent-bridge.md) | 外部 agent handoff 和 result JSON 契约 |
+| [脚本地图](./docs/harness-script-map.md) | 公开命令、核心流水线和维护脚本边界 |
 
 ## API Key 和子 Agent
 
@@ -128,169 +218,3 @@ macOS / Linux：
 ```bash
 export OPENAI_API_KEY="sk-..."
 ```
-
-## 第一次使用
-
-CLI：
-
-```bash
-npx crewup run --mode=strict "使用 CrewUp 做一个最小 counter web app，跑完整 workflow。验收标准：页面显示 counter，初始值为 0；可以 +1、-1、reset；刷新后数值保留；build/test 通过。范围：只做一个很小的前端实现。"
-```
-
-聊天窗口：
-
-```text
-使用 CrewUp 做一个最小 counter web app，跑完整 workflow。验收标准：页面显示 counter，初始值为 0；可以 +1、-1、reset；刷新后数值保留；build/test 通过。范围：只做一个很小的前端实现。
-```
-
-如果是在聊天里提出需求，用户必须明确 CrewUp 模式，例如“使用 CrewUp strict”。主 agent 应该自己运行 `npx crewup run --mode=<mode> "<需求>"`，拿到 runId 后继续 `npx crewup next-agent <run-id>` 或 `npx crewup drive <run-id>`。用户不需要为了拿 runId 手动跑命令。
-
-## 常用命令
-
-日常不需要记住所有脚本。普通使用者优先使用 `doctor`、`init`、`check`、`run --mode=...`、`status/runs`、`explain`、`drive`、`finish`、`archive`、`cancel`、`continue`；strict 操作所需的 `next-agent`、`native-state`、`audit`、`gate-check`、`report` 通常由主 agent 代为执行。完整分层见 [命令与完成态治理](./docs/command-governance.md)。
-
-| 命令 | 作用 |
-| --- | --- |
-| `npx crewup doctor` | 检查环境、可选集成、sealed core 和编码提示 |
-| `npx crewup doctor --encoding-help` | 查看 Windows/macOS/Linux UTF-8 终端排查说明 |
-| `npx crewup install` | 安装 CrewUp harness 模板 |
-| `npx crewup install --force` | 安全升级 harness core，保留运行态数据 |
-| `npx crewup install --reset` | 清空旧 `.harness/` 后重装 |
-| `npx crewup inspect --no-ai` | 无 AI 扫描项目结构 |
-| `npx crewup init --agent codex --yes` | 生成项目适配层 |
-| `npx crewup check` | 校验配置、脚本、模板、文档和 sealed core |
-| `npx crewup run --mode=lite "..."` | 创建轻量实现 run |
-| `npx crewup run --mode=strict "..."` | 创建正式多 agent run |
-| `npx crewup run --mode=strict --risk=high "..."` | 创建高风险 full profile run |
-| `npx crewup run --mode=plan "..."` | 创建只规划、不写代码 run |
-| `npx crewup run --mode=discovery "..."` | 创建项目/模块盘点 run |
-| `npx crewup run --dry-run "..."` | 预览 run 命名、profile 和 agent 路由 |
-| `npx crewup status` / `npx crewup runs` | 列出所有 run，查找 runId |
-| `npx crewup status <run-id>` | 查看某个 run 的状态卡 |
-| `npx crewup explain <run-id>` | 解释 run 为什么卡住、是否完成、下一步只该做什么 |
-| `npx crewup next-agent <run-id>` | 查看当前真正可启动的子 agent |
-| `npx crewup clarify <run-id> --interactive` | 在终端中回答需求澄清问题 |
-| `npx crewup native-state <run-id> diagnose` | 诊断子 agent handle、result 和状态差异 |
-| `npx crewup native-state <run-id> reconcile-results` | 对账已存在但漏登记的子 agent result |
-| `npx crewup audit <run-id>` | 审计调度顺序、owner 边界、上下文压力和返工 |
-| `npx crewup gate-check <run-id>` | 检查 gate、产物归属和越权风险 |
-| `npx crewup preview-smoke <run-id> --url=http://localhost:3000` | 验证预览 URL 并写入 smoke 证据 |
-| `npx crewup report <run-id>` | 生成结构化交付报告 |
-| `npx crewup finish <run-id>` | 成功完成并按策略归档 run |
-| `npx crewup archive <run-id> --outcome=blocked --reason="..."` | 标记非成功状态但默认保持 run open |
-| `npx crewup archive <run-id> --outcome=blocked --reason="..." --close` | 用户明确放弃/关闭时才归档非成功 run |
-| `npx crewup continue <run-id> "..."` | 基于历史 run 创建延续 run |
-
-## Run 是核心工作单元
-
-每次正式需求都会创建：
-
-```text
-.harness/runs/<run-id>/
-```
-
-常见文件：
-
-| 文件 | 作用 |
-| --- | --- |
-| `RUN_STATUS.md` | 当前状态、阶段、owner、下一步、阻塞和进度 |
-| `RUN_SUMMARY.md` | 归档摘要，可供后续 run 继续 |
-| `artifacts/requirement-plan.md` | 需求澄清卡和需求扩展草案 |
-| `artifacts/requirement.md` | 正式需求 |
-| `artifacts/architecture.md` | 架构设计 |
-| `artifacts/implementation-plan.md` | 实现分配和阶段计划 |
-| `artifacts/preview-smoke.md` | Web/full-stack 预览 URL 验证证据 |
-| `logs/run-report.md` | 当前 run 的交付报告 |
-
-CrewUp 支持这些结局：
-
-- `success`
-- `partial`
-- `blocked`
-- `canceled`
-- `failed`
-
-阻塞不是“归档”的同义词。实现、测试、评审、预览或发布阶段遇到问题时，CrewUp 默认应保持当前 run open，并把下一步指回对应 owner agent。只有用户明确接受部分结果、放弃本轮或要求关闭现场时，才用 `--close` 归档非成功 run。
-
-归档也不是“成功”的同义词。归档表示这次 run 的现场、证据和下一步已经整理清楚；只有 `done / success / archived` 才表示完整成功。
-
-## 稳定性保障
-
-CrewUp 通过几层机制保证流程稳定：
-
-- `next-agent` 是唯一调度权威，防止 requirements/architect/implementation 提前并行。
-- `explain` 是排查入口，统一回答 run 是否完成、为什么卡住、下一步做什么。
-- `native-state` 要求真实 handle 和 result 文件，防止主 agent 伪造子 agent 完成。
-- `artifact provenance` 检查 owner artifact 是否由正确 agent 产出。
-- `sealed core` 检查用户项目里的 `.harness` 核心是否被业务 run 修改。
-- `gate-check` 阻止主 agent 越权写业务代码或跳过阶段产物。
-- `preview-smoke` 把“页面能打开”变成文件证据；open run 中发现问题回派 owner agent，只有 archived run 后续发现问题才开 continuation run。
-- `archive-commit` 在没有初始 git commit 的新项目里会写审计并跳过提交，不会把成功 run 卡死。
-- `native-state diagnose` / `reconcile-results` 会提示并修复“结果文件已存在但未登记”的状态差异，减少主窗口等待和错误归档。
-
-## 本地验证
-
-```bash
-npm run harness:check
-npm test
-npm run test:install-flow
-npm run harness:test-flow
-npm run release:preflight
-```
-
-`release:preflight` 会运行 harness 校验、示例测试、临时项目 pack-install flow 测试和 `npm pack --dry-run`。
-
-## 文档
-
-| 文档 | 内容 |
-| --- | --- |
-| [快速开始](./docs/getting-started.md) | 安装、API key、第一次 run 和排查 |
-| [工作流](./docs/harness-workflow.md) | 阶段、owner artifact、调度和 gate |
-| [模式治理](./docs/mode-governance.md) | 聊天怎么指定模式、每种模式生成什么、怎么算完成、卡住怎么办 |
-| [Lite](./docs/lite-v2.md) | 显式启用的轻量实现流程，适合低风险小范围任务 |
-| [Runbook](./docs/runbook.md) | 怎么判断正常、完成、卡住、取消和继续 |
-| [命令治理](./docs/command-governance.md) | 常用/内部/维护命令分层，以及完成、未完成、阻塞、取消后的状态规则 |
-| [Troubleshooting](./docs/troubleshooting.md) | 终端编码、乱码判断和跨平台修复 |
-| [本地测试](./docs/local-testing.md) | 使用 `npm pack` 和临时项目测试 CrewUp |
-| [测试矩阵](./docs/test-matrix.md) | 不同改动应该跑哪些验证命令 |
-| [核心边界](./docs/harness-core-boundary.md) | `.harness` 核心、项目适配层和运行态边界 |
-| [Agent 能力矩阵](./docs/harness-agent-capabilities.md) | Codex/Claude/Cursor/Trae/Manual 支持边界 |
-| [Agent 选择](./docs/harness-agent-selection.md) | `init` 选择项和适配层策略 |
-| [Universal Agent Bridge](./docs/universal-agent-bridge.md) | 外部 agent handoff 和 result JSON 契约 |
-| [脚本地图](./docs/harness-script-map.md) | 公开命令、核心流水线和维护脚本边界 |
-
-## 适合谁
-
-CrewUp 更适合长期迭代的大型项目、团队项目、复杂重构、全栈系统和需要严格 AI 开发流程的代码库。
-
-如果只是一次性小修、小问答、临时脚本或非常小的个人实验，可以不启用 CrewUp。CrewUp 的价值在于把 AI 开发从“聊天里的临场发挥”变成可追踪、可审计、可继续、可归档的工程流程。
-## Lite 轻量流程
-
-`lite` 是显式启用的轻量实现流程，内部 profile 是 `lite-v2`，用于低风险、小范围任务，例如 UI 样式调整、移动端布局修复、单模块 bugfix 或小功能。它不会替换现有 strict 流程；真实 run 必须显式指定 `--mode`。
-
-启用方式：
-
-```bash
-npx crewup run --mode=lite "修复 Admin 移动端横向溢出，跑 build/test"
-```
-
-聊天里可以这样说：
-
-```text
-使用 CrewUp lite，不要走 strict 多 agent 审计流程。只改前端样式和交互，完成 build/test/preview-smoke，并更新 validation.md 和 summary.md。
-```
-
-`lite` 会生成：
-
-```text
-.harness/runs/<run-id>/spec.md
-.harness/runs/<run-id>/tasks.md
-.harness/runs/<run-id>/validation.md
-.harness/runs/<run-id>/summary.md
-```
-
-它不会创建 native subagent tasks，也不会生成 `logs/native-subagents/native-subagent-plan.json`。主 agent 可以在任务范围内直接实现，但 `finish` 会拒绝仍处于 pending 状态的 `validation.md` 或 `summary.md`。
-
-数据库、auth、安全、部署、跨模块大功能和需要审计证据的任务仍应使用 strict 或 `strict --risk=high` 流程。
-
-详细说明见 [Lite 轻量流程](./docs/lite-v2.md)。

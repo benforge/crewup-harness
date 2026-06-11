@@ -16,9 +16,9 @@ install -> init/check -> run -> status/next-agent -> audit/gate/report -> archiv
 | --- | --- | --- |
 | 日常主路径 | 普通用户和主 agent | `doctor`、`init`、`check`、`run`、`status/runs`、`explain`、`finish`、`archive`、`cancel`、`continue` |
 | strict 操作 | 主 agent 和维护者 | `next-agent`、`clarify`、`native-state`、`audit`、`gate-check`、`report`、`preview-smoke`、`dev-service` |
-| 内部流水线 | `run`、`finish` 或编排逻辑调用 | `prepare-run`、`spec-freeze`、`context-pack`、`native-plan/agent-plan`、`transition`、`changed-files`、`archive-status`、`archive-commit`、`token-ledger`、`knowledge-select` |
-| 可选高级 | 需要对应能力时 | `integrations`、`tool-fallback`、`knowledge`、`dashboard`、`skills:*`、`product-sync` |
-| 兼容维护 | 异常恢复或旧 run 兼容 | `repair-artifacts`、`repair-plan`、`repair-state`、`orchestrate`、`verify`、`cleanup`、`next` |
+| 内部流水线 | `run`、`finish` 或编排逻辑调用 | `prepare-run`、`spec-freeze`、`context-pack`、`native-plan/agent-plan`、`transition`、`changed-files`、`archive-commit`、`token-ledger`、`knowledge-select` |
+| 可选高级 | 需要对应能力时 | `tool-fallback`、`knowledge`、`dashboard`、`product-sync`、`learn`、`learn-promote` |
+| 兼容维护 | 异常恢复或旧 run 兼容 | `repair-plan`、`repair-state` |
 
 治理规则：
 
@@ -65,17 +65,13 @@ install -> init/check -> run -> status/next-agent -> audit/gate/report -> archiv
 | `transition.mjs` | 执行阶段切换和 stage entry gates |
 | `changed-files.mjs` | 记录和校验 run 变更文件归属 |
 | `archive-commit.mjs` | 在 finish/归档策略允许时创建提交；无初始 commit 时写 audit 并跳过 |
-| `archive-status.mjs` | 判断当前 run 是否具备归档提交条件 |
 
 ## 子 Agent 与修复支持
 
 | 脚本 | 职责 |
 | --- | --- |
-| `orchestrate.mjs` | bridge/外部 runner 的结果收集和产物写回 |
 | `repair-plan.mjs` | 将 tester/reviewer 的 required fixes 按 owner 分组 |
-| `repair-artifacts.mjs` | 维护/兼容工具：规范 artifact 标题和空状态，不替代 owner agent |
 | `repair-state.mjs` | 诊断后修复异常 run/native state |
-| `verify.mjs` | 根据项目脚本执行测试/构建辅助检查 |
 | `dev-service.mjs` | 启动、停止或查看 run 级预览服务 |
 | `preview-smoke.mjs` | 对预览 URL 做 HTTP smoke check，写入 `artifacts/preview-smoke.md` 和 `logs/preview-smoke.json` |
 | `dashboard.mjs` | 生成 `.harness/dashboard/index.html` |
@@ -84,14 +80,11 @@ install -> init/check -> run -> status/next-agent -> audit/gate/report -> archiv
 
 | 脚本 | 定位 |
 | --- | --- |
-| `integrations.mjs` | 查看可选集成状态，例如 CodeGraph |
 | `tool-fallback.mjs` | 记录 Context7、MCP、插件等可选工具不可用时的降级证据 |
 | `knowledge.mjs` / `knowledge-select.mjs` | 刷新和选择 knowledge 层上下文 |
-| `skills-report.mjs` / `skills-resolve.mjs` / `skills-install.mjs` / `skills-audit.mjs` | skill 报告、解析、安装和审计 |
+| `learn.mjs` / `learn-promote.mjs` | 生成候选经验，并显式晋级为 Memory Hints |
 | `product-sync.mjs` | release 后按用户确认同步产品长期文档 |
-| `cleanup.mjs` | 清理运行态文件 |
 | `token-ledger.mjs` | 记录 token 预算和消耗 |
-| `next.mjs` | 状态建议器，不负责正式子 agent 派发 |
 
 ## 当前核心工作流契约
 
@@ -111,3 +104,4 @@ install -> init/check -> run -> status/next-agent -> audit/gate/report -> archiv
 - `finalize.mjs` 已移除；使用 `finish.mjs`。
 - `requirements-interview.mjs` 和旧 `requirements-plan.mjs` 脚本已移除；需求产物必须由对应子 agent 写入。
 - `desktop-plan.mjs` 和 `desktop-light.mjs` 已移除；非 native 环境使用 `native-plan.mjs` 生成 bridge handoff。
+- `next.mjs`、`verify.mjs`、`repair-artifacts.mjs`、`archive-status.mjs`、`integrations.mjs`、`cleanup.mjs`、`skills-*` 和 `orchestrate.mjs` 已移除；使用 `explain`/`drive`/`next-agent`、tester/gate/preview 证据、`archive-commit --dry-run`、`doctor`、owner repair 和 native result capture 替代。

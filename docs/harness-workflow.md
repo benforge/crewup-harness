@@ -74,7 +74,7 @@ npx crewup clarify <run-id> --interactive
 
 主 agent 不允许把子 agent 的文本复制进 owner artifact。如果 owner artifact 缺失、结构不合格或需要返修，优先恢复对应 owner agent 处理。
 
-`repair-artifacts` 是维护工具，不是 owner-agent repair 的第一选择。默认情况下，如果 native-state 里存在对应 owner agent，它会拒绝直接修改 owner artifact；只有维护旧数据或明确诊断时才使用 `--allow-owner-artifacts`。
+`repair-artifacts` 已移除。Owner artifact 必须优先由 owner agent 修复；生命周期或状态异常时使用 `repair-state` 做审计化修复。
 
 ## Native Subagent Path
 

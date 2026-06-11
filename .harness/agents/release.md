@@ -20,7 +20,7 @@ Use these exact second-level headings:
 
 ## Content Rules
 
-- Mention the build/test status from tester and reviewer artifacts.
+- Mention the validation status from tester and reviewer artifacts.
 - Mention any known non-blocking risks.
 - Include user-facing run commands when relevant.
 - Write your own result files under `logs/native-subagents/`.

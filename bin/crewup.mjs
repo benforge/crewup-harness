@@ -13,7 +13,6 @@ const [command, ...args] = process.argv.slice(2);
 const scriptByCommand = {
   inspect: "inspect.mjs",
   init: "init.mjs",
-  integrations: "integrations.mjs",
   doctor: "doctor.mjs",
   check: "check.mjs",
   run: "run.mjs",
@@ -27,41 +26,32 @@ const scriptByCommand = {
   health: "flow-health.mjs",
   drive: "drive.mjs",
   "prepare-run": "prepare-run.mjs",
-  next: "next.mjs",
   report: "report.mjs",
   "gate-check": "gate-check.mjs",
   audit: "orchestration-audit.mjs",
-  verify: "verify.mjs",
   "context-pack": "context-pack.mjs",
   "agent-plan": "native-plan.mjs",
   "next-agent": "next-agent.mjs",
   clarify: "clarify.mjs",
   "native-plan": "native-plan.mjs",
   "native-state": "native-state.mjs",
-  "repair-artifacts": "repair-artifacts.mjs",
   "repair-plan": "repair-plan.mjs",
   "repair-state": "repair-state.mjs",
   "tool-fallback": "tool-fallback.mjs",
   "spec-freeze": "spec-freeze.mjs",
   transition: "transition.mjs",
+  learn: "learn.mjs",
+  "learn-promote": "learn-promote.mjs",
   knowledge: "knowledge.mjs",
   "knowledge-select": "knowledge-select.mjs",
   dashboard: "dashboard.mjs",
   "archive-commit": "archive-commit.mjs",
-  "archive-status": "archive-status.mjs",
   "changed-files": "changed-files.mjs",
   "token-ledger": "token-ledger.mjs",
   "dev-service": "dev-service.mjs",
   "preview-smoke": "preview-smoke.mjs",
   "test-flow": "test-flow.mjs",
-  skills: "skills-report.mjs",
-  "skills:resolve": "skills-resolve.mjs",
-  "skills:install": "skills-install.mjs",
-  "skills:install-exact": "skills-install.mjs",
-  "skills:audit": "skills-audit.mjs",
   "product-sync": "product-sync.mjs",
-  orchestrate: "orchestrate.mjs",
-  cleanup: "cleanup.mjs"
 };
 
 if (!command || ["help", "--help", "-h"].includes(command)) {
@@ -91,7 +81,7 @@ if (command !== "doctor" && !existsSync(path.join(cwd, ".harness"))) {
   process.exit(1);
 }
 
-runScript(script, command === "skills:install-exact" ? ["--exact", ...args] : args);
+runScript(script, args);
 
 async function installHarness({ force, reset }) {
   const sourceHarness = path.join(packageRoot, ".harness");
@@ -174,7 +164,18 @@ function shouldSkipInstallPath(rel) {
   if (normalized.startsWith("runs/") && normalized !== "runs/.gitkeep") return true;
   if (normalized.startsWith("reports/") && normalized !== "reports/.gitkeep") return true;
   if (normalized.startsWith("dashboard/") && normalized !== "dashboard/.gitkeep") return true;
-  if (normalized.startsWith("knowledge/") && !["knowledge/.gitkeep", "knowledge/README.md", "knowledge/lessons-learned.md"].includes(normalized)) return true;
+  if (normalized.startsWith("knowledge/") && ![
+    "knowledge/.gitkeep",
+    "knowledge/README.md",
+    "knowledge/lessons-learned.md",
+    "knowledge/lessons",
+    "knowledge/lessons/active",
+    "knowledge/lessons/archived",
+    "knowledge/lessons/candidates",
+    "knowledge/lessons/active/.gitkeep",
+    "knowledge/lessons/archived/.gitkeep",
+    "knowledge/lessons/candidates/.gitkeep"
+  ].includes(normalized)) return true;
   return false;
 }
 
@@ -208,6 +209,14 @@ node_modules/
 !.harness/knowledge/.gitkeep
 !.harness/knowledge/README.md
 !.harness/knowledge/lessons-learned.md
+!.harness/knowledge/lessons/
+.harness/knowledge/lessons/*
+!.harness/knowledge/lessons/active/
+!.harness/knowledge/lessons/archived/
+!.harness/knowledge/lessons/candidates/
+!.harness/knowledge/lessons/active/.gitkeep
+!.harness/knowledge/lessons/archived/.gitkeep
+!.harness/knowledge/lessons/candidates/.gitkeep
 .harness/project/inspect.json
 .harness/project/adapter-plan.json
 .harness/reports/skills*.md
@@ -282,6 +291,8 @@ Usage:
   crewup repair-state <run-id> --prune-unassigned-implementation [--apply]
   crewup preview-smoke <run-id> --url=http://localhost:3000
   crewup report <run-id>
+  crewup learn <run-id>
+  crewup learn-promote <lesson-id>
   crewup archive <run-id> --outcome=<success|partial|blocked|canceled|failed> [--close]
   crewup cancel <run-id> --reason <reason>
   crewup continue <run-id> "continue from the previous run"
@@ -322,6 +333,8 @@ Core workflow:
   audit            Audit dispatch order, owner boundaries, repair loops, and context pressure
   gate-check       Run quality gates and ownership checks
   report           Generate a run summary report
+  learn            Extract candidate memory lessons from a run without changing routing or gates
+  learn-promote    Promote a candidate lesson into active memory hints, or archive one with --archive
   archive          Mark outcomes; non-success stays open unless --close is explicit
   cancel           Mark a run canceled and archive that outcome without discarding files
   continue         Create a new run using a previous run as historical context
@@ -334,28 +347,17 @@ Subagent planning:
   repair-plan      Convert tester/reviewer findings into owner repair tasks
 
 Runtime support:
-  next             Suggest the next step for a run
   dashboard        Generate or refresh .harness/dashboard/index.html
   dev-service      Start, stop, or inspect a run-scoped preview/dev service
   preview-smoke    Check preview URLs and write artifacts/preview-smoke.md evidence
   changed-files    Record or infer files changed by a run
-  archive-status   Check whether a run is ready for archive commit
 
 Optional and advanced:
-  integrations     Show optional integration provider status
-  orchestrate      Collect/apply bridge agent results for non-native runners
   knowledge        Refresh the knowledge layer
-  skills           Report installed skills, role labels, and external candidates
-  skills:install   Install configured external skill candidates
-  skills:resolve   Search marketplace matches for role skill labels
-  skills:install-exact
-                   Install exact marketplace matches after skills:resolve
 
 Compatibility / maintenance:
-  repair-artifacts Normalize required artifact headings and empty states
   repair-state     Repair malformed run state or prune unassigned implementation candidates when instructed by diagnostics
   tool-fallback    Record optional tool/plugin/MCP fallback evidence for a run
-  cleanup          Clean generated runtime artifacts
   product-sync     Sync approved release artifacts into product docs
   spec-freeze      Internal run-preparation artifact generated by crewup run
 

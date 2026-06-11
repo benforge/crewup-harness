@@ -9,7 +9,7 @@
 ## 启用方式
 
 ```bash
-npx crewup run --mode=lite "修复 Admin 文章列表移动端横向溢出，并运行 build/test"
+npx crewup run --mode=lite "修复 Admin 文章列表移动端横向溢出，并根据项目配置自行发现和执行必要验证"
 ```
 
 旧脚本仍可使用兼容别名：
@@ -21,7 +21,7 @@ npx crewup run --profile=lite-v2 "修复一个小 UI 问题"
 聊天里这样说：
 
 ```text
-使用 CrewUp lite，只改前端样式和交互，完成 build/test/preview-smoke，并更新 validation.md 和 summary.md。
+使用 CrewUp lite，只改前端样式和交互。完成后根据项目配置自行发现并执行必要验证，必要时做页面预览验证，并更新 validation.md 和 summary.md。
 ```
 
 ## 适合
@@ -60,8 +60,8 @@ npx crewup run --profile=lite-v2 "修复一个小 UI 问题"
 | 文件 | 作用 |
 | --- | --- |
 | `spec.md` | 目标、范围、非目标、验收标准、风险 |
-| `tasks.md` | 实现清单、允许范围、验证命令 |
-| `validation.md` | build/test/lint/preview-smoke 证据 |
+| `tasks.md` | 实现清单、允许范围、验证发现步骤 |
+| `validation.md` | 从项目配置发现的命令/检查、页面预览或 smoke 证据 |
 | `summary.md` | 结果、改动文件、验证结论、剩余风险 |
 
 `validation.md` 和 `summary.md` 不能停留在 pending 状态。`finish` 会在它们未更新时拒绝 success。
@@ -72,7 +72,7 @@ npx crewup run --profile=lite-v2 "修复一个小 UI 问题"
 run --mode=lite
   -> read spec.md/tasks.md
   -> implement directly in scoped files
-  -> run validation commands
+  -> discover and run validation
   -> update validation.md
   -> update summary.md
   -> crewup finish <run-id>
@@ -98,7 +98,7 @@ run --mode=lite
 
 ## 卡住处理
 
-先检查 `validation.md`、`summary.md` 是否仍是 pending，验证命令是否失败，以及是否发现需要升级 strict 的风险。风险升级时不要强行 `finish`，应记录 blocked/partial，或者创建 strict continuation。
+先检查 `validation.md`、`summary.md` 是否仍是 pending，验证发现是否充分、实际检查是否失败，以及是否发现需要升级 strict 的风险。风险升级时不要强行 `finish`，应记录 blocked/partial，或者创建 strict continuation。
 
 ## 稳定边界
 

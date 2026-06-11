@@ -91,7 +91,7 @@ Common cases:
 
 | Symptom | Fix |
 | --- | --- |
-| `finish` says `update validation.md, summary.md` | Replace pending template entries with real validation and outcome evidence |
+| `finish` says `update validation.md, summary.md` | Replace pending template entries with validation discovery evidence, real results, and outcome notes |
 | No native subagent plan exists | Expected for `lite`; implement directly or switch to strict if audit is required |
 | Task turns out high-risk | Stop `lite`, record the reason, and create a strict or `strict --risk=high` run |
 

@@ -122,7 +122,7 @@ Valid `status` values:
 4. Open the generated `<agent>.handoff.md` in Claude, Cursor, Trae, or another tool.
 5. Let the tool perform the task.
 6. Write the final JSON to `<agent>.result.json`.
-7. Run `npx crewup orchestrate <run-id>` to collect and apply the structured result.
+7. Write the structured result into native-state/result files, then collect it with `native-state reconcile-results`.
 8. Continue with `gate-check`, `report`, and `finish`.
 
 ## Why This Is More Mature

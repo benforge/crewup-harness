@@ -73,6 +73,8 @@ npm run release:preflight
 | --- | --- |
 | 安装、升级、core-lock、CLI install | `npm run test:install-flow` |
 | agent 顺序、run 生命周期、gate、repair | `npm run harness:test-flow` |
+| Memory Hints、`learn`、`learn-promote`、knowledge 选择 | `npm run harness:test-flow` + `npm run harness:check` |
+| 删除或收敛 CLI/package scripts | `npm run release:preflight` |
 | 归档、finish、archive commit | `npm run harness:test-flow` + `npm run release:preflight` |
 | 状态卡、run list、用户可见 CLI | `npm run harness:test-flow` |
 | 文档或配置小改 | `npm run harness:check` |
@@ -81,8 +83,10 @@ npm run release:preflight
 ## 维护原则
 
 - 新增 CLI 命令时，至少补 `harness:check` required path 或对应 flow 测试。
+- 删除 CLI 命令时，必须同时更新 `bin/crewup.mjs`、`package.json`、脚本地图、命令治理、README 和 flow 覆盖。
 - 修改 install / force / reset 时，必须跑 `test:install-flow`。
 - 修改工作流顺序、agent gating、owner artifact 或 repair 规则时，必须跑 `harness:test-flow`。
+- 修改 Memory Hints 时，要覆盖候选经验生成、显式晋级、归档和 knowledge 刷新路径。
 - 不要在真实用户项目里临时修 `.harness` 核心脚本。应先回到 CrewUp 源码仓库补回归测试，再修实现。
 
 ## Lite 测试矩阵

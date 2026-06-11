@@ -5,18 +5,6 @@ checks:
     required: true
     when_script_exists: null
 
-  - id: "skill-report"
-    name: "Harness skill inventory report"
-    command: "npm run harness:skills"
-    required: false
-    when_script_exists: "harness:skills"
-
-  - id: "skill-audit"
-    name: "Installed skill audit"
-    command: "npm run harness:skills:audit"
-    required: false
-    when_script_exists: "harness:skills:audit"
-
   - id: "lint"
     name: "Lint"
     command: "npm run lint"

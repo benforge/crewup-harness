@@ -17,7 +17,11 @@ const inputPath = path.join(runDir, "input.md");
 const contextDir = path.join(runDir, "logs", "context");
 const relatedJsonPath = path.join(contextDir, "related-runs.json");
 const relatedMdPath = path.join(contextDir, "related-runs.md");
+const recalledLessonsJsonPath = path.join(contextDir, "recalled-lessons.json");
+const recalledLessonsMdPath = path.join(contextDir, "recalled-lessons.md");
+const memoryHintsPath = path.join(contextDir, "memory-hints.md");
 const runIndexPath = path.join(root, ".harness", "knowledge", "run-index.json");
+const lessonIndexPath = path.join(root, ".harness", "knowledge", "lesson-index.json");
 
 if (!existsSync(inputPath)) {
   console.error(`缺少 run 输入：${path.relative(root, inputPath)}`);
@@ -30,6 +34,7 @@ const input = await readFile(inputPath, "utf8");
 const requirementPlan = await readOptional(path.join(runDir, "artifacts", "requirement-plan.md"));
 const requirement = await readOptional(path.join(runDir, "artifacts", "requirement.md"));
 const architecture = await readOptional(path.join(runDir, "artifacts", "architecture.md"));
+const state = await readJsonOptional(path.join(runDir, "state.json"), {});
 const queryText = [
   input,
   stripTemplateNoise(requirementPlan),
@@ -44,6 +49,7 @@ const currentScopes = new Set([
   ...extractCheckedScopes(architecture)
 ]);
 const runIndex = await readRunIndex();
+const lessonIndex = await readLessonIndex();
 const candidates = scoreRuns(runIndex.runs ?? [], { queryTerms, currentScopes })
   .filter((item) => item.run.runId !== runId)
   .filter((item) => item.score > 0)
@@ -71,11 +77,30 @@ const result = {
     artifactPaths: artifactPaths(run.runId)
   }))
 };
+const selectedLessons = scoreLessons(lessonIndex.lessons ?? [], { queryTerms, currentScopes, workflowProfile: state.workflowProfile })
+  .filter((item) => item.score > 0)
+  .sort((left, right) => right.score - left.score || right.lesson.confidence - left.lesson.confidence)
+  .slice(0, 12);
+const lessonsResult = {
+  runId,
+  generatedAt: new Date().toISOString(),
+  source: ".harness/knowledge/lesson-index.json",
+  currentScopes: [...currentScopes],
+  selected: selectedLessons.map(({ lesson, score, reasons }) => ({
+    ...lesson,
+    score,
+    reasons
+  }))
+};
 
 await writeFile(relatedJsonPath, `${JSON.stringify(result, null, 2)}\n`, "utf8");
 await writeFile(relatedMdPath, renderMarkdown(result), "utf8");
+await writeFile(recalledLessonsJsonPath, `${JSON.stringify(lessonsResult, null, 2)}\n`, "utf8");
+await writeFile(recalledLessonsMdPath, renderLessonsMarkdown(lessonsResult), "utf8");
+await writeFile(memoryHintsPath, renderMemoryHints({ related: result, lessons: lessonsResult }), "utf8");
 
 console.log(`相关历史 run 已写入：${path.relative(root, relatedMdPath).replaceAll("\\", "/")}`);
+console.log(`Memory hints 已写入：${path.relative(root, memoryHintsPath).replaceAll("\\", "/")}`);
 if (result.selected.length === 0) {
   console.log("未命中相关历史 run。");
 } else {
@@ -92,6 +117,17 @@ async function readRunIndex() {
   } catch (error) {
     console.error(`无法解析 run-index.json：${error.message}`);
     process.exit(1);
+  }
+}
+
+async function readLessonIndex() {
+  if (!existsSync(lessonIndexPath)) {
+    return { lessons: [] };
+  }
+  try {
+    return JSON.parse(await readFile(lessonIndexPath, "utf8"));
+  } catch {
+    return { lessons: [] };
   }
 }
 
@@ -131,6 +167,52 @@ function scoreRuns(runs, { queryTerms, currentScopes }) {
     if (termHits === 0 && reasons.length === 0) score = 0;
     return { run, score, reasons };
   });
+}
+
+function scoreLessons(lessons, { queryTerms, currentScopes, workflowProfile }) {
+  return lessons
+    .filter((lesson) => lesson.status !== "archived")
+    .map((lesson) => {
+      const text = [
+        lesson.id,
+        lesson.domain,
+        lesson.trigger,
+        lesson.action,
+        lesson.sourceRun,
+        ...(lesson.scope ?? [])
+      ].join("\n").toLowerCase();
+      let score = 0;
+      const reasons = [];
+
+      for (const scope of currentScopes) {
+        if ((lesson.scope ?? []).map((item) => String(item).toLowerCase()).includes(scope) || text.includes(scope)) {
+          score += 8;
+          reasons.push(`scope:${scope}`);
+        }
+      }
+
+      let termHits = 0;
+      for (const term of queryTerms) {
+        if (text.includes(term)) {
+          termHits += 1;
+          score += term.length >= 4 ? 3 : 1;
+          if (reasons.length < 8) reasons.push(`term:${term}`);
+        }
+      }
+
+      if (lesson.status === "active") score += 8;
+      if (lesson.status === "candidate") score -= 2;
+      if (workflowProfile && text.includes(String(workflowProfile).toLowerCase())) {
+        score += 2;
+        reasons.push(`profile:${workflowProfile}`);
+      }
+      if (termHits === 0 && reasons.length === 0 && !hasGenericHighValueLesson(lesson)) score = 0;
+      return { lesson, score: Math.max(0, score), reasons };
+    });
+}
+
+function hasGenericHighValueLesson(lesson) {
+  return lesson.status === "active" && ["workflow", "risk"].includes(lesson.domain) && Number(lesson.confidence ?? 0) >= 0.75;
 }
 
 function extractTerms(text) {
@@ -289,6 +371,90 @@ function renderMarkdown(data) {
   return `${lines.join("\n")}\n`;
 }
 
+function renderLessonsMarkdown(data) {
+  const lines = [
+    `# Recalled Lessons: ${data.runId}`,
+    "",
+    "> Generated by `npm run harness:knowledge-select`. Candidate lessons are review material only; active lessons may be used as memory hints.",
+    "",
+    `- generatedAt: ${data.generatedAt}`,
+    `- source: ${data.source}`,
+    `- currentScopes: ${data.currentScopes.length ? data.currentScopes.join(", ") : "(none)"}`,
+    "",
+    "## Selected Lessons",
+    ""
+  ];
+
+  if (data.selected.length === 0) {
+    lines.push("- none", "");
+    return `${lines.join("\n")}\n`;
+  }
+
+  for (const item of data.selected) {
+    lines.push(
+      `### ${item.id}`,
+      "",
+      `- status: ${item.status}`,
+      `- domain: ${item.domain}`,
+      `- confidence: ${item.confidence}`,
+      `- score: ${item.score}`,
+      `- reasons: ${item.reasons.join(", ") || "-"}`,
+      `- scope: ${(item.scope ?? []).join(", ") || "-"}`,
+      `- trigger: ${item.trigger}`,
+      `- action: ${item.action}`,
+      `- sourceRun: ${item.sourceRun ?? "-"}`,
+      `- path: \`${item.path}\``,
+      ""
+    );
+  }
+
+  return `${lines.join("\n")}\n`;
+}
+
+function renderMemoryHints({ related, lessons }) {
+  const activeLessons = lessons.selected
+    .filter((item) => item.status === "active")
+    .slice(0, 5);
+  const candidateCount = lessons.selected.filter((item) => item.status === "candidate").length;
+  const relatedRuns = related.selected.slice(0, 2);
+  const lines = [
+    "# Memory Hints",
+    "",
+    "> Short hints only. These are not routing authority; `next-agent`, gates, and owner policies remain authoritative.",
+    "",
+    `- generatedAt: ${new Date().toISOString()}`,
+    `- relatedRuns: ${related.selected.length}`,
+    `- activeLessons: ${activeLessons.length}`,
+    `- candidateSignals: ${candidateCount}`,
+    "",
+    "## Hints",
+    ""
+  ];
+
+  if (relatedRuns.length === 0 && activeLessons.length === 0) {
+    lines.push("- none");
+  } else {
+    for (const item of relatedRuns) {
+      const summary = [...(item.capabilities ?? []), ...(item.decisions ?? [])].slice(0, 2).join("; ") || item.title || "related run";
+      lines.push(`- run:${item.runId} [score=${item.score}] ${limitText(summary, 140)}`);
+    }
+    for (const item of activeLessons) {
+      lines.push(`- ${item.id} [${item.domain}, confidence=${item.confidence}] ${limitText(item.action || item.trigger, 150)}`);
+    }
+  }
+
+  lines.push(
+    "",
+    "## Expand If Needed",
+    "",
+    `- related runs: \`.harness/runs/${related.runId}/logs/context/related-runs.md\``,
+    `- recalled lessons: \`.harness/runs/${related.runId}/logs/context/recalled-lessons.md\``,
+    ""
+  );
+
+  return `${lines.join("\n")}\n`;
+}
+
 function compact(items) {
   const cleaned = [...new Set((items ?? []).map((item) => String(item ?? "").trim()).filter(Boolean))];
   return cleaned.length ? cleaned.slice(0, 8) : ["-"];
@@ -297,6 +463,20 @@ function compact(items) {
 async function readOptional(target) {
   if (!existsSync(target)) return "";
   return readFile(target, "utf8");
+}
+
+async function readJsonOptional(target, fallback) {
+  if (!existsSync(target)) return fallback;
+  try {
+    return JSON.parse(await readFile(target, "utf8"));
+  } catch {
+    return fallback;
+  }
+}
+
+function limitText(text, maxChars) {
+  const value = String(text ?? "").replace(/\s+/g, " ").trim();
+  return value.length > maxChars ? `${value.slice(0, maxChars).trim()}...` : value;
 }
 
 function valueOf(prefix) {

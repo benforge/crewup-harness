@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.4.3
+
+- Changed requirement and tester guidance so users no longer need to provide build/test/lint commands in requests; CrewUp agents discover validation from project evidence such as package manifests, README, CI config, framework config, and tests.
+- Updated lite templates, validation templates, agent rules, README examples, getting-started docs, local-testing docs, and example prompts to describe desired outcomes first and validation discovery second.
+- Strengthened tester reporting so `test-report.md` records both validation discovery evidence and executed commands/checks.
+
+## 0.4.2
+
+- Added the Memory Hints learning path: `crewup learn <run-id>` extracts candidate lessons, `crewup learn-promote <lesson-id>` explicitly promotes valuable lessons, and the knowledge layer selects compact hints instead of loading full run history.
+- Wired archive/knowledge refresh so run closeout can produce candidate lessons while keeping promotion explicit and auditable.
+- Slimmed the public command surface by removing low-value historical commands: `next`, `verify`, `repair-artifacts`, `archive-status`, `integrations`, `cleanup`, `skills-*`, and `orchestrate`.
+- Updated CLI help, package scripts, checks, flow tests, script maps, command governance, local testing docs, workflow docs, and optional integration docs to point to the stable replacements.
+- Refreshed the README product positioning and hero asset for the current architecture: explicit runs, delegated owners, gates, archive evidence, and low-token reusable memory.
+
 ## 0.4.1
 
 - Rewrote the new Chinese mode, command-governance, and lite-v2 docs as clean UTF-8 so user-facing governance pages render correctly.

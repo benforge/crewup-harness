@@ -27,7 +27,7 @@ Use `strict` or `strict --risk=high` for those cases.
 `lite` must be explicitly requested:
 
 ```bash
-npx crewup run --mode=lite "Fix the Admin article list mobile overflow and run build/test"
+npx crewup run --mode=lite "Fix the Admin article list mobile overflow and discover/run the necessary project validation"
 ```
 
 The old profile aliases are still accepted for compatibility:
@@ -40,7 +40,7 @@ npx crewup run --profile=lite_v2 "Fix a small UI issue"
 In chat, say:
 
 ```text
-Use CrewUp lite. Do not run the strict multi-agent audit flow. Only change frontend styles/interactions and finish build/test/preview-smoke.
+Use CrewUp lite. Do not run the strict multi-agent audit flow. Only change frontend styles/interactions. Discover and run necessary validation from the project configuration, including preview smoke when applicable.
 ```
 
 Without `--mode=lite` or an explicit `lite` chat request, this lightweight path is not used.
@@ -71,8 +71,8 @@ logs/native-subagents/native-subagent-plan.json
 | File | Purpose |
 | --- | --- |
 | `spec.md` | Goal, scope, non-goals, acceptance criteria, risks |
-| `tasks.md` | Implementation checklist, allowed scope, validation commands |
-| `validation.md` | Build/test/lint/preview-smoke evidence |
+| `tasks.md` | Implementation checklist, allowed scope, validation discovery steps |
+| `validation.md` | Discovered command/check, browser, preview, or smoke evidence |
 | `summary.md` | Outcome, changed files, validation result, residual risks |
 
 `validation.md` and `summary.md` must not remain in the pending template state. `finish` refuses to archive success until they are updated.
@@ -85,7 +85,7 @@ Recommended order:
 run --mode=lite
   -> read spec.md/tasks.md
   -> implement directly in scoped files
-  -> run validation commands
+  -> discover and run validation
   -> update validation.md
   -> update summary.md
   -> crewup finish <run-id>
@@ -157,7 +157,7 @@ Subagents should update it before long commands, before broad edits, and after m
 Lightweight UI:
 
 ```text
-Use CrewUp lite. Do not run the strict multi-agent audit flow. Redesign the blog frontend UI, only change src/web and src/admin, finish build/test/preview-smoke, and update validation.md and summary.md.
+Use CrewUp lite. Do not run the strict multi-agent audit flow. Redesign the blog frontend UI, only change src/web and src/admin, discover and run necessary project validation, and update validation.md and summary.md.
 ```
 
 Small bugfix:

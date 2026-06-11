@@ -103,7 +103,7 @@ export function renderBridgeManifestMarkdown(manifest) {
     "",
     "## Result Contract",
     "",
-    "The JSON result must match the harness agent output schema used by `orchestrate`."
+    "The JSON result must match the harness agent output schema used by native/bridge result capture."
   ].join("\n");
 }
 

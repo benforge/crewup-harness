@@ -2,9 +2,9 @@
 
 [中文](./README.md) | English
 
-![CrewUp workflow](assets/crewup-hero.svg)
+![CrewUp stable AI workflow architecture](assets/crewup-hero.svg)
 
-CrewUp is an AI harness for large projects and rigorous delivery workflows. It is not a prompt bundle that asks one main agent to do everything. It is a workflow control protocol that defines when formal work starts, which role owns each artifact, who implements changes, which gates must pass, and how a run is reported and archived.
+CrewUp is an AI harness for large projects and rigorous delivery workflows. It is not a prompt bundle that asks one main agent to do everything. It is a workflow control protocol that defines when formal work starts, which role owns each artifact, who implements changes, which gates must pass, how compact memory is reused, and how a run is reported and archived.
 
 Its goal is simple: turn open-ended AI coding into a traceable, delegated, verifiable, and archivable engineering loop.
 
@@ -53,6 +53,8 @@ A strict workflow does not skip roles just because a task is small. CrewUp reduc
 - Auditable fallback: when optional tools such as Context7, MCP servers, or plugins are unavailable, `tool-fallback` records the fallback evidence in run logs
 - Repair lineage: repair results preserve `repairOf`, `repairReason`, and `previousResultPath` to reduce repeated repair loops
 - Runtime archive: runs, reports, dashboard, and knowledge have explicit locations and preservation rules
+- Low-token memory: `learn` extracts candidate lessons, and `learn-promote` explicitly promotes only valuable lessons into Memory Hints
+- Slim command surface: low-value historical commands have been removed; daily users stay on the stable run/drive/gate/report/finish path
 - Stable closeout: archive commit skips with an audit record when a new repository has no initial commit, instead of blocking an otherwise successful run
 - Safe upgrade: `install --force` updates the harness core while preserving existing runs, knowledge, project adapters, reports, and dashboard state
 
@@ -137,7 +139,7 @@ Mode examples:
 Use this small case to test the whole workflow without spending too much:
 
 ```text
-Use CrewUp strict to build a tiny counter web app and run the full workflow. Acceptance criteria: page shows counter, initial value is 0, +1/-1/reset work, value persists after refresh, build/test pass. Scope: tiny frontend only; no backend, database, auth, or routing.
+Use CrewUp strict to build a tiny counter web app and run the full workflow. Acceptance criteria: page shows counter, initial value is 0, +1/-1/reset work, and value persists after refresh. Scope: tiny frontend only; no backend, database, auth, or routing. Discover and run the necessary validation from the project configuration.
 ```
 
 After the run is created, check orchestration:
@@ -191,14 +193,26 @@ Daily users do not need to remember every script. Prefer `doctor`, `init`, `chec
 | `npx crewup cancel <run-id> --reason="..."` | Cancel a run and archive the cancellation without discarding files |
 | `npx crewup continue <run-id> "..."` | Create a new continuation run from a previous run |
 | `npx crewup finish <run-id>` | Finish and archive the run by policy |
+| `npx crewup learn <run-id>` | Extract candidate lessons without changing future routing |
+| `npx crewup learn-promote <lesson-id>` | Explicitly promote a candidate lesson into Memory Hints |
 | `npx crewup dashboard` | Generate or refresh `.harness/dashboard/index.html` |
-| `npx crewup integrations status` | Show optional integration status, such as CodeGraph |
 | `npx crewup dev-service <run-id> start` | Start a run-scoped preview service |
 | `npx crewup dev-service <run-id> stop` | Stop the run-scoped preview service |
 
 Prefer `npx crewup ...` in target projects because the user's `package.json` may not include `npm run harness:*` scripts.
 
 For internal pipeline and maintenance commands, see [Script Map](./docs/harness-script-map.en.md). Regular developers do not need to memorize every `.harness/scripts` file.
+
+## Memory Hints
+
+CrewUp does not push every archived run log into future context. The learning path is intentionally explicit:
+
+```bash
+npx crewup learn <run-id>
+npx crewup learn-promote <lesson-id>
+```
+
+`learn` creates candidate lessons from real run evidence. `learn-promote` is the human/maintainer approval step that moves a useful lesson into `.harness/knowledge/memory-hints.md`. Later runs select only relevant short hints, which keeps token cost low while preserving lessons that actually prevent repeated mistakes. See [Memory Hints](./docs/memory-hints.en.md).
 
 ## Workflow Profiles
 
@@ -233,7 +247,7 @@ Normally, users should describe the goal and constraints; requirements/architect
 `lite` is an explicit opt-in path for low-risk, narrow changes. It is meant for small UI work, single-module bug fixes, and lightweight implementation tasks where the full native subagent audit chain would add more friction than value.
 
 ```bash
-npx crewup run --mode=lite "Fix the Admin mobile overflow and run build/test"
+npx crewup run --mode=lite "Fix the Admin mobile overflow and discover/run the necessary project validation"
 ```
 
 It creates `spec.md`, `tasks.md`, `validation.md`, and `summary.md` directly under the run directory. It does not create native subagent tasks or `logs/native-subagents/native-subagent-plan.json`. The main agent may implement directly inside the scoped task, but `finish` refuses success while `validation.md` or `summary.md` still contain pending evidence.
@@ -258,10 +272,10 @@ Detailed guide: [Lite Lightweight Flow](./docs/lite-v2.en.md).
 
 ## Optional Integrations
 
-CrewUp core does not require CodeGraph or any external code intelligence provider. Optional integrations can be inspected with:
+CrewUp core does not require CodeGraph or any external code intelligence provider. Optional integrations are reported by:
 
 ```bash
-npx crewup integrations status
+npx crewup doctor
 ```
 
 CodeGraph is useful for large-codebase structure indexing and impact assistance. It does not replace `.harness/knowledge/`: CodeGraph is code-fact indexing, while knowledge files are project lessons, decisions, and retrospectives.
@@ -294,6 +308,7 @@ See the full matrix in [Test Matrix](./docs/test-matrix.en.md).
 | [Lite](./docs/lite-v2.en.md) | Lightweight opt-in flow for small low-risk implementation tasks |
 | [Runbook](./docs/runbook.en.md) | How to judge health, completion, blockers, cancellation, and continuation |
 | [Command Governance](./docs/command-governance.en.md) | Daily/internal/maintenance command tiers plus complete, incomplete, blocked, and canceled outcome rules |
+| [Memory Hints](./docs/memory-hints.en.md) | Candidate lessons, explicit promotion, and low-token reuse |
 | [Getting Started](./docs/getting-started.en.md) | Install, API key setup, first run, and troubleshooting |
 | [Troubleshooting](./docs/troubleshooting.en.md) | Terminal encoding, mojibake checks, and cross-platform fixes |
 | [Local Testing](./docs/local-testing.en.md) | Test CrewUp locally with `npm pack` and a temporary project |

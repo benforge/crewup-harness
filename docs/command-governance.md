@@ -32,9 +32,9 @@
 
 - Tier 1 日常主路径：`doctor`、`init`、`check`、`run --mode=...`、`status`、`explain`、`drive`、`finish`、`archive`、`cancel`、`continue`。
 - Tier 2 strict 操作命令：`next-agent`、`clarify`、`native-state diagnose`、`native-state reconcile-results`、`audit`、`gate-check`、`report`、`preview-smoke`、`dev-service`。
-- Tier 3 内部流水线：`prepare-run`、`spec-freeze`、`context-pack`、`agent-plan/native-plan`、`transition`、`changed-files`、`archive-status`、`archive-commit`、`token-ledger`、`knowledge-select`。
-- Tier 4 可选能力：`integrations`、`tool-fallback`、`knowledge`、`dashboard`、`skills:*`、`product-sync`。
-- Tier 5 兼容和维护：`repair-artifacts`、`repair-plan`、`repair-state`、`orchestrate`、`verify`、`cleanup`、`next`。
+- Tier 3 内部流水线：`prepare-run`、`spec-freeze`、`context-pack`、`agent-plan/native-plan`、`transition`、`changed-files`、`archive-commit`、`token-ledger`、`knowledge-select`。
+- Tier 4 可选能力：`tool-fallback`、`knowledge`、`dashboard`、`product-sync`、`learn`、`learn-promote`。
+- Tier 5 兼容和维护：`repair-plan`、`repair-state`。
 
 普通使用者可以把 Tier 3 到 Tier 5 从日常心智里拿掉。它们不应该作为开始工作的入口，也不应该用来绕过 owner agent、验证或 gate。
 
@@ -65,7 +65,7 @@
 `lite` 完成：
 
 - 四个根文件都存在：`spec.md`、`tasks.md`、`validation.md`、`summary.md`。
-- `validation.md` 写清真实验证命令、结果和证据。
+- `validation.md` 写清验证发现依据、真实执行的命令/检查、结果和证据。
 - `summary.md` 写清改动、验证结论、剩余风险和可检查路径。
 - `validation.md` 和 `summary.md` 不再是 pending 占位。
 - 没有发现必须升级 strict 的高风险范围。

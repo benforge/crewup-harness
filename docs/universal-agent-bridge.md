@@ -106,7 +106,7 @@ npx crewup agent-plan <run-id>
 4. 在 Claude、Cursor、Trae 或其他工具里打开生成的 `<agent>.handoff.md`。
 5. 让外部工具执行任务。
 6. 把最终 JSON 写入 `<agent>.result.json`。
-7. 运行 `npx crewup orchestrate <run-id>` 收集并应用结构化结果。
+7. 将结构化结果写入 native-state/result 文件，由主流程通过 `native-state reconcile-results` 收集。
 8. 继续运行 `gate-check`、`report` 和 `finish`。
 
 ## 支持声明

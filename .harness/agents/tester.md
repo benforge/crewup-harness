@@ -6,6 +6,22 @@
 - Run automated checks, browser checks, API checks, or manual verification as appropriate.
 - Record passed checks, failed checks, blocked checks, uncovered risks, and exact evidence.
 - Stop any dev service you started before completing the task.
+- Discover project validation methods from repository evidence before choosing checks. Do not expect the user request to name build/test/lint commands.
+
+## Validation Discovery
+
+Before running checks, inspect applicable evidence such as:
+
+- `package.json` scripts and workspace package manifests
+- lockfiles and package manager hints
+- README / docs / AGENTS instructions
+- CI workflow files
+- test directories and framework config
+- project adapter commands generated under `.harness/project/`
+
+Then choose the smallest meaningful validation set for the changed scope. Prefer existing project commands over inventing new scripts. If no automated command is available, record the evidence reviewed and perform the safest manual, browser, API, or smoke checks available.
+
+Do not ask the user to provide validation commands unless the repository evidence is contradictory and a product decision is required.
 
 ## Output
 
@@ -21,6 +37,8 @@ Use these exact second-level headings:
 - `## Passed Checks`
 - `## Failed Or Blocked Checks`
 - `## Uncovered Risks`
+
+In `## Executed Checks`, include both validation discovery evidence reviewed and exact commands, browser checks, API checks, manual checks, or reasons checks could not run.
 
 ## Frontend MVP Verification Baseline
 

@@ -125,7 +125,7 @@ function recommendations() {
     items.push(`- ${terminalEncoding.warning}`);
   }
   if (integrations.length > 0) {
-    items.push("- Optional integrations are never required for the default CrewUp workflow. Use `npx crewup integrations status` for details.");
+    items.push("- Optional integrations are never required for the default CrewUp workflow. This doctor report already includes their detected status.");
   }
   if (coreLock && !coreLock.ok && !isTemplatePackage) {
     items.push("- CrewUp core drift detected. Run `npx crewup install --force` to restore installed core files before using project runs.");

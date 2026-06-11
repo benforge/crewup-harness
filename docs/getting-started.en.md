@@ -87,13 +87,13 @@ Look for:
 CLI:
 
 ```bash
-npx crewup run --mode=strict "Use CrewUp to build a tiny counter web app and run the full workflow. Acceptance criteria: page shows counter, initial value is 0, +1/-1/reset work, value persists after refresh, build/test pass. Scope: tiny frontend only; no backend, database, auth, or routing."
+npx crewup run --mode=strict "Use CrewUp to build a tiny counter web app and run the full workflow. Acceptance criteria: page shows counter, initial value is 0, +1/-1/reset work, and value persists after refresh. Scope: tiny frontend only; no backend, database, auth, or routing. Discover and run the necessary validation from the project configuration."
 ```
 
 Chat:
 
 ```text
-Use CrewUp strict to build a tiny counter web app and run the full workflow. Acceptance criteria: page shows counter, initial value is 0, +1/-1/reset work, value persists after refresh, build/test pass. Scope: tiny frontend only; no backend, database, auth, or routing.
+Use CrewUp strict to build a tiny counter web app and run the full workflow. Acceptance criteria: page shows counter, initial value is 0, +1/-1/reset work, and value persists after refresh. Scope: tiny frontend only; no backend, database, auth, or routing. Discover and run the necessary validation from the project configuration.
 ```
 
 When the user explicitly asks for CrewUp in chat, the user must name the mode. The main agent should run `npx crewup run --mode=<mode> "<request>"`, extract the runId, then continue orchestration with `next-agent` or `drive`.
@@ -139,7 +139,7 @@ Implementation agents are candidates at run creation time. The actual implementa
 For low-risk, narrow tasks, explicitly choose `lite`:
 
 ```bash
-npx crewup run --mode=lite "Fix a small frontend layout issue and run build/test"
+npx crewup run --mode=lite "Fix a small frontend layout issue and discover/run the necessary project validation"
 ```
 
 `lite` creates `spec.md`, `tasks.md`, `validation.md`, and `summary.md` directly under the run directory. It does not create native subagent tasks or a native subagent plan. The main agent may implement directly inside the scoped task, then must update `validation.md` and `summary.md` before running:

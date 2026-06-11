@@ -75,7 +75,7 @@ Manual 模式不是一个 agent 产品，而是兜底路径。它适合希望使
 不要宣称某个 agent 环境已经完整支持，除非它的适配器已经通过完整闭环测试：
 
 ```text
-install -> inspect -> init -> run -> verify -> report -> finish
+install -> inspect -> init -> run -> gate-check -> report -> finish
 ```
 
 ## 主 agent 能力边界

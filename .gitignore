@@ -22,6 +22,13 @@ Thumbs.db
 !.harness/knowledge/README.md
 !.harness/knowledge/lessons-learned.md
 !.harness/knowledge/.gitkeep
+.harness/knowledge/lessons/*
+!.harness/knowledge/lessons/active/
+!.harness/knowledge/lessons/archived/
+!.harness/knowledge/lessons/candidates/
+!.harness/knowledge/lessons/active/.gitkeep
+!.harness/knowledge/lessons/archived/.gitkeep
+!.harness/knowledge/lessons/candidates/.gitkeep
 .harness/reports/*.json
 .harness/reports/*.md
 !.harness/reports/.gitkeep

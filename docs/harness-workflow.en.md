@@ -53,7 +53,7 @@ Negation-aware routing only removes false-positive scope. If the user says `no b
 `lite` is an explicit lightweight path and is not the strict workflow. It maps internally to the `lite-v2` profile and exists for low-risk, scoped implementation work where native subagent provenance would be heavier than the task itself.
 
 ```bash
-npx crewup run --mode=lite "Fix a small UI issue and run validation"
+npx crewup run --mode=lite "Fix a small UI issue and discover/run the necessary project validation"
 ```
 
 Its run shape is:
@@ -147,7 +147,7 @@ This writes `.harness/runs/<run-id>/logs/clarifications/answers.json` and `answe
 
 The main agent must not copy subagent text into owner artifacts. If an owner agent fails to write the artifact, the run should be repaired, blocked, or resumed with that owner agent.
 
-`repair-artifacts` is a maintenance tool, not the first repair path for active owner-agent artifacts. By default, when native-state contains the owner agent, it refuses to modify those owner artifacts unless `--allow-owner-artifacts` is explicitly supplied.
+`repair-artifacts` has been removed. Owner artifacts must be repaired by their owner agent first; use `repair-state` only for audited lifecycle/state repair.
 
 ## Native Subagent Path
 

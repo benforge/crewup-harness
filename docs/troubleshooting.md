@@ -180,7 +180,7 @@ npx crewup check
 
 | 现象 | 处理 |
 | --- | --- |
-| `finish` 提示 `update validation.md, summary.md` | 把 pending 模板内容替换成真实验证和结果记录 |
+| `finish` 提示 `update validation.md, summary.md` | 把 pending 模板内容替换成验证发现依据、真实执行结果和总结 |
 | 没有 native subagent plan | 这是 `lite` 的预期行为；需要审计时改用 strict |
 | 任务执行中发现高风险范围 | 停止 `lite`，记录原因，重新创建 strict 或 `strict --risk=high` run |
 

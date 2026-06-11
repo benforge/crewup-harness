@@ -42,7 +42,7 @@ The main agent coordinates, registers results, runs gates, and summarizes. Forma
 Real CrewUp runs require an explicit public mode. This keeps file layout, completion rules, and archive expectations predictable.
 
 ```bash
-npx crewup run --mode=lite "Fix a small UI issue and run validation"
+npx crewup run --mode=lite "Fix a small UI issue and discover/run the necessary project validation"
 npx crewup run --mode=strict "Add a feature through formal multi-agent delivery"
 npx crewup run --mode=strict --risk=high "Add a high-risk permission system"
 npx crewup run --mode=plan "Plan the comments feature; do not write code"
@@ -56,7 +56,7 @@ npx crewup run --mode=discovery "Map this project and propose next runs"
 `lite` is an explicit lightweight path for low-risk, scoped implementation tasks. It does not replace the strict core workflow and is not selected automatically.
 
 ```bash
-npx crewup run --mode=lite "Fix a small UI issue and run validation"
+npx crewup run --mode=lite "Fix a small UI issue and discover/run the necessary project validation"
 ```
 
 It creates `spec.md`, `tasks.md`, `validation.md`, and `summary.md` directly under the run directory, does not create native subagent tasks, and does not require strict owner-artifact provenance. `finish` requires `validation.md` and `summary.md` to be updated from pending template state before success archive.
@@ -68,4 +68,17 @@ It creates `spec.md`, `tasks.md`, `validation.md`, and `summary.md` directly und
 - Record optional tool failures with `tool-fallback`.
 - Route tester/reviewer fixes back to owner agents.
 - Run `audit`, `gate-check`, and `report` before closing retained subagents when capacity allows.
-- Use `repair-artifacts` only for maintenance/legacy normalization; active owner artifacts should be repaired by their owner agent first.
+- Active owner artifacts should be repaired by their owner agent first; use `repair-state` only for audited lifecycle/state repair.
+- Use `learn` to extract candidate lessons from real run evidence, then `learn-promote` to explicitly promote only useful lessons into Memory Hints.
+- Keep the public command surface small; daily work should stay on `run`, `status/explain/drive`, `next-agent`, gates, report, finish, archive, cancel, and continue.
+
+## Memory Hints
+
+CrewUp stores reusable lessons under `.harness/knowledge/lessons/`, but candidates do not automatically affect future runs. Promote only lessons that are short, evidence-backed, and likely to prevent repeated mistakes:
+
+```bash
+npx crewup learn <run-id>
+npx crewup learn-promote <lesson-id>
+```
+
+Promoted hints are selected by relevance so future runs reuse compact guidance instead of loading full historical logs.

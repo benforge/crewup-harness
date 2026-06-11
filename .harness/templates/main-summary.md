@@ -31,4 +31,4 @@
 
 ## Next Step
 
-- Follow `crewup next`.
+- Follow `crewup explain <run-id>` or `crewup next-agent <run-id>`.

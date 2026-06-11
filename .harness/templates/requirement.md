@@ -39,6 +39,8 @@
 ## Test Requirements
 
 - Tester must verify each applicable `AC-*` criterion and record evidence in `artifacts/test-report.md`.
+- Tester must discover validation commands/checks from project evidence such as package manifests, README, CI config, test directories, framework config, and `.harness/project/`.
+- If no automated validation is available, tester must record the evidence reviewed and perform the safest available manual, browser, API, or smoke checks.
 
 ## Rollback Strategy
 

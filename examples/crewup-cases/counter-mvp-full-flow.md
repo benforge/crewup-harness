@@ -3,7 +3,7 @@
 复制下面内容到聊天窗口：
 
 ```text
-使用 CrewUp 做一个最小 counter web app，跑完整 workflow。验收标准：页面显示 counter，初始值为 0；可以 +1、-1、reset；刷新后数值保留；build/test 通过。范围：只做一个很小的前端实现；不需要 backend、database、auth、routing。
+使用 CrewUp 做一个最小 counter web app，跑完整 workflow。验收标准：页面显示 counter，初始值为 0；可以 +1、-1、reset；刷新后数值保留。范围：只做一个很小的前端实现；不需要 backend、database、auth、routing。完成后请根据项目配置自行发现并执行必要验证。
 ```
 
 期望流程：
@@ -12,7 +12,7 @@
 requirements-plan -> requirements -> architect -> frontend -> tester -> reviewer -> release
 ```
 
-验证命令：
+验证方式：
 
 ```bash
 npx crewup next-agent <run-id>

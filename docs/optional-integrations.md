@@ -51,8 +51,7 @@ Only stable project lessons should be promoted into `.harness/knowledge/`.
 ## Check Status
 
 ```bash
-npx crewup integrations status
-npx crewup integrations status codegraph
+npx crewup doctor
 ```
 
 This command only reports optional provider status. Missing optional providers do not fail CrewUp checks or gates.
@@ -75,4 +74,4 @@ integrations:
     mode: optional
 ```
 
-Keep integrations optional unless a target project explicitly chooses a stricter policy.
+Keep integrations optional unless a target project explicitly chooses a stricter policy. CrewUp no longer exposes a separate `integrations` command; `doctor` reports optional provider detection.

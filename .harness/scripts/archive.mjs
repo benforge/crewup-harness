@@ -45,6 +45,7 @@ if (!shouldClose) {
   await writeRunSummary(root, runId, { reason, archiveOutcome: outcome });
   await writeRunStatus(root, runId, state);
   runReport(runId);
+  runLearn(runId);
   runKnowledgeRefresh();
   console.log(`Run marked ${outcome} but kept open: ${runId}`);
   console.log(`- status: ${state.status}`);
@@ -80,6 +81,7 @@ await writeRunSummary(root, runId, { reason, archiveOutcome: outcome });
 await writeRunStatus(root, runId, state);
 await writeArchiveSummary({ runId, state, outcome, reason, archivedAt: now });
 runReport(runId);
+runLearn(runId);
 runKnowledgeRefresh();
 const refreshed = await readRunState(root, runId);
 if (refreshed) await writeRunStatus(root, runId, refreshed);
@@ -128,6 +130,18 @@ function runReport(currentRunId) {
   });
   if (result.status !== 0) {
     console.error("Archive completed, but report generation failed.");
+    process.exit(result.status ?? 1);
+  }
+}
+
+function runLearn(currentRunId) {
+  const result = spawnSync(process.execPath, [resolveScriptPath(root, "learn.mjs"), currentRunId], {
+    cwd: root,
+    stdio: "inherit",
+    env: process.env
+  });
+  if (result.status !== 0) {
+    console.error("Archive completed, but memory learning failed.");
     process.exit(result.status ?? 1);
   }
 }

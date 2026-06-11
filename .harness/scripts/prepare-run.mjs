@@ -193,6 +193,7 @@ function buildAgentTask(agentId, agent, inputText, profile, impactScopes) {
     `.harness/runs/${runId}/artifacts/architecture.md`,
     `.harness/runs/${runId}/artifacts/implementation-plan.md`,
     `.harness/runs/${runId}/logs/context/related-runs.md`,
+    `.harness/runs/${runId}/logs/context/memory-hints.md`,
     ".harness/AGENTS.md",
     agent.owner,
     ".harness/config/agents.yaml",
@@ -776,7 +777,7 @@ function renderLiteSpec({ inputText, impactScopes, now }) {
 ## Acceptance Criteria
 
 - [ ] AC-01: The requested scoped change is implemented.
-- [ ] AC-02: Relevant validation is recorded in \`validation.md\`.
+- [ ] AC-02: Relevant validation is discovered from project evidence and recorded in \`validation.md\`.
 - [ ] AC-03: Residual risks or skipped checks are documented.
 
 ## Risks
@@ -797,7 +798,8 @@ function renderLiteTasks({ impactScopes, now }) {
 
 - [ ] Review \`input.md\` and \`spec.md\`.
 - [ ] Implement only the scoped change.
-- [ ] Run relevant build, test, lint, or preview checks when available.
+- [ ] Discover relevant validation from project evidence such as package manifests, README, CI config, framework config, and existing tests.
+- [ ] Run relevant build, test, lint, typecheck, smoke, browser, API, or preview checks when available.
 - [ ] Update \`validation.md\` with command results.
 - [ ] Update \`summary.md\` with outcome, changed files, validation, and risks.
 
@@ -806,9 +808,9 @@ function renderLiteTasks({ impactScopes, now }) {
 - Impact scopes: ${impactScopes.length ? impactScopes.join(", ") : "(not detected)"}
 - Keep changes inside the user's request and discovered project scope.
 
-## Validation Commands
+## Validation Discovery
 
-- Add exact commands before or after running them.
+- Record project evidence reviewed and exact commands/checks before or after running them.
 
 ## Metadata
 
@@ -828,7 +830,7 @@ function renderLiteValidation({ now }) {
 
 | Command | Result | Notes |
 | --- | --- | --- |
-| pending | pending | Add build/test/lint/preview-smoke results here. |
+| pending | pending | Discover project validation, then add command/check results here. |
 
 ## Acceptance Criteria Check
 

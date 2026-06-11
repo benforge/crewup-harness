@@ -75,12 +75,16 @@ Covers:
 | install, upgrade, core-lock, CLI install | `npm run test:install-flow` |
 | `lite` mode, lightweight closeout, docs links | `npm run harness:test-flow` + `npm run harness:check` |
 | agent ordering, run lifecycle, gates, repair | `npm run harness:test-flow` |
+| Memory Hints, `learn`, `learn-promote`, knowledge selection | `npm run harness:test-flow` + `npm run harness:check` |
+| CLI/package script removal or consolidation | `npm run release:preflight` |
 | small docs or config changes | `npm run harness:check` |
 | before publishing | `npm run release:preflight` |
 
 ## Maintenance Principles
 
 - When adding a CLI command, add required-path or flow coverage.
+- When removing a CLI command, update `bin/crewup.mjs`, `package.json`, script maps, command governance, README, and flow coverage together.
 - When changing install / force / reset, update `test:install-flow`.
 - When changing workflow order, agent gating, owner artifacts, or repair rules, update `harness:test-flow`.
+- When changing Memory Hints, cover candidate extraction, explicit promotion, archiving, and knowledge refresh paths.
 - Do not patch `.harness` inside a real user project after discovering an issue. Add a regression test in the CrewUp source repository first, then fix the implementation.

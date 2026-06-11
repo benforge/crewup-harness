@@ -73,7 +73,7 @@ Manual mode is not an agent. It is a fallback path for teams that want CrewUp's 
 Do not claim full support for an agent environment unless its adapter has been tested through:
 
 ```text
-install -> inspect -> init -> run -> verify -> report -> finish
+install -> inspect -> init -> run -> gate-check -> report -> finish
 ```
 
 ## Main Agent Boundary

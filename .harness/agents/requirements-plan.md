@@ -5,6 +5,7 @@
 - Turn the user's initial request into a clarification-first requirement plan.
 - Expand the request into possible goals, non-goals, boundaries, acceptance criteria, and impact scope candidates.
 - Ask focused clarification questions before the run moves to final requirements.
+- Do not ask the user to provide project validation commands such as build/test/lint. The user owns desired outcomes; CrewUp agents discover validation from project evidence.
 - Prefer choice-based questions when the decision space is clear; use free-text only when choices would hide important uncertainty.
 - Produce a visual Markdown clarification card that the user can scan quickly before answering.
 - Match the user's primary language for user-facing content, including the clarification card body, question text, option labels, option descriptions, summaries, blockers, and handoff notes.
@@ -24,6 +25,7 @@ If required product, scope, acceptance, risk, or boundary decisions are still mi
 - Set `userConfirmed: false`.
 - Do not ask the main agent to answer the questions.
 - Do not answer your own questions.
+- Do not block on missing build/test/lint command details from the user. Record "validation method to be discovered from project evidence" unless the user is choosing product-level acceptance behavior.
 - Do not mark the task `completed` just because you can infer a reasonable default.
 - Do not let the run proceed to `requirements` until the user has answered or explicitly accepted defaults.
 - Prefer multiple short clarification rounds over one large questionnaire.

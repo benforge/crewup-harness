@@ -62,7 +62,7 @@ npm run harness:test-flow
 - `next-agent` runnable / blocked 输出
 - architecture-owned implementation dispatch
 - native-state 提前启动拦截
-- repair-artifacts owner guard
+- removed repair-artifacts command guard
 - tool-fallback 日志
 - status/runs 状态卡
 - cancel/archive/continue 生命周期闭环
@@ -96,7 +96,7 @@ npm install -D "C:\Users\me\Documents\New project\crewup-harness-<version>.tgz"
 ## 最小 run 案例
 
 ```bash
-npx crewup run --mode=strict "使用 CrewUp 做一个最小 counter web app，跑完整 workflow。验收标准：页面显示 counter，初始值为 0；可以 +1、-1、reset；刷新后数值保留；build/test 通过。范围：只做一个很小的前端实现。"
+npx crewup run --mode=strict "使用 CrewUp 做一个最小 counter web app，跑完整 workflow。验收标准：页面显示 counter，初始值为 0；可以 +1、-1、reset；刷新后数值保留。范围：只做一个很小的前端实现。完成后请根据项目配置自行发现并执行必要验证。"
 ```
 
 随后检查：
@@ -138,13 +138,9 @@ npx crewup native-state <run-id> diagnose
 
 artifact 可能是主 agent 写的，或者子 agent 没在 result JSON 里声明 `artifactUpdates`。应恢复 owner agent 执行，不让主 agent 复制内容。
 
-### `repair-artifacts` 拒绝修改 artifact
+### owner artifact 不能由主 agent 修复
 
-这是预期保护。活跃 native run 里，owner artifact 应先由 owner agent 修复。只有维护旧数据或明确诊断时才加：
-
-```bash
-npx crewup repair-artifacts <run-id> --allow-owner-artifacts
-```
+活跃 native run 里，owner artifact 应先由 owner agent 修复。结构或生命周期异常时使用 `repair-state` 做审计化状态修复，不再提供 `repair-artifacts` 入口。
 
 ### sealed core 漂移
 

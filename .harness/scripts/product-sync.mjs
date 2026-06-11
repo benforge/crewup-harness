@@ -193,7 +193,7 @@ function renderCompactBlock({ runId, title, date, changeItems, impactItems, bloc
     renderList(impactItems, "暂无明确用户影响。"),
     "",
     "#### 验证",
-    renderList(verificationItems, "暂无验证记录，建议运行 harness:verify。"),
+    renderList(verificationItems, "暂无验证记录，建议补充 tester、gate-check 或 preview-smoke 证据。"),
     "",
     "#### 阻塞和下一步",
     renderList([...blockerItems, ...nextItems].slice(0, 6), "暂无明确阻塞项或下一步。")

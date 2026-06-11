@@ -63,7 +63,6 @@ These are not daily product entry points. They are normally called by `run`, `fi
 | `agent-plan` / `native-plan` | Generate native or bridge handoff plans |
 | `transition` | Apply stage transitions and entry gates |
 | `changed-files` | Record and validate changed-file ownership |
-| `archive-status` | Determine archive-commit readiness |
 | `archive-commit` | Create an archive commit when policy allows |
 | `token-ledger` | Record budget and usage |
 | `knowledge-select` | Select knowledge context for a run |
@@ -74,12 +73,11 @@ Use these only when the corresponding capability is enabled or explicitly needed
 
 | Command | When to use it |
 | --- | --- |
-| `integrations` | Check optional providers such as CodeGraph |
 | `tool-fallback` | Record fallback evidence for unavailable Context7, MCP, plugin, or similar tools |
 | `knowledge` | Refresh the long-lived knowledge layer |
 | `dashboard` | Generate the local dashboard |
-| `skills` / `skills:*` | Report, resolve, install, or audit skills |
 | `product-sync` | Sync long-lived product docs after user confirmation |
+| `learn` / `learn-promote` | Generate and explicitly promote memory hints |
 
 ### Tier 5: Compatibility And Maintenance
 
@@ -87,13 +85,8 @@ These commands recover abnormal state, support older runs, or maintain runtime f
 
 | Command | Governance rule |
 | --- | --- |
-| `repair-artifacts` | Fixes artifact shape/headings only; does not replace owner agents |
 | `repair-plan` | Groups tester/reviewer fixes by owner |
 | `repair-state` | Use only when diagnostics recommends it, state is malformed, or unassigned implementation candidates must be pruned |
-| `orchestrate` | Collects bridge/external-runner results; native users usually do not need it |
-| `verify` | Helper for project scripts; does not replace tester/report/gates |
-| `cleanup` | Cleans runtime files; avoid on open runs unless intentional |
-| `next` | Status advisor, not a formal dispatcher |
 
 ## Commands Users Can Ignore
 
@@ -147,7 +140,7 @@ If a run is not archived yet, you may iterate the same run when it is still open
 
 - `spec.md`, `tasks.md`, `validation.md`, and `summary.md` exist.
 - `tasks.md` has no unresolved core task.
-- `validation.md` records actual validation commands, results, and key evidence.
+- `validation.md` records validation discovery evidence, actual commands/checks, results, and key evidence.
 - `summary.md` records final changes, validation conclusion, residual risks, and user-checkable paths.
 - `validation.md` and `summary.md` no longer contain pending placeholder states.
 - No high-risk scope was discovered that requires strict handling.

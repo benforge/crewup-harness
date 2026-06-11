@@ -312,7 +312,7 @@ function renderRun(run) {
 }
 
 function renderAgents(agents) {
-  if (!agents.length) return "<h3>Agent 计划</h3><p class=\"muted\">暂无 orchestrate plan。</p>";
+  if (!agents.length) return "<h3>Agent 计划</h3><p class=\"muted\">暂无 agent plan。</p>";
   return `<h3>Agent 计划</h3>
   <div>
     ${agents.map((agent) => `<div class="agent-row">
@@ -327,7 +327,7 @@ function renderAgents(agents) {
 
 function renderRuntime(runtime) {
   if (!runtime) {
-    return "<h3>运行态</h3><p class=\"muted\">暂无运行态数据。执行 harness:orchestrate 后会生成。</p>";
+    return "<h3>运行态</h3><p class=\"muted\">暂无运行态数据。native/bridge result 写回后会生成。</p>";
   }
   const agents = Object.values(runtime.agents ?? {});
   const started = runtime.startedAt ? new Date(runtime.startedAt).getTime() : null;

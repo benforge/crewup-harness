@@ -63,7 +63,7 @@ This creates a temporary project, installs the local package, and validates:
 - `next-agent` runnable / blocked output
 - architecture-owned implementation dispatch
 - native-state premature-start blocking
-- repair-artifacts owner guard
+- removed repair-artifacts command guard
 - tool-fallback logging
 - status/runs status cards
 - cancel/archive/continue lifecycle closeout
@@ -88,7 +88,7 @@ npx crewup check
 ## Minimal Run Case
 
 ```bash
-npx crewup run --mode=strict "Use CrewUp to build a tiny counter web app and run the full workflow. Acceptance criteria: page shows counter, initial value is 0, +1/-1/reset work, value persists after refresh, build/test pass. Scope: tiny frontend only."
+npx crewup run --mode=strict "Use CrewUp to build a tiny counter web app and run the full workflow. Acceptance criteria: page shows counter, initial value is 0, +1/-1/reset work, and value persists after refresh. Scope: tiny frontend only. Discover and run the necessary validation from the project configuration."
 ```
 
 Then inspect:
@@ -130,13 +130,9 @@ npx crewup native-state <run-id> diagnose
 
 The artifact may have been written by the main agent, or the subagent did not declare `artifactUpdates` in result JSON. Resume the owner agent; do not let the main agent copy content into the artifact.
 
-### `repair-artifacts` Refuses To Modify An Artifact
+### Owner Artifacts Are Not Repaired By The Main Agent
 
-This is expected protection. In an active native run, owner artifacts should be repaired by the owner agent first. Use this only for explicit maintenance or legacy normalization:
-
-```bash
-npx crewup repair-artifacts <run-id> --allow-owner-artifacts
-```
+In an active native run, owner artifacts should be repaired by the owner agent first. Use `repair-state` only for audited lifecycle/state repair; the old `repair-artifacts` command has been removed.
 
 ### Sealed Core Drift
 

@@ -45,10 +45,10 @@ try {
   assertIncludes(mainAgentDoc, "run `next-agent` and start only agents listed as runnable", "next-agent spawn rule");
   assertIncludes(mainAgentDoc, "record optional tool/plugin/MCP fallback with `tool-fallback`", "tool fallback logging rule");
   assertIncludes(mainAgentDoc, "Run `npx crewup audit <run-id>`", "audit before close rule");
-  assertIncludes(mainAgentDoc, "Use `repair-artifacts` only for legacy/manual structural normalization", "owner repair before repair-artifacts rule");
-  const integrationsOutput = runCli(appDir, ["integrations", "status"]);
-  assertIncludes(integrationsOutput, "code_intelligence", "optional code intelligence integration");
-  assertIncludes(integrationsOutput, "optional", "optional integration mode");
+  assertIncludes(mainAgentDoc, "Use owner-agent repair first", "owner repair before state repair rule");
+  const doctorOutput = runCli(appDir, ["doctor"]);
+  assertIncludes(doctorOutput, "code_intelligence", "optional code intelligence integration in doctor");
+  assertIncludes(doctorOutput, "Optional Integrations", "optional integration section in doctor");
 
   const missingGate = runInstalledScript(appDir, ".harness/scripts/gate-check.mjs", ["missing-run"], { expectedStatus: 1 });
   assertNotIncludes(missingGate, "SyntaxError", "gate-check syntax error");
@@ -189,7 +189,7 @@ try {
   const counterRunOutput = runCli(appDir, [
     "run",
     "--mode=strict",
-    "\u4f7f\u7528 CrewUp \u505a\u4e00\u4e2a\u6700\u5c0f counter web app\uff0c\u8dd1\u5b8c\u6574 workflow\u3002\u9a8c\u6536\u6807\u51c6\uff1a\u9875\u9762\u663e\u793a counter\uff0c\u521d\u59cb\u503c\u4e3a 0\uff1b\u53ef\u4ee5 +1\u3001-1\u3001reset\uff1b\u5237\u65b0\u540e\u6570\u503c\u4fdd\u7559\uff1bbuild/test \u901a\u8fc7\u3002\u8303\u56f4\uff1a\u53ea\u505a\u4e00\u4e2a\u5f88\u5c0f\u7684\u524d\u7aef\u5b9e\u73b0\uff1b\u4e0d\u9700\u8981 backend\u3001database\u3001auth\u3001routing\u3002"
+    "\u4f7f\u7528 CrewUp \u505a\u4e00\u4e2a\u6700\u5c0f counter web app\uff0c\u8dd1\u5b8c\u6574 workflow\u3002\u9a8c\u6536\u6807\u51c6\uff1a\u9875\u9762\u663e\u793a counter\uff0c\u521d\u59cb\u503c\u4e3a 0\uff1b\u53ef\u4ee5 +1\u3001-1\u3001reset\uff1b\u5237\u65b0\u540e\u6570\u503c\u4fdd\u7559\u3002\u8303\u56f4\uff1a\u53ea\u505a\u4e00\u4e2a\u5f88\u5c0f\u7684\u524d\u7aef\u5b9e\u73b0\uff1b\u4e0d\u9700\u8981 backend\u3001database\u3001auth\u3001routing\u3002\u5b8c\u6210\u540e\u8bf7\u6839\u636e\u9879\u76ee\u914d\u7f6e\u81ea\u884c\u53d1\u73b0\u5e76\u6267\u884c\u5fc5\u8981\u9a8c\u8bc1\u3002"
   ]);
   const counterRunId = extractRunId(counterRunOutput);
   if (!counterRunId) throw new Error(`Failed to detect counter runId from output: ${counterRunOutput}`);
@@ -282,10 +282,8 @@ try {
     throw new Error(`Continuation state mismatch:\n${JSON.stringify(continuationState, null, 2)}`);
   }
   await writeFile(path.join(counterRunDir, "artifacts", "test-report.md"), "# Test Report\n", "utf8");
-  const blockedArtifactRepair = runCliWithStatus(appDir, ["repair-artifacts", counterRunId], { expectedStatus: 1 });
-  assertIncludes(blockedArtifactRepair, "Refusing to repair owner-agent artifacts directly", "repair-artifacts owner guard");
-  const allowedArtifactRepair = runCli(appDir, ["repair-artifacts", counterRunId, "--allow-owner-artifacts"]);
-  assertIncludes(allowedArtifactRepair, "allowOwnerArtifacts: true", "repair-artifacts explicit maintenance override");
+  const removedArtifactRepair = runCliWithStatus(appDir, ["repair-artifacts", counterRunId], { expectedStatus: 1 });
+  assertIncludes(removedArtifactRepair, "Unknown command: repair-artifacts", "repair-artifacts command removed");
 
   const architectureDispatchOutput = runCli(appDir, [
     "run",

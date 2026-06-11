@@ -17,7 +17,7 @@ This file records the selected runtime mode for the current project and the brid
 ## Commands
 
 - `crewup agent-plan <run-id>` generates either a Codex native plan or Universal Bridge files.
-- `crewup orchestrate <run-id>` collects native/API results or bridge `result.json` files.
+- Native-state result capture collects native/API results or bridge `result.json` files.
 - `crewup gate-check <run-id>` and `crewup finish <run-id>` should only run after required results are present.
 
 ## Selection Rule
