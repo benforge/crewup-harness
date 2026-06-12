@@ -478,6 +478,9 @@ function outputContractFor(agentId) {
     tester: [
       "- `test-report.md` must use the exact headings from Artifact Schema.",
       "- Reference `AC-*` IDs from `requirement.md` whenever they exist.",
+      "- For strict/full frontend or browser-facing runs, verify the app starts and at least one user-facing page renders in browser runtime; build-only evidence is not enough.",
+      "- Prefer `npx crewup preview-smoke <run-id> --browser --url=<local-url>` after starting the dev/preview service, and record console/page runtime errors.",
+      "- If browser runtime verification is required but cannot run, return `blocked` or require repair; do not report verification as passed with this only in `Uncovered Risks`.",
       "- For frontend/local MVP work, verify non-blank page, add, persistence after refresh, complete, complete-state persistence after refresh, delete, delete-after-refresh, empty input rejection, desktop viewport, mobile viewport, build command, and service shutdown.",
       "- If any required check fails, set `fixRequired: true`, fill `targetAgents`, and put precise `requiredFixes` entries in result JSON."
     ],

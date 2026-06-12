@@ -7,6 +7,7 @@ import { readRunState, writeRunState } from "./lib/run-lifecycle.mjs";
 import { collectWorkspaceChanges, configureDelegationGuard, isBusinessCodePath } from "./lib/delegation-guard.mjs";
 import { loadProjectProfile } from "./lib/project-profile.mjs";
 import { loadGeneratedMarkdownSchema, validateGeneratedMarkdownFile } from "./lib/generated-markdown.mjs";
+import { browserRuntimeVerificationProblems } from "./lib/runtime-verification.mjs";
 
 const root = process.cwd();
 const args = process.argv.slice(2);
@@ -70,6 +71,7 @@ process.exit(archive.status ?? 1);
 
 async function finishLiteV2(state) {
   const runDir = path.join(root, ".harness", "runs", runId);
+  const tasksDir = path.join(runDir, "tasks");
   const missing = [];
   const pending = [];
   for (const file of ["spec.md", "tasks.md", "validation.md", "summary.md"]) {
@@ -91,6 +93,13 @@ async function finishLiteV2(state) {
   if (pending.length > 0) {
     console.error(`Cannot finish lite-v2 run: update ${pending.join(", ")} before finishing.`);
     console.error("Lite-v2 is lightweight, but it still requires recorded validation and summary evidence.");
+    process.exit(1);
+  }
+
+  const runtimeProblems = await browserRuntimeVerificationProblems({ root, runId, state, tasksDir });
+  if (runtimeProblems.length > 0) {
+    console.error("Cannot finish lite-v2 run: browser runtime verification is incomplete.");
+    for (const problem of runtimeProblems) console.error(`- ${problem}`);
     process.exit(1);
   }
 

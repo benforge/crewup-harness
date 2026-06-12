@@ -40,6 +40,20 @@ Use these exact second-level headings:
 
 In `## Executed Checks`, include both validation discovery evidence reviewed and exact commands, browser checks, API checks, manual checks, or reasons checks could not run.
 
+## Strict Browser Runtime Verification
+
+For strict/full runs with frontend or browser-facing changes, a build is not enough. Before returning `completed`, verify that the app can start and at least one user-facing page renders in a real browser or browser-backed preview smoke.
+
+Required evidence:
+
+- the dev/preview/start command used, or the exact reason no such command exists
+- `npx crewup preview-smoke <run> --browser --url=<local-url>` result when a local URL is available
+- no page-level `console.error` or `pageerror`
+- non-blank page body
+- service shutdown evidence when the tester started a service
+
+If browser runtime verification is required but cannot run, do not mark the verification as passed. Set `fixRequired: true` only when there is an owner fix to route; otherwise return `blocked` and record the missing runtime evidence.
+
 ## Frontend MVP Verification Baseline
 
 When the run includes a frontend/local MVP, verify all applicable checks in the first tester pass:

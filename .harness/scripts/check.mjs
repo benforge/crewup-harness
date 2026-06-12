@@ -123,6 +123,7 @@ const requiredPaths = [
   ".harness/scripts/lib/terminal-encoding.mjs",
   ".harness/scripts/lib/workload-analysis.mjs",
   ".harness/scripts/lib/generated-markdown.mjs",
+  ".harness/scripts/lib/runtime-verification.mjs",
   "docs/harness-core-boundary.md",
   "docs/harness-extension-guide.md",
   "docs/harness-script-map.md",

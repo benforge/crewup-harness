@@ -24,6 +24,7 @@ import { isDocsOnlyAgentSet, isLiteImplementationOnlyAgentSet } from "./lib/agen
 import { isImplementationAgentUnassigned } from "./lib/implementation-plan-scope.mjs";
 import { verifyCoreLock } from "./lib/core-lock.mjs";
 import { loadGeneratedMarkdownSchema, validateGeneratedMarkdownFile } from "./lib/generated-markdown.mjs";
+import { browserRuntimeVerificationProblems } from "./lib/runtime-verification.mjs";
 
 const root = process.cwd();
 const args = process.argv.slice(2);
@@ -66,6 +67,7 @@ await checkNativeState();
 await checkVerifyReport();
 await checkReviewReport();
 await checkReleaseSummary();
+await checkBrowserRuntimeVerification();
 await checkFeedbackLoop();
 await checkRepairLoopBudget();
 await checkDevServiceLifecycle();
@@ -384,6 +386,12 @@ async function checkReleaseSummary() {
   if (state.stage === "done" && hasPlaceholder(content)) {
     problems.push("release-summary.md still contains placeholders before done.");
   }
+}
+
+async function checkBrowserRuntimeVerification() {
+  if (state.stage !== "done") return;
+  const runtimeProblems = await browserRuntimeVerificationProblems({ root, runId, state, tasksDir });
+  problems.push(...runtimeProblems);
 }
 
 async function checkFeedbackLoop() {

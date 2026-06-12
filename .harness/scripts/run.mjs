@@ -188,6 +188,7 @@ async function createDirectRun(requestText, workload, { fromRunId: sourceRunId =
 
   const now = new Date().toISOString();
   const git = createRunBranch(runId, slug);
+  const runtimeVerificationRequired = shouldRequireRuntimeVerificationForRun(requestText, workload, sourceRunId);
   const state = {
     runId,
     source: sourceRunId ? "continue_run" : "direct_run",
@@ -198,6 +199,7 @@ async function createDirectRun(requestText, workload, { fromRunId: sourceRunId =
     archived: false,
     workflowProfile: workload.workflowProfile,
     runType: workload.runType,
+    runtimeVerificationRequired,
     primaryLanguage: workload.primaryLanguage,
     owners: ["requirements-plan"],
     createdAt: now,
@@ -255,10 +257,28 @@ async function renderContinuationInput(sourceRunId, requestText) {
     "## Reusable Implementation Plan",
     "",
     firstChars(implementationPlan, 12000) || "No implementation-plan.md found.",
+    "",
+    "## Continuation Validation Contract",
+    "",
+    shouldRequireRuntimeVerificationForRun(requestText, { workflowProfile: "lite-v2" }, sourceRunId)
+      ? [
+          "- This continuation targets a runtime/browser-facing follow-up.",
+          "- Before success, start the app and run browser runtime preview smoke.",
+          "- Required command shape: `npx crewup preview-smoke <run-id> --browser --url=<local-url>`.",
+          "- `validation.md` and `summary.md` must record the browser smoke result and any console/page runtime errors."
+        ].join("\n")
+      : "- Follow the validation requirements selected for this continuation run.",
     ""
   ].join("\n");
 }
 
+function shouldRequireRuntimeVerificationForRun(requestText, workload, sourceRunId) {
+  const textValue = String(requestText ?? "");
+  if (/(docs only|documentation only)/i.test(textValue)) return false;
+  const explicitRuntimeRisk = /(next\.?js|react|runtime|console|hydration|browser|page\s+error|pageerror|start(?:up)?|launch|dev server|preview|运行|启动|报错|错误)/i.test(textValue);
+  if (sourceRunId) return explicitRuntimeRisk;
+  return explicitRuntimeRisk && ["standard", "full"].includes(workload?.workflowProfile);
+}
 async function readOptional(target) {
   if (!existsSync(target)) return "";
   return await readFile(target, "utf8").catch(() => "");

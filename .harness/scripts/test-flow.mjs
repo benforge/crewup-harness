@@ -115,6 +115,36 @@ try {
   if (liteV2FinishedState.status !== "done" || liteV2FinishedState.outcome !== "success" || liteV2FinishedState.archived !== true) {
     throw new Error(`Expected lite-v2 run to archive as success:\n${JSON.stringify(liteV2FinishedState, null, 2)}`);
   }
+  const runtimeContinuationOutput = runCli(appDir, [
+    "continue",
+    liteV2RunId,
+    "修复 Next.js runtime console error，页面启动时报错"
+  ]);
+  assertIncludes(runtimeContinuationOutput, "profile: lite-v2", "small runtime continuation defaults to lite-v2");
+  const runtimeContinuationRunId = extractRunId(runtimeContinuationOutput);
+  if (!runtimeContinuationRunId) throw new Error(`Failed to detect runtime continuation runId from output: ${runtimeContinuationOutput}`);
+  const runtimeContinuationRunDir = path.join(appDir, ".harness", "runs", runtimeContinuationRunId);
+  const runtimeContinuationState = JSON.parse(await readFile(path.join(runtimeContinuationRunDir, "state.json"), "utf8"));
+  if (
+    runtimeContinuationState.source !== "continue_run"
+    || runtimeContinuationState.sourceRunId !== liteV2RunId
+    || runtimeContinuationState.workflowProfile !== "lite-v2"
+    || runtimeContinuationState.runtimeVerificationRequired !== true
+  ) {
+    throw new Error(`Runtime continuation state mismatch:\n${JSON.stringify(runtimeContinuationState, null, 2)}`);
+  }
+  await writeFile(path.join(runtimeContinuationRunDir, "validation.md"), "# Lite Validation\n\n## Result\n\n- status: passed\n\n## Commands\n\n| Command | Result | Notes |\n| --- | --- | --- |\n| npm run build | passed | simulated in flow test |\n\n## Acceptance Criteria Check\n\n- [x] AC-01: passed\n- [x] AC-02: passed\n- [x] AC-03: passed\n\n## Risks Or Skips\n\n- none\n\n## Metadata\n\n- profile: lite-v2\n", "utf8");
+  await writeFile(path.join(runtimeContinuationRunDir, "summary.md"), "# Lite Summary\n\n## Outcome\n\n- Completed simulated runtime continuation.\n\n## Changed Files\n\n- components/theme-script.tsx\n\n## Validation\n\n- npm run build passed in simulated record.\n\n## Residual Risks\n\n- none\n\n## Metadata\n\n- profile: lite-v2\n", "utf8");
+  const runtimeMissingSmokeFinish = runCliWithStatus(appDir, ["finish", runtimeContinuationRunId], { expectedStatus: 1 });
+  assertIncludes(runtimeMissingSmokeFinish, "browser runtime verification is incomplete", "runtime continuation finish requires browser smoke");
+  await writeFile(path.join(runtimeContinuationRunDir, "logs", "preview-smoke.json"), `${JSON.stringify({
+    runId: runtimeContinuationRunId,
+    status: "passed",
+    mode: "browser",
+    urls: [{ url: "http://127.0.0.1:3000", ok: true, status: 200, consoleErrors: [], pageErrors: [] }]
+  }, null, 2)}\n`, "utf8");
+  const runtimeContinuationFinishOutput = runCli(appDir, ["finish", runtimeContinuationRunId]);
+  assertIncludes(runtimeContinuationFinishOutput, "Run archived", "runtime continuation archives after browser smoke");
 
   const naturalCounterRunOutput = runCli(appDir, [
     "run",
@@ -274,6 +304,22 @@ try {
   } finally {
     await stopSmokeServer();
   }
+
+  const runtimeState = JSON.parse(await readFile(path.join(counterRunDir, "state.json"), "utf8"));
+  await writeFile(path.join(counterRunDir, "state.json"), `${JSON.stringify({
+    ...runtimeState,
+    stage: "done",
+    workflowProfile: "standard"
+  }, null, 2)}\n`, "utf8");
+  const fetchOnlyRuntimeGate = runCliWithStatus(appDir, ["gate-check", counterRunId], { expectedStatus: 1 });
+  assertIncludes(fetchOnlyRuntimeGate, "browser-mode preview smoke", "strict frontend done gate rejects fetch-only smoke");
+  await writeFile(path.join(counterRunDir, "logs", "preview-smoke.json"), `${JSON.stringify({
+    runId: counterRunId,
+    status: "passed",
+    mode: "browser",
+    urls: [{ url: "http://127.0.0.1:3000", ok: true, status: 200, consoleErrors: [], pageErrors: [] }]
+  }, null, 2)}\n`, "utf8");
+  await writeFile(path.join(counterRunDir, "state.json"), `${JSON.stringify(runtimeState, null, 2)}\n`, "utf8");
 
   const forceWithoutReason = runCliWithStatus(appDir, ["transition", counterRunId, "--to=done", "--force"], { expectedStatus: 1 });
   assertIncludes(forceWithoutReason, "transition --force requires --force-reason", "force transition reason guard");

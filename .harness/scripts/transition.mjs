@@ -25,6 +25,7 @@ import { codeImplementationAgentIds, isDocsOnlyAgentSet, isLiteImplementationOnl
 import { isImplementationAgentUnassigned } from "./lib/implementation-plan-scope.mjs";
 import { writeRunStatus } from "./lib/run-lifecycle.mjs";
 import { loadGeneratedMarkdownSchema, renderGeneratedMarkdown } from "./lib/generated-markdown.mjs";
+import { browserRuntimeVerificationProblems } from "./lib/runtime-verification.mjs";
 
 const root = process.cwd();
 const args = process.argv.slice(2);
@@ -154,6 +155,7 @@ async function enforceGate(targetStage, currentState) {
     await requireArtifactContent("review-report.md", { noPlaceholders: true, reviewPassed: true, requireOwner: true });
     await requireArtifactContent("release-summary.md", { noPlaceholders: true, requireOwner: true });
     await requirePreviewSmokeIfPresent();
+    await requireBrowserRuntimeVerification();
     requireNoOpenNativeAgents();
     await requireNoRunningDevService();
     await refreshDashboard();
@@ -263,6 +265,11 @@ async function requirePreviewSmokeIfPresent() {
   if (smoke.status !== "passed") {
     fail("Preview smoke exists but did not pass. Route the issue to the owning implementation/devops agent before done.");
   }
+}
+
+async function requireBrowserRuntimeVerification() {
+  const problems = await browserRuntimeVerificationProblems({ root, runId, state, tasksDir });
+  if (problems.length > 0) fail(problems.join("\n"));
 }
 
 function isPidRunning(pid) {

@@ -7,9 +7,10 @@ const args = process.argv.slice(2);
 const runId = args.find((arg) => !arg.startsWith("--"));
 const urls = collectUrls(args);
 const timeoutMs = Number(valueOf("--timeout-ms=") ?? 8000);
+const browserMode = args.includes("--browser");
 
 if (!runId || urls.length === 0) {
-  console.error("Usage: npx crewup preview-smoke <run-id> --url=http://localhost:3000 [--url=http://localhost:3000/admin]");
+  console.error("Usage: npx crewup preview-smoke <run-id> [--browser] --url=http://localhost:3000 [--url=http://localhost:3000/admin]");
   console.error("Or:    npx crewup preview-smoke <run-id> --urls=http://localhost:3000,http://localhost:4000/health");
   process.exit(1);
 }
@@ -23,7 +24,7 @@ if (!existsSync(runDir)) {
 const startedAt = new Date().toISOString();
 const results = [];
 for (const url of urls) {
-  results.push(await checkUrl(url, timeoutMs));
+  results.push(browserMode ? await checkUrlInBrowser(url, timeoutMs) : await checkUrl(url, timeoutMs));
 }
 
 const passed = results.every((item) => item.ok);
@@ -36,6 +37,7 @@ await mkdir(logsDir, { recursive: true });
 const json = {
   runId,
   status: passed ? "passed" : "failed",
+  mode: browserMode ? "browser" : "fetch",
   startedAt,
   finishedAt,
   timeoutMs,
@@ -81,6 +83,64 @@ async function checkUrl(url, timeout) {
   }
 }
 
+async function checkUrlInBrowser(url, timeout) {
+  const started = Date.now();
+  let chromium;
+  try {
+    ({ chromium } = await import("playwright"));
+  } catch (error) {
+    return {
+      url,
+      ok: false,
+      error: `playwright is unavailable: ${error.message}`,
+      durationMs: Date.now() - started
+    };
+  }
+
+  const browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  const consoleErrors = [];
+  const pageErrors = [];
+  page.on("console", (message) => {
+    if (message.type() === "error") consoleErrors.push(message.text());
+  });
+  page.on("pageerror", (error) => {
+    pageErrors.push(error.message);
+  });
+
+  try {
+    const response = await page.goto(url, { waitUntil: "domcontentloaded", timeout });
+    await page.waitForTimeout(Math.min(1000, Math.max(250, Math.floor(timeout / 4))));
+    const bodyText = await page.locator("body").innerText({ timeout: 1000 }).catch(() => "");
+    const status = response?.status() ?? null;
+    const ok = Boolean(status && status >= 200 && status < 400)
+      && bodyText.trim().length > 0
+      && consoleErrors.length === 0
+      && pageErrors.length === 0;
+    return {
+      url,
+      ok,
+      status,
+      statusText: response?.statusText() ?? "",
+      durationMs: Date.now() - started,
+      bodyChars: bodyText.trim().length,
+      consoleErrors,
+      pageErrors
+    };
+  } catch (error) {
+    return {
+      url,
+      ok: false,
+      error: error?.message ?? "browser navigation failed",
+      durationMs: Date.now() - started,
+      consoleErrors,
+      pageErrors
+    };
+  } finally {
+    await browser.close().catch(() => {});
+  }
+}
+
 function collectUrls(values) {
   const urls = [];
   for (let index = 0; index < values.length; index += 1) {
@@ -101,15 +161,16 @@ function renderMarkdown(result) {
     "",
     `- runId: ${result.runId}`,
     `- status: ${result.status}`,
+    `- mode: ${result.mode}`,
     `- startedAt: ${result.startedAt}`,
     `- finishedAt: ${result.finishedAt}`,
     `- timeoutMs: ${result.timeoutMs}`,
     "",
     "## Checked URLs",
     "",
-    "| URL | Result | Status | Duration | Error |",
-    "| --- | --- | --- | ---: | --- |",
-    ...result.urls.map((item) => `| ${cell(item.url)} | ${item.ok ? "passed" : "failed"} | ${item.status ?? "-"} | ${item.durationMs}ms | ${cell(item.error ?? "")} |`),
+    "| URL | Result | Status | Duration | Runtime Errors | Error |",
+    "| --- | --- | --- | ---: | ---: | --- |",
+    ...result.urls.map((item) => `| ${cell(item.url)} | ${item.ok ? "passed" : "failed"} | ${item.status ?? "-"} | ${item.durationMs}ms | ${(item.consoleErrors?.length ?? 0) + (item.pageErrors?.length ?? 0)} | ${cell(item.error ?? [...(item.consoleErrors ?? []), ...(item.pageErrors ?? [])].join("; "))} |`),
     "",
     "## Next Step",
     "",
