@@ -6,11 +6,13 @@ import { resolveScriptPath } from "./lib/script-root.mjs";
 import { readRunState, writeRunState } from "./lib/run-lifecycle.mjs";
 import { collectWorkspaceChanges, configureDelegationGuard, isBusinessCodePath } from "./lib/delegation-guard.mjs";
 import { loadProjectProfile } from "./lib/project-profile.mjs";
+import { loadGeneratedMarkdownSchema, validateGeneratedMarkdownFile } from "./lib/generated-markdown.mjs";
 
 const root = process.cwd();
 const args = process.argv.slice(2);
 const runId = args.find((arg) => !arg.startsWith("--"));
 const passthrough = args.filter((arg) => arg.startsWith("--"));
+const generatedMarkdownSchema = await loadGeneratedMarkdownSchema(root);
 
 if (!runId) {
   console.error("Please provide runId, for example: npx crewup finish <run-id>");
@@ -69,8 +71,13 @@ process.exit(archive.status ?? 1);
 async function finishLiteV2(state) {
   const runDir = path.join(root, ".harness", "runs", runId);
   const missing = [];
+  const pending = [];
   for (const file of ["spec.md", "tasks.md", "validation.md", "summary.md"]) {
     if (!existsSync(path.join(runDir, file))) missing.push(file);
+    else {
+      const formatProblems = await validateGeneratedMarkdownFile({ root, runId, file, schema: generatedMarkdownSchema });
+      if (formatProblems.length > 0) pending.push(...formatProblems);
+    }
   }
   if (missing.length > 0) {
     console.error(`Cannot finish lite-v2 run: missing ${missing.join(", ")}`);
@@ -79,7 +86,6 @@ async function finishLiteV2(state) {
 
   const validation = await readFile(path.join(runDir, "validation.md"), "utf8");
   const summary = await readFile(path.join(runDir, "summary.md"), "utf8");
-  const pending = [];
   if (/status:\s*pending/i.test(validation) || /\|\s*pending\s*\|\s*pending\s*\|/i.test(validation)) pending.push("validation.md");
   if (/Outcome\s*\n\s*\n-\s*pending/i.test(summary) || /Changed Files\s*\n\s*\n-\s*pending/i.test(summary)) pending.push("summary.md");
   if (pending.length > 0) {
@@ -126,6 +132,8 @@ async function finishNoCodeRun(state, { label, requiredFiles }) {
       continue;
     }
     const content = await readFile(target, "utf8");
+    const formatProblems = await validateGeneratedMarkdownFile({ root, runId, file, schema: generatedMarkdownSchema });
+    if (formatProblems.length > 0) pending.push(...formatProblems);
     if (hasPendingNoCodeContent(content)) pending.push(file);
   }
 

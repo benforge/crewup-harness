@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.6
+
+- Added generated Markdown schema coverage for script/mode-produced files such as `spec-freeze.md`, `archive-reminder.md`, lite-v2 root files, plan-only root files, and discovery root files.
+- Added a shared generated Markdown renderer/validator so these files are rendered from required section definitions instead of scattered hand-authored heading templates.
+- Hardened `finish` and `gate-check` to reject generated Markdown files that drift from their required headings.
+- Updated native and bridge prompts to keep owned Markdown artifacts on the structured `artifactPayloads` path instead of full Markdown body examples.
+
 ## 0.4.5
 
 - Added schema-rendered owner artifacts: subagents now provide structured `artifactPayloads` in result JSON, and `native-state mark-result` renders Markdown artifacts from `.harness/config/artifact-schema.yaml` instead of relying on model-authored Markdown headings.

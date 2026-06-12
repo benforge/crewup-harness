@@ -8,6 +8,7 @@ import { analyzeWorkload, renderWorkloadAnalysisMarkdown } from "./lib/workload-
 import { hasPositiveMatch, isScopeNegated, negatedScopes, stripNegatedScopeText } from "./lib/scope-negation.mjs";
 import { implementationAgentIds, isDocsOnlyAgentSet } from "./lib/agent-roles.mjs";
 import { profileFromMode } from "./lib/workflow-modes.mjs";
+import { loadGeneratedMarkdownSchema, renderGeneratedMarkdown } from "./lib/generated-markdown.mjs";
 
 const root = process.cwd();
 const args = process.argv.slice(2);
@@ -34,6 +35,7 @@ await mkdir(tasksDir, { recursive: true });
 const agentsConfig = parseYaml(await readFile(path.join(root, ".harness", "config", "agents.yaml"), "utf8")).agents;
 const modelPolicy = parseYaml(await readFile(path.join(root, ".harness", "config", "model-policy.yaml"), "utf8"));
 const artifactSchema = parseYaml(await readFile(path.join(root, ".harness", "config", "artifact-schema.yaml"), "utf8"))?.artifacts ?? {};
+const generatedMarkdownSchema = await loadGeneratedMarkdownSchema(root);
 const { project_profile: projectProfile } = await loadProjectProfile(root);
 const projectOverlay = await loadProjectOverlay(root, projectProfile.ai_overlay?.profile, { projectProfile });
 const impactScopesConfig = resolveImpactScopes(projectProfile, projectOverlay.profile);
@@ -259,10 +261,6 @@ ${requiredOutputsFor(agentId).map((item) => `- ${item}`).join("\n")}
 
 ${artifactSchemaForAgent(agentId)}
 
-## Artifact Scaffold
-
-${artifactScaffoldForAgent(agentId)}
-
 ## Structured Artifact Payload
 
 ${artifactPayloadContractForAgent(agentId)}
@@ -302,7 +300,7 @@ function allowedPathsFor(agentId, impactScopeConfig, impactScopes) {
     requirements: [".harness/runs/<run>/artifacts/requirement.md"],
     architect: [".harness/runs/<run>/artifacts/architecture.md", ".harness/runs/<run>/artifacts/implementation-plan.md"],
     frontend: ["src/**", "package.json", "index.html", "public/**", "vite.config.*"],
-    docs: ["README.md", "docs/**", "*.md", ".harness/runs/<run>/artifacts/test-report.md"],
+    docs: ["README.md", "docs/**", "*.md"],
     backend: ["server/**", "api/**", "src/**", "package.json"],
     database: ["prisma/**", "migrations/**", "db/**", ".harness/runs/<run>/artifacts/db-migration.md"],
     devops: ["Dockerfile", "docker-compose*.yml", ".github/**", "scripts/**", ".harness/runs/<run>/artifacts/release-summary.md"],
@@ -320,7 +318,7 @@ function requiredOutputsFor(agentId) {
     requirements: ["artifacts/requirement.md"],
     architect: ["artifacts/architecture.md", "artifacts/implementation-plan.md"],
     frontend: ["frontend code changes or implementation notes", "verification notes"],
-    docs: ["documentation changes", "docs/README update notes", "verification notes", "docs validation report", "artifacts/test-report.md"],
+    docs: ["documentation changes", "docs/README update notes", "verification notes", "docs validation report"],
     backend: ["backend code changes or API notes", "artifacts/api-change.md"],
     database: ["migration/schema notes", "artifacts/db-migration.md"],
     devops: ["deployment/CI notes", "rollback notes"],
@@ -354,37 +352,6 @@ function artifactSchemaForAgent(agentId) {
   return lines.length
     ? lines.join("\n").trim()
     : "- No dedicated artifact schema for this agent.";
-}
-
-function artifactScaffoldForAgent(agentId) {
-  const outputs = requiredOutputsFor(agentId)
-    .map((item) => item.replace(/^artifacts\//, ""))
-    .filter((item) => item.endsWith(".md"));
-  const sections = [];
-  if (outputs.length > 0) {
-    sections.push("Copy this skeleton structure for each owned artifact. Keep every `##` heading exactly as shown; add content under headings, not by renaming headings.");
-    sections.push("");
-  }
-  for (const output of outputs) {
-    const schema = artifactSchema[output];
-    if (!schema?.required_headings?.length) continue;
-    sections.push(`### artifacts/${output}`);
-    sections.push("");
-    sections.push("```markdown");
-    sections.push(`# ${artifactTitle(output)}`);
-    sections.push("");
-    for (const heading of schema.required_headings) {
-      sections.push(`## ${heading}`);
-      sections.push("");
-      sections.push("- ");
-      sections.push("");
-    }
-    sections.push("```");
-    sections.push("");
-  }
-  return sections.length
-    ? sections.join("\n").trim()
-    : "- No owned artifact scaffold for this agent.";
 }
 
 function artifactPayloadContractForAgent(agentId) {
@@ -746,216 +713,185 @@ async function writeDiscoveryArtifacts({ input: inputText, impactScopes }) {
 }
 
 function renderPlanRootArtifact({ inputText, impactScopes, now }) {
-  return `# Planning
-
-## Goal
-
-- ${oneLine(inputText) || "Create a no-code plan."}
-
-## Scope
-
-- Impact scopes: ${impactScopes.length ? impactScopes.join(", ") : "(not detected)"}
-- This is a no-code CrewUp plan run.
-
-## Required Outputs
-
-- planning.md
-- acceptance.md
-- architecture-plan.md
-- implementation-plan.md
-- review.md
-- validation.md
-- summary.md
-
-## Metadata
-
-- generatedAt: ${now}
-- profile: plan
-`;
+  return renderGeneratedMarkdown({
+    title: "Planning",
+    file: "planning.md",
+    schema: generatedMarkdownSchema,
+    sections: {
+      Goal: [`- ${oneLine(inputText) || "Create a no-code plan."}`],
+      Scope: [
+        `- Impact scopes: ${impactScopes.length ? impactScopes.join(", ") : "(not detected)"}`,
+        "- This is a no-code CrewUp plan run."
+      ],
+      "Required Outputs": [
+        "- planning.md",
+        "- acceptance.md",
+        "- architecture-plan.md",
+        "- implementation-plan.md",
+        "- review.md",
+        "- validation.md",
+        "- summary.md"
+      ],
+      Metadata: [`- generatedAt: ${now}`, "- profile: plan"]
+    }
+  });
 }
 
 function renderDiscoveryRootArtifact({ inputText, impactScopes, now }) {
-  return `# Discovery
-
-## Goal
-
-- ${oneLine(inputText) || "Discover project structure and module boundaries."}
-
-## Scope
-
-- Impact scopes: ${impactScopes.length ? impactScopes.join(", ") : "(not detected)"}
-- This is a no-code CrewUp discovery run.
-
-## Required Outputs
-
-- discovery.md
-- module-map.md
-- tech-map.md
-- risk-map.md
-- next-runs.md
-- review.md
-- summary.md
-
-## Metadata
-
-- generatedAt: ${now}
-- profile: discovery
-`;
+  return renderGeneratedMarkdown({
+    title: "Discovery",
+    file: "discovery.md",
+    schema: generatedMarkdownSchema,
+    sections: {
+      Goal: [`- ${oneLine(inputText) || "Discover project structure and module boundaries."}`],
+      Scope: [
+        `- Impact scopes: ${impactScopes.length ? impactScopes.join(", ") : "(not detected)"}`,
+        "- This is a no-code CrewUp discovery run."
+      ],
+      "Required Outputs": [
+        "- discovery.md",
+        "- module-map.md",
+        "- tech-map.md",
+        "- risk-map.md",
+        "- next-runs.md",
+        "- review.md",
+        "- summary.md"
+      ],
+      Metadata: [`- generatedAt: ${now}`, "- profile: discovery"]
+    }
+  });
 }
 
 function renderPendingRootArtifact(title, now, profile) {
-  return `# ${title}
+  if (title === "Summary") {
+    return renderGeneratedMarkdown({
+      title,
+      file: "summary.md",
+      schema: generatedMarkdownSchema,
+      sections: {
+        Outcome: "- pending",
+        "Changed Files": profile === "plan" || profile === "discovery" ? "- none; no-code mode" : "- pending",
+        Validation: "- pending",
+        "Residual Risks": "- pending",
+        Metadata: [`- generatedAt: ${now}`, `- profile: ${profile}`]
+      }
+    });
+  }
 
-## Status
-
-- pending
-
-## Notes
-
-- This file is part of the fixed ${profile} run structure.
-
-## Metadata
-
-- generatedAt: ${now}
-- profile: ${profile}
-`;
+  return renderGeneratedMarkdown({
+    title,
+    file: `${title.toLowerCase().replaceAll(" ", "-")}.md`,
+    schema: generatedMarkdownSchema,
+    sections: {
+      Status: "- pending",
+      Notes: `- This file is part of the fixed ${profile} run structure.`,
+      Metadata: [`- generatedAt: ${now}`, `- profile: ${profile}`]
+    }
+  });
 }
 
 function renderNoCodeValidation({ now, profile }) {
-  return `# Validation
-
-## Result
-
-- status: pending
-
-## No-Code Guard
-
-- [ ] No business code changes were made.
-
-## Metadata
-
-- generatedAt: ${now}
-- profile: ${profile}
-`;
+  return renderGeneratedMarkdown({
+    title: "Validation",
+    file: "validation.md",
+    schema: generatedMarkdownSchema,
+    sections: {
+      Result: "- status: pending",
+      Commands: "- no-code validation pending",
+      "Acceptance Criteria Check": "- [ ] No business code changes were made.",
+      "Risks Or Skips": "- pending",
+      Metadata: [`- generatedAt: ${now}`, `- profile: ${profile}`]
+    }
+  });
 }
 
 function renderLiteSpec({ inputText, impactScopes, now }) {
-  return `# Lite Spec
-
-## Goal
-
-- ${oneLine(inputText) || "Complete the requested lightweight change."}
-
-## Scope
-
-- Impact scopes: ${impactScopes.length ? impactScopes.join(", ") : "(not detected; keep changes minimal and task-scoped)"}
-- Use this lite-v2 run only for low-risk, scoped implementation work.
-
-## Non-Goals
-
-- Do not make unrelated refactors.
-- Do not change database, authentication, deployment, or production-risk behavior unless the user explicitly asked to leave lite-v2.
-- Do not claim strict CrewUp audit provenance for this run.
-
-## Acceptance Criteria
-
-- [ ] AC-01: The requested scoped change is implemented.
-- [ ] AC-02: Relevant validation is discovered from project evidence and recorded in \`validation.md\`.
-- [ ] AC-03: Residual risks or skipped checks are documented.
-
-## Risks
-
-- Lite-v2 is an opt-in lightweight path and does not require native subagent provenance.
-
-## Metadata
-
-- generatedAt: ${now}
-- profile: lite-v2
-`;
+  return renderGeneratedMarkdown({
+    title: "Lite Spec",
+    file: "spec.md",
+    schema: generatedMarkdownSchema,
+    sections: {
+      Goal: `- ${oneLine(inputText) || "Complete the requested lightweight change."}`,
+      Scope: [
+        `- Impact scopes: ${impactScopes.length ? impactScopes.join(", ") : "(not detected; keep changes minimal and task-scoped)"}`,
+        "- Use this lite-v2 run only for low-risk, scoped implementation work."
+      ],
+      "Non-Goals": [
+        "- Do not make unrelated refactors.",
+        "- Do not change database, authentication, deployment, or production-risk behavior unless the user explicitly asked to leave lite-v2.",
+        "- Do not claim strict CrewUp audit provenance for this run."
+      ],
+      "Acceptance Criteria": [
+        "- [ ] AC-01: The requested scoped change is implemented.",
+        "- [ ] AC-02: Relevant validation is discovered from project evidence and recorded in `validation.md`.",
+        "- [ ] AC-03: Residual risks or skipped checks are documented."
+      ],
+      Risks: "- Lite-v2 is an opt-in lightweight path and does not require native subagent provenance.",
+      Metadata: [`- generatedAt: ${now}`, "- profile: lite-v2"]
+    }
+  });
 }
 
 function renderLiteTasks({ impactScopes, now }) {
-  return `# Lite Tasks
-
-## Plan
-
-- [ ] Review \`input.md\` and \`spec.md\`.
-- [ ] Implement only the scoped change.
-- [ ] Discover relevant validation from project evidence such as package manifests, README, CI config, framework config, and existing tests.
-- [ ] Run relevant build, test, lint, typecheck, smoke, browser, API, or preview checks when available.
-- [ ] Update \`validation.md\` with command results.
-- [ ] Update \`summary.md\` with outcome, changed files, validation, and risks.
-
-## Allowed Scope
-
-- Impact scopes: ${impactScopes.length ? impactScopes.join(", ") : "(not detected)"}
-- Keep changes inside the user's request and discovered project scope.
-
-## Validation Discovery
-
-- Record project evidence reviewed and exact commands/checks before or after running them.
-
-## Metadata
-
-- generatedAt: ${now}
-- profile: lite-v2
-`;
+  return renderGeneratedMarkdown({
+    title: "Lite Tasks",
+    file: "tasks.md",
+    schema: generatedMarkdownSchema,
+    sections: {
+      Plan: [
+        "- [ ] Review `input.md` and `spec.md`.",
+        "- [ ] Implement only the scoped change.",
+        "- [ ] Discover relevant validation from project evidence such as package manifests, README, CI config, framework config, and existing tests.",
+        "- [ ] Run relevant build, test, lint, typecheck, smoke, browser, API, or preview checks when available.",
+        "- [ ] Update `validation.md` with command results.",
+        "- [ ] Update `summary.md` with outcome, changed files, validation, and risks."
+      ],
+      "Allowed Scope": [
+        `- Impact scopes: ${impactScopes.length ? impactScopes.join(", ") : "(not detected)"}`,
+        "- Keep changes inside the user's request and discovered project scope."
+      ],
+      "Validation Discovery": "- Record project evidence reviewed and exact commands/checks before or after running them.",
+      Metadata: [`- generatedAt: ${now}`, "- profile: lite-v2"]
+    }
+  });
 }
 
 function renderLiteValidation({ now }) {
-  return `# Lite Validation
-
-## Result
-
-- status: pending
-
-## Commands
-
-| Command | Result | Notes |
-| --- | --- | --- |
-| pending | pending | Discover project validation, then add command/check results here. |
-
-## Acceptance Criteria Check
-
-- [ ] AC-01: pending
-- [ ] AC-02: pending
-- [ ] AC-03: pending
-
-## Risks Or Skips
-
-- none
-
-## Metadata
-
-- generatedAt: ${now}
-- profile: lite-v2
-`;
+  return renderGeneratedMarkdown({
+    title: "Lite Validation",
+    file: "validation.md",
+    schema: generatedMarkdownSchema,
+    sections: {
+      Result: "- status: pending",
+      Commands: [
+        "| Command | Result | Notes |",
+        "| --- | --- | --- |",
+        "| pending | pending | Discover project validation, then add command/check results here. |"
+      ],
+      "Acceptance Criteria Check": [
+        "- [ ] AC-01: pending",
+        "- [ ] AC-02: pending",
+        "- [ ] AC-03: pending"
+      ],
+      "Risks Or Skips": "- none",
+      Metadata: [`- generatedAt: ${now}`, "- profile: lite-v2"]
+    }
+  });
 }
 
 function renderLiteSummary({ now }) {
-  return `# Lite Summary
-
-## Outcome
-
-- pending
-
-## Changed Files
-
-- pending
-
-## Validation
-
-- pending
-
-## Residual Risks
-
-- none
-
-## Metadata
-
-- generatedAt: ${now}
-- profile: lite-v2
-`;
+  return renderGeneratedMarkdown({
+    title: "Lite Summary",
+    file: "summary.md",
+    schema: generatedMarkdownSchema,
+    sections: {
+      Outcome: "- pending",
+      "Changed Files": "- pending",
+      Validation: "- pending",
+      "Residual Risks": "- none",
+      Metadata: [`- generatedAt: ${now}`, "- profile: lite-v2"]
+    }
+  });
 }
 
 function oneLine(value) {

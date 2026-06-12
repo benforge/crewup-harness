@@ -107,8 +107,8 @@ try {
   assertNotExists(path.join(liteV2RunDir, "logs", "native-subagents", "native-subagent-plan.json"), "lite-v2 skips native plan");
   const liteV2PendingFinish = runCliWithStatus(appDir, ["finish", liteV2RunId], { expectedStatus: 1 });
   assertIncludes(liteV2PendingFinish, "update validation.md, summary.md", "lite-v2 finish blocks pending evidence");
-  await writeFile(path.join(liteV2RunDir, "validation.md"), "# Lite Validation\n\n## Result\n\n- status: passed\n\n## Commands\n\n| Command | Result | Notes |\n| --- | --- | --- |\n| npm test | passed | simulated in flow test |\n\n## Acceptance Criteria Check\n\n- [x] AC-01: passed\n- [x] AC-02: passed\n- [x] AC-03: passed\n\n## Risks Or Skips\n\n- none\n", "utf8");
-  await writeFile(path.join(liteV2RunDir, "summary.md"), "# Lite Summary\n\n## Outcome\n\n- Completed simulated lite-v2 run.\n\n## Changed Files\n\n- none\n\n## Validation\n\n- npm test passed in simulated record.\n\n## Residual Risks\n\n- none\n", "utf8");
+  await writeFile(path.join(liteV2RunDir, "validation.md"), "# Lite Validation\n\n## Result\n\n- status: passed\n\n## Commands\n\n| Command | Result | Notes |\n| --- | --- | --- |\n| npm test | passed | simulated in flow test |\n\n## Acceptance Criteria Check\n\n- [x] AC-01: passed\n- [x] AC-02: passed\n- [x] AC-03: passed\n\n## Risks Or Skips\n\n- none\n\n## Metadata\n\n- profile: lite-v2\n", "utf8");
+  await writeFile(path.join(liteV2RunDir, "summary.md"), "# Lite Summary\n\n## Outcome\n\n- Completed simulated lite-v2 run.\n\n## Changed Files\n\n- none\n\n## Validation\n\n- npm test passed in simulated record.\n\n## Residual Risks\n\n- none\n\n## Metadata\n\n- profile: lite-v2\n", "utf8");
   const liteV2FinishOutput = runCli(appDir, ["finish", liteV2RunId]);
   assertIncludes(liteV2FinishOutput, "Run archived", "lite-v2 finish archives success");
   const liteV2FinishedState = JSON.parse(await readFile(path.join(liteV2RunDir, "state.json"), "utf8"));
@@ -172,7 +172,8 @@ try {
   assertIncludes(requirementPlanTask, "Impact Scope Candidates", "requirements-plan impact heading");
   assertIncludes(requirementPlanTask, "Human-facing summaries, handoff notes, blockers, and coordination comments should match the user's primary language", "human-facing language-following rule");
   assertIncludes(requirementPlanTask, "question text, option labels, option descriptions", "requirements-plan clarification wording rule");
-  assertIncludes(requirementPlanTask, "## Artifact Scaffold", "artifact scaffold section");
+  assertNotIncludes(requirementPlanTask, "## Artifact Scaffold", "artifact scaffold section removed");
+  assertNotIncludes(requirementPlanTask, "Copy this skeleton structure", "markdown scaffold copy instruction removed");
   assertIncludes(requirementPlanTask, "## Structured Artifact Payload", "structured artifact payload section");
   assertIncludes(requirementPlanTask, "### JSON Schema", "structured artifact payload JSON schema");
   assertIncludes(requirementPlanTask, "artifactPayloads", "structured artifact payload contract");
@@ -427,6 +428,9 @@ try {
   assertIncludes(requirementsPlanSpawn, "previousResultPath", "native prompt previous result field");
   assertIncludes(requirementsPlanSpawn, "Progress checkpoint", "native prompt requires progress checkpoint");
   assertIncludes(requirementsPlanSpawn, "requirements-plan.progress.md", "native prompt names progress checkpoint path");
+  assertIncludes(requirementsPlanSpawn, "### Structured Artifact Payload Contract", "native prompt repeats structured payload contract");
+  assertIncludes(requirementsPlanSpawn, "artifactPayloads", "native prompt JSON example includes artifactPayloads");
+  assertNotIncludes(requirementsPlanSpawn, "full markdown content", "native prompt avoids full markdown artifact content");
 
   const toolFallbackOutput = runCli(appDir, [
     "tool-fallback",

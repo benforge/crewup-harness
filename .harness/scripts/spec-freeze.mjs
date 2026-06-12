@@ -2,13 +2,14 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { analyzeWorkload } from "./lib/workload-analysis.mjs";
+import { loadGeneratedMarkdownSchema, renderGeneratedMarkdown } from "./lib/generated-markdown.mjs";
 
 const root = process.cwd();
 const args = process.argv.slice(2);
 const runId = args.find((arg) => !arg.startsWith("--"));
 
 if (!runId) {
-  console.error("请提供 runId，例如：npm run harness:spec-freeze -- 2026-05-14-001-blog-mvp");
+  console.error("Please provide runId, for example: npm run harness:spec-freeze -- 2026-05-14-001-blog-mvp");
   process.exit(1);
 }
 
@@ -18,13 +19,14 @@ const artifactsDir = path.join(runDir, "artifacts");
 const logsDir = path.join(runDir, "logs");
 
 if (!existsSync(inputPath)) {
-  console.error(`未找到 run 输入：${path.relative(root, inputPath)}`);
+  console.error(`Missing run input: ${path.relative(root, inputPath)}`);
   process.exit(1);
 }
 
 await mkdir(artifactsDir, { recursive: true });
 await mkdir(logsDir, { recursive: true });
 
+const generatedMarkdownSchema = await loadGeneratedMarkdownSchema(root);
 const input = await readFile(inputPath, "utf8");
 const existingRequirement = await readOptional(path.join(artifactsDir, "requirement.md"));
 const analysis = analyzeWorkload(input);
@@ -36,8 +38,8 @@ await writeFile(path.join(runDir, "completion-contract.json"), `${JSON.stringify
 await writeFile(path.join(artifactsDir, "spec-freeze.md"), renderSpecFreeze(frozen), "utf8");
 await writeFile(path.join(logsDir, "spec-freeze.json"), `${JSON.stringify(frozen, null, 2)}\n`, "utf8");
 
-console.log(`需求冻结摘要已生成：${path.relative(root, path.join(artifactsDir, "spec-freeze.md")).replaceAll("\\", "/")}`);
-console.log(`完成契约已生成：${path.relative(root, path.join(runDir, "GOAL.md")).replaceAll("\\", "/")}`);
+console.log(`Spec freeze written: ${path.relative(root, path.join(artifactsDir, "spec-freeze.md")).replaceAll("\\", "/")}`);
+console.log(`Completion contract written: ${path.relative(root, path.join(runDir, "GOAL.md")).replaceAll("\\", "/")}`);
 console.log(`- profile: ${frozen.workflowProfile}`);
 console.log(`- stability: ${frozen.stability}`);
 console.log(`- open_questions: ${frozen.openQuestions.length}`);
@@ -46,16 +48,17 @@ function freezeSpec(inputText, requirementText, workload) {
   const source = chooseSource(inputText, requirementText);
   const bullets = extractBullets(source);
   const sentences = extractSentences(source);
-  const goals = pickByPatterns([...bullets, ...sentences], [
+  const candidates = [...bullets, ...sentences];
+  const goals = pickByPatterns(candidates, [
     /目标|实现|新增|修复|优化|完成|支持|需要|希望|build|implement|fix|add|support/i
   ], 5);
-  const nonGoals = pickByPatterns([...bullets, ...sentences], [
+  const nonGoals = pickByPatterns(candidates, [
     /不需要|不要|不做|无需|不包含|不能|避免|do not|without|exclude/i
   ], 5);
-  const acceptance = pickByPatterns([...bullets, ...sentences], [
+  const acceptance = pickByPatterns(candidates, [
     /验收|通过|成功|测试|验证|期望|应该|必须|acceptance|test|verify|should|must/i
   ], 6);
-  const constraints = pickByPatterns([...bullets, ...sentences], [
+  const constraints = pickByPatterns(candidates, [
     /限制|约束|兼容|性能|安全|权限|部署|环境|token|成本|稳定|constraint|compat|security|performance/i
   ], 6);
   const openQuestions = inferOpenQuestions(source, workload);
@@ -68,15 +71,16 @@ function freezeSpec(inputText, requirementText, workload) {
     complexityScore: workload.complexityScore,
     complexityLevel: workload.complexityLevel,
     stability,
-    goals: uniqueList(goals.length ? goals : [firstUsefulLine(source) || "按 run 输入完成用户请求。"]),
+    summary: oneLine(source) || "Complete the user request captured in input.md.",
+    goals: uniqueList(goals.length ? goals : [oneLine(source) || "Complete the user request captured in input.md."]),
     nonGoals: uniqueList(nonGoals),
     acceptanceCriteria: uniqueList(acceptance),
     constraints: uniqueList(constraints),
     openQuestions: uniqueList(openQuestions),
     contextRules: [
-      "后续 agent 优先读取 spec-freeze.md，再按需读取 input.md。",
-      "如果 spec-freeze 与 input.md 冲突，以 input.md 原文为准，并在结果中说明冲突。",
-      "不要因为缺少完整上下文而猜测高风险行为；返回 needs_input。"
+      "Read artifacts/spec-freeze.md before reading the full input when context is constrained.",
+      "If spec-freeze conflicts with input.md, input.md is authoritative and the conflict must be reported.",
+      "If context is insufficient for a high-risk decision, return needs_input instead of guessing."
     ]
   };
 }
@@ -132,76 +136,58 @@ function buildCompletionContract(spec) {
 }
 
 function renderGoal(spec, contract) {
-  return `${[
-    `# Iteration Goal: ${spec.runId}`,
-    "",
-    "## Verdict Rule",
-    "",
-    "Only `SUCCESS` means this CrewUp iteration is fully complete.",
-    "`PARTIAL`, `BLOCKED`, `FAILED`, `CANCELED`, `IN_PROGRESS`, and `WAITING_USER` are not successful completion.",
-    "",
-    "## Goal",
-    "",
-    ...renderList(spec.goals, "Complete the user request captured in input.md."),
-    "",
-    "## Success Criteria",
-    "",
-    ...renderList(contract.successCriteria, "All required CrewUp gates pass and the run archives with outcome=success."),
-    "",
-    "## Non-Goals",
-    "",
-    ...renderList(contract.nonGoals, "No explicit non-goals captured."),
-    "",
-    "## Constraints",
-    "",
-    ...renderList(contract.constraints, "No explicit constraints captured."),
-    "",
-    "## Repair Budget",
-    "",
-    `- maxRepairRounds: ${contract.maxRepairRounds}`,
-    "- If repair rounds exceed this budget, archive as BLOCKED or PARTIAL instead of continuing indefinitely.",
-    "",
-    "## Required Evidence",
-    "",
-    ...contract.requiredEvidence.map((item) => `- ${item}`),
-    ""
-  ].join("\n")}\n`;
+  return renderGeneratedMarkdown({
+    title: `Iteration Goal: ${spec.runId}`,
+    file: "GOAL.md",
+    schema: {
+      "GOAL.md": {
+        required_headings: ["Verdict Rule", "Goal", "Success Criteria", "Non-Goals", "Constraints", "Repair Budget", "Required Evidence"]
+      }
+    },
+    sections: {
+      "Verdict Rule": [
+        "Only `SUCCESS` means this CrewUp iteration is fully complete.",
+        "`PARTIAL`, `BLOCKED`, `FAILED`, `CANCELED`, `IN_PROGRESS`, and `WAITING_USER` are not successful completion."
+      ],
+      Goal: listSection(spec.goals, "Complete the user request captured in input.md."),
+      "Success Criteria": listSection(contract.successCriteria, "All required CrewUp gates pass and the run archives with outcome=success."),
+      "Non-Goals": listSection(contract.nonGoals, "No explicit non-goals captured."),
+      Constraints: listSection(contract.constraints, "No explicit constraints captured."),
+      "Repair Budget": [
+        `- maxRepairRounds: ${contract.maxRepairRounds}`,
+        "- If repair rounds exceed this budget, archive as BLOCKED or PARTIAL instead of continuing indefinitely."
+      ],
+      "Required Evidence": contract.requiredEvidence.map((item) => `- ${item}`)
+    }
+  });
 }
 
 function renderSpecFreeze(spec) {
-  return `${[
-    `# 需求冻结摘要：${spec.runId}`,
-    "",
-    `- generatedAt: ${spec.generatedAt}`,
-    `- workflowProfile: ${spec.workflowProfile}`,
-    `- complexity: ${spec.complexityScore}/5 (${spec.complexityLevel})`,
-    `- stability: ${spec.stability}`,
-    "",
-    "## 目标",
-    "",
-    ...renderList(spec.goals, "按 run 输入完成用户请求。"),
-    "",
-    "## 非目标",
-    "",
-    ...renderList(spec.nonGoals, "未识别到明确非目标。"),
-    "",
-    "## 验收标准",
-    "",
-    ...renderList(spec.acceptanceCriteria, "未识别到明确验收标准；执行 agent 需要在结果中补充验证记录。"),
-    "",
-    "## 约束",
-    "",
-    ...renderList(spec.constraints, "未识别到额外约束。"),
-    "",
-    "## 待确认问题",
-    "",
-    ...renderList(spec.openQuestions, "无。"),
-    "",
-    "## 上下文使用规则",
-    "",
-    ...spec.contextRules.map((item) => `- ${item}`),
-    ""
-  ].join("\n")}\n`;
+  return renderGeneratedMarkdown({
+    title: `Spec Freeze: ${spec.runId}`,
+    file: "artifacts/spec-freeze.md",
+    schema: generatedMarkdownSchema,
+    sections: {
+      Summary: [
+        `- generatedAt: ${spec.generatedAt}`,
+        `- workflowProfile: ${spec.workflowProfile}`,
+        `- complexity: ${spec.complexityScore}/5 (${spec.complexityLevel})`,
+        `- stability: ${spec.stability}`,
+        `- request: ${spec.summary}`
+      ],
+      Goals: listSection(spec.goals, "Complete the user request captured in input.md."),
+      "Non-Goals": listSection(spec.nonGoals, "No explicit non-goals captured."),
+      "Acceptance Criteria": listSection(spec.acceptanceCriteria, "No explicit acceptance criteria captured; downstream agents must record validation evidence."),
+      Constraints: listSection(spec.constraints, "No explicit constraints captured."),
+      "Open Questions": listSection(spec.openQuestions, "none"),
+      "Context Rules": spec.contextRules.map((item) => `- ${item}`),
+      Metadata: [
+        `- runId: ${spec.runId}`,
+        `- generatedAt: ${spec.generatedAt}`,
+        `- profile: ${spec.workflowProfile}`
+      ]
+    }
+  });
 }
 
 function extractBullets(text) {
@@ -216,7 +202,7 @@ function extractBullets(text) {
 function extractSentences(text) {
   return String(text ?? "")
     .replace(/\r/g, "")
-    .split(/[\n。！？!?；;]/)
+    .split(/[\n。！？；?;]/)
     .map((item) => item.trim())
     .filter((item) => item.length >= 4 && !isTemplateNoise(item))
     .slice(0, 40);
@@ -238,9 +224,9 @@ function pickByPatterns(items, patterns, limit) {
 
 function inferOpenQuestions(text, workload) {
   const questions = [];
-  if (workload.signals?.ambiguous) questions.push("需求存在探索或不确定信号，进入实现前建议确认目标和验收标准。");
-  if (workload.signals?.highRisk) questions.push("命中高风险信号，需要确认数据、权限、发布或回滚边界。");
-  if (!/(验收|测试|验证|acceptance|test|verify)/i.test(text)) questions.push("未看到明确验收标准，建议补充如何判断完成。");
+  if (workload.signals?.ambiguous) questions.push("The request has exploration or ambiguity signals; confirm target behavior and acceptance criteria before high-risk implementation.");
+  if (workload.signals?.highRisk) questions.push("The request has high-risk signals; confirm data, permission, release, or rollback boundaries.");
+  if (!/(验收|测试|验证|acceptance|test|verify)/i.test(text)) questions.push("No explicit validation standard was detected; define how completion should be verified.");
   return questions;
 }
 
@@ -251,20 +237,16 @@ function stripMarkdownNoise(text) {
     .trim();
 }
 
-function firstUsefulLine(text) {
-  return String(text ?? "")
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .find((line) => line && !line.startsWith("#"));
+function oneLine(value) {
+  return String(value ?? "").trim().split(/\r?\n/).map((line) => line.trim()).filter(Boolean)[0] ?? "";
 }
 
-function renderList(items, fallback) {
-  const list = uniqueList(items?.length ? items : [fallback]);
-  return list.map((item) => `- ${item}`);
+function listSection(items, fallback) {
+  return uniqueList(items?.length ? items : [fallback]).map((item) => `- ${item}`);
 }
 
 function limitText(text, maxChars) {
-  return text.length > maxChars ? `${text.slice(0, maxChars).trim()}...` : text;
+  return String(text ?? "").length > maxChars ? `${String(text).slice(0, maxChars).trim()}...` : String(text ?? "");
 }
 
 function uniqueList(items) {
@@ -284,7 +266,7 @@ function isMeaningfulRequirementDraft(text) {
 }
 
 function isTemplateNoise(text) {
-  return /写成可执行|补充可检查|无额外非目标|作为「」|如果没有额外限制|AC-1|Tester Agent 需覆盖/.test(String(text ?? ""));
+  return /pending|Write this section content here|AC-01: pending|No business code changes were made/i.test(String(text ?? ""));
 }
 
 async function readOptional(target) {

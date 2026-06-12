@@ -1,0 +1,112 @@
+files:
+  artifacts/spec-freeze.md:
+    required_headings:
+      - "Summary"
+      - "Goals"
+      - "Non-Goals"
+      - "Acceptance Criteria"
+      - "Constraints"
+      - "Open Questions"
+      - "Context Rules"
+      - "Metadata"
+
+  artifacts/archive-reminder.md:
+    required_headings:
+      - "Required Checks Before Archive"
+      - "Automatic Git Commit Policy"
+      - "Current Git Worktree"
+      - "Reminder"
+
+  spec.md:
+    required_headings:
+      - "Goal"
+      - "Scope"
+      - "Non-Goals"
+      - "Acceptance Criteria"
+      - "Risks"
+      - "Metadata"
+
+  tasks.md:
+    required_headings:
+      - "Plan"
+      - "Allowed Scope"
+      - "Validation Discovery"
+      - "Metadata"
+
+  validation.md:
+    required_headings:
+      - "Result"
+      - "Commands"
+      - "Acceptance Criteria Check"
+      - "Risks Or Skips"
+      - "Metadata"
+
+  summary.md:
+    required_headings:
+      - "Outcome"
+      - "Changed Files"
+      - "Validation"
+      - "Residual Risks"
+      - "Metadata"
+
+  planning.md:
+    required_headings:
+      - "Goal"
+      - "Scope"
+      - "Required Outputs"
+      - "Metadata"
+
+  acceptance.md:
+    required_headings:
+      - "Status"
+      - "Notes"
+      - "Metadata"
+
+  architecture-plan.md:
+    required_headings:
+      - "Status"
+      - "Notes"
+      - "Metadata"
+
+  implementation-plan.md:
+    required_headings:
+      - "Status"
+      - "Notes"
+      - "Metadata"
+
+  review.md:
+    required_headings:
+      - "Status"
+      - "Notes"
+      - "Metadata"
+
+  discovery.md:
+    required_headings:
+      - "Goal"
+      - "Scope"
+      - "Required Outputs"
+      - "Metadata"
+
+  module-map.md:
+    required_headings:
+      - "Status"
+      - "Notes"
+      - "Metadata"
+
+  tech-map.md:
+    required_headings:
+      - "Status"
+      - "Notes"
+      - "Metadata"
+
+  risk-map.md:
+    required_headings:
+      - "Status"
+      - "Notes"
+      - "Metadata"
+
+  next-runs.md:
+    required_headings:
+      - "Status"
+      - "Notes"
+      - "Metadata"

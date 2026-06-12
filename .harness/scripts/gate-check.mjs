@@ -23,6 +23,7 @@ import { hasTemplatePlaceholder } from "./lib/placeholder-detector.mjs";
 import { isDocsOnlyAgentSet, isLiteImplementationOnlyAgentSet } from "./lib/agent-roles.mjs";
 import { isImplementationAgentUnassigned } from "./lib/implementation-plan-scope.mjs";
 import { verifyCoreLock } from "./lib/core-lock.mjs";
+import { loadGeneratedMarkdownSchema, validateGeneratedMarkdownFile } from "./lib/generated-markdown.mjs";
 
 const root = process.cwd();
 const args = process.argv.slice(2);
@@ -40,6 +41,7 @@ const tasksDir = path.join(runDir, "tasks");
 const logsDir = path.join(runDir, "logs");
 const statePath = path.join(runDir, "state.json");
 const schema = parseYaml(await readFile(path.join(root, ".harness", "config", "artifact-schema.yaml"), "utf8"));
+const generatedMarkdownSchema = await loadGeneratedMarkdownSchema(root);
 const { project_profile: projectProfile } = await loadProjectProfile(root);
 configureDelegationGuard(projectProfile);
 
@@ -54,6 +56,7 @@ const state = existsSync(statePath) ? JSON.parse(await readFile(statePath, "utf8
 const artifactProvenance = await collectArtifactProvenance(root, runId);
 
 await checkArtifacts();
+await checkGeneratedMarkdown();
 await checkCoreLock();
 await checkArtifactProvenance();
 await checkOwnerArtifactAudit();
@@ -113,6 +116,14 @@ async function checkArtifacts() {
         problems.push(`Artifact missing heading: ${file} -> ${heading}`);
       }
     }
+  }
+}
+
+async function checkGeneratedMarkdown() {
+  for (const file of Object.keys(generatedMarkdownSchema)) {
+    if (!existsSync(path.join(runDir, file))) continue;
+    const formatProblems = await validateGeneratedMarkdownFile({ root, runId, file, schema: generatedMarkdownSchema });
+    problems.push(...formatProblems.map((problem) => `Generated Markdown schema violation: ${problem}`));
   }
 }
 

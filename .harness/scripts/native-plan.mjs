@@ -117,6 +117,7 @@ for (const taskFile of taskFiles) {
     result_path: resultPath,
     result_json_path: resultJsonPath,
     progress_path: progressPath,
+    structured_artifact_payload: extractStructuredArtifactPayload(task),
     handoff_path: `.harness/runs/${runId}/logs/agent-bridge/${agentId}.handoff.md`,
     state: "planned",
     requires_completed_agents: prerequisites,
@@ -296,6 +297,7 @@ async function mergeNativeState(plan) {
 
 function renderSpawnPrompt({ agentId, agentType, profile, primaryLanguage = "en", prerequisites = [], task, specFreeze, allowedPatterns, contextPack, projectOverlayContext, artifactIndex, contextDecision, budgets = {} }) {
   const taskText = limitText(task, budgets.task_chars ?? 1200);
+  const structuredArtifactPayload = extractStructuredArtifactPayload(task);
   const frozenText = limitText(specFreeze, budgets.document_policy_chars ?? 1200);
   const artifactText = limitText(artifactIndex, budgets.artifact_index_chars ?? 900);
   const contextText = limitText(contextPack, budgets.context_pack_chars ?? 900);
@@ -358,6 +360,12 @@ function renderSpawnPrompt({ agentId, agentType, profile, primaryLanguage = "en"
     "",
     taskText,
     "",
+    "### Structured Artifact Payload Contract",
+    "",
+    structuredArtifactPayload
+      ? limitText(structuredArtifactPayload, budgets.task_chars ?? 1200)
+      : "No schema-rendered artifact is owned by this agent.",
+    "",
     "## Project Overlay Summary",
     "",
     overlayText,
@@ -375,6 +383,8 @@ function renderSpawnPrompt({ agentId, agentType, profile, primaryLanguage = "en"
     `Write the Markdown result file: ${resultPathFor(agentId, "md")}`,
     `Write the JSON result file: ${resultPathFor(agentId, "json")}`,
     `During work, update progress checkpoint: ${progressPathFor(agentId)}`,
+    "",
+    "For owned Markdown artifacts, do not write Markdown artifact bodies directly. Put section content in `artifactPayloads`; harness renders the artifact Markdown from schema.",
     "",
     "```text",
     `Agent: ${agentId}`,
@@ -395,6 +405,14 @@ function renderSpawnPrompt({ agentId, agentType, profile, primaryLanguage = "en"
       filesChanged: [],
       artifactUpdates: [{ path: "artifacts/<owned-artifact>.md" }],
       artifactsUpdated: ["artifacts/<owned-artifact>.md"],
+      artifactPayloads: {
+        "artifacts/<owned-artifact>.md": {
+          title: "Artifact Title",
+          sections: {
+            "Required Heading": "section content"
+          }
+        }
+      },
       tests: [],
       clarificationQuestions: [],
       selectedClarifications: [],
@@ -419,6 +437,7 @@ function renderSpawnPrompt({ agentId, agentType, profile, primaryLanguage = "en"
 }
 
 function renderBridgeHandoff({ task, bridgeTask, agentEnvironment }) {
+  const structuredArtifactPayload = task.structured_artifact_payload ?? "";
   return [
     `# Bridge Agent Handoff: ${task.agent}`,
     "",
@@ -435,6 +454,11 @@ function renderBridgeHandoff({ task, bridgeTask, agentEnvironment }) {
     "- Do not revert or overwrite unrelated user or agent changes.",
     "- Write the final result as JSON to the exact result_path above.",
     "- Match the user's primary language for human-facing summaries unless the user requested another language.",
+    "- For owned Markdown artifacts, provide structured `artifactPayloads`; harness renders Markdown from schema. Do not include full Markdown artifact content in artifactUpdates.",
+    "",
+    "## Structured Artifact Payload Contract",
+    "",
+    structuredArtifactPayload || "No schema-rendered artifact is owned by this agent.",
     "",
     "## Required JSON Shape",
     "",
@@ -443,7 +467,16 @@ function renderBridgeHandoff({ task, bridgeTask, agentEnvironment }) {
       agent: task.agent,
       status: "completed | blocked | needs_input",
       summary: "short result summary",
-      artifactUpdates: [{ path: "artifacts/test-report.md", content: "full markdown content" }],
+      artifactUpdates: [{ path: "artifacts/<owned-artifact>.md" }],
+      artifactsUpdated: ["artifacts/<owned-artifact>.md"],
+      artifactPayloads: {
+        "artifacts/<owned-artifact>.md": {
+          title: "Artifact Title",
+          sections: {
+            "Required Heading": "section content"
+          }
+        }
+      },
       fileChanges: [{ path: "src/example.ts", mode: "update", reason: "why", content: "full file content" }],
       recommendedCodeChanges: [{ path: "src/example.ts", reason: "why", change: "patch or explanation" }],
       tests: ["command or manual verification"],
@@ -480,6 +513,15 @@ function renderBridgeHandoff({ task, bridgeTask, agentEnvironment }) {
     ...(task.allowed_patterns.length ? task.allowed_patterns.map((item) => `- ${item}`) : ["- none"]),
     ""
   ].join("\n");
+}
+
+function extractStructuredArtifactPayload(taskText) {
+  const text = String(taskText ?? "");
+  const start = text.indexOf("## Structured Artifact Payload");
+  if (start < 0) return "";
+  const afterStart = text.slice(start + "## Structured Artifact Payload".length).trim();
+  const nextHeading = afterStart.search(/\n##\s+/);
+  return (nextHeading >= 0 ? afterStart.slice(0, nextHeading) : afterStart).trim();
 }
 
 function limitText(text, maxChars) {

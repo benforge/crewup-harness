@@ -24,6 +24,7 @@ import { hasTemplatePlaceholder } from "./lib/placeholder-detector.mjs";
 import { codeImplementationAgentIds, isDocsOnlyAgentSet, isLiteImplementationOnlyAgentSet } from "./lib/agent-roles.mjs";
 import { isImplementationAgentUnassigned } from "./lib/implementation-plan-scope.mjs";
 import { writeRunStatus } from "./lib/run-lifecycle.mjs";
+import { loadGeneratedMarkdownSchema, renderGeneratedMarkdown } from "./lib/generated-markdown.mjs";
 
 const root = process.cwd();
 const args = process.argv.slice(2);
@@ -62,6 +63,7 @@ await mkdir(logsDir, { recursive: true });
 const workflow = parseYaml(await readFile(path.join(root, ".harness", "config", "workflow.yaml"), "utf8")).workflow;
 const archivePolicy = parseYaml(await readFile(path.join(root, ".harness", "config", "archive-policy.yaml"), "utf8")).archive;
 const artifactSchema = parseYaml(await readFile(path.join(root, ".harness", "config", "artifact-schema.yaml"), "utf8")).artifacts ?? {};
+const generatedMarkdownSchema = await loadGeneratedMarkdownSchema(root);
 const { project_profile: projectProfile } = await loadProjectProfile(root);
 configureDelegationGuard(projectProfile);
 const projectOverlay = await loadProjectOverlay(root, projectProfile.ai_overlay?.profile, { projectProfile });
@@ -459,42 +461,38 @@ async function writeArchiveReminder() {
   const reminderRel = (archivePolicy.reminder_file ?? ".harness/runs/<run>/artifacts/archive-reminder.md").replaceAll("<run>", runId);
   const reminderPath = path.join(root, reminderRel);
   const gitStatus = gitStatusShort();
-  const content = [
-    "# Archive Reminder",
-    "",
-    `- runId: ${runId}`,
-    `- from: ${from}`,
-    `- to: ${to}`,
-    `- archivedAt: ${new Date().toISOString()}`,
-    "",
-    "## Required Checks Before Archive",
-    "",
-    "- [x] run has reached done stage.",
-    "- [x] test report, review report, and release summary passed gates.",
-    "- [x] close_required native subagents are closed and recorded.",
-    "- [ ] business code and product documentation changes for this run are recorded in changed-files manifest.",
-    "- [ ] if the workspace contains unrelated changes, do not use --allow-all-workspace-changes.",
-    "",
-    "## Automatic Git Commit Policy",
-    "",
-    `- enabled: ${archivePolicy.git?.enabled ? "true" : "false"}`,
-    `- auto_commit_after_done: ${archivePolicy.git?.auto_commit_after_done ? "true" : "false"}`,
-    `- stage_mode: ${archivePolicy.git?.stage_mode ?? "all_workspace_changes"}`,
-    `- commit_message: ${(archivePolicy.git?.commit_message_template ?? "chore(harness): archive <run>").replaceAll("<run>", runId)}`,
-    "",
-    "## Current Git Worktree",
-    "",
-    gitStatus.length ? gitStatus.map((line) => `- ${line}`).join("\n") : "- no changes",
-    "",
-    "## Reminder",
-    "",
-    "After done, harness runs the archive commit automatically. If the commit is blocked by unrecorded files, record this run's changes with `harness:changed-files`, then rerun:",
-    "",
-    "```bash",
-    `npm run harness:archive-commit -- ${runId}`,
-    "```",
-    ""
-  ].join("\n");
+  const content = renderGeneratedMarkdown({
+    title: "Archive Reminder",
+    file: "artifacts/archive-reminder.md",
+    schema: generatedMarkdownSchema,
+    sections: {
+      "Required Checks Before Archive": [
+        `- runId: ${runId}`,
+        `- from: ${from}`,
+        `- to: ${to}`,
+        `- archivedAt: ${new Date().toISOString()}`,
+        "- [x] run has reached done stage.",
+        "- [x] test report, review report, and release summary passed gates.",
+        "- [x] close_required native subagents are closed and recorded.",
+        "- [ ] business code and product documentation changes for this run are recorded in changed-files manifest.",
+        "- [ ] if the workspace contains unrelated changes, do not use --allow-all-workspace-changes."
+      ],
+      "Automatic Git Commit Policy": [
+        `- enabled: ${archivePolicy.git?.enabled ? "true" : "false"}`,
+        `- auto_commit_after_done: ${archivePolicy.git?.auto_commit_after_done ? "true" : "false"}`,
+        `- stage_mode: ${archivePolicy.git?.stage_mode ?? "all_workspace_changes"}`,
+        `- commit_message: ${(archivePolicy.git?.commit_message_template ?? "chore(harness): archive <run>").replaceAll("<run>", runId)}`
+      ],
+      "Current Git Worktree": gitStatus.length ? gitStatus.map((line) => `- ${line}`) : "- no changes",
+      Reminder: [
+        "After done, harness runs the archive commit automatically. If the commit is blocked by unrecorded files, record this run's changes with `harness:changed-files`, then rerun:",
+        "",
+        "```bash",
+        `npm run harness:archive-commit -- ${runId}`,
+        "```"
+      ]
+    }
+  });
   await mkdir(path.dirname(reminderPath), { recursive: true });
   await writeFile(reminderPath, content, "utf8");
   console.log(`Archive reminder written: ${path.relative(root, reminderPath).replaceAll("\\", "/")}`);
