@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.5
+
+- Added schema-rendered owner artifacts: subagents now provide structured `artifactPayloads` in result JSON, and `native-state mark-result` renders Markdown artifacts from `.harness/config/artifact-schema.yaml` instead of relying on model-authored Markdown headings.
+- Added generated JSON Schema and payload examples to owner-agent task prompts so each artifact declares required section keys before the subagent writes its result.
+- Hardened `native-state reconcile-results` with the same structured artifact rendering path, keeping recovered results consistent with normal capture.
+- Added flow coverage for missing structured artifact payloads and successful schema-rendered `requirement-plan.md` capture.
+
 ## 0.4.4
 
 - Hardened native result capture: `native-state mark-result` and `reconcile-results` now reject completed owner artifacts that are missing required schema headings, so malformed `requirement-plan.md`, `requirement.md`, `architecture.md`, or `implementation-plan.md` cannot be captured and discovered only at final gate time.

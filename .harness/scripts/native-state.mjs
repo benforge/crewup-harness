@@ -5,6 +5,7 @@ import { parse as parseYaml } from "yaml";
 import { implementationPlanSkipReason, isImplementationAgentUnassigned } from "./lib/implementation-plan-scope.mjs";
 import { writeOwnerAgentIds } from "./lib/agent-roles.mjs";
 import { readRunState, writeRunState, writeRunStatus } from "./lib/run-lifecycle.mjs";
+import { renderOwnedArtifactPayloads, validateOwnedArtifactHeadings } from "./lib/artifact-renderer.mjs";
 
 const root = process.cwd();
 const [runId, command, agentId, value, ...rest] = process.argv.slice(2);
@@ -697,58 +698,23 @@ async function reconcileResults(current) {
 }
 
 async function enforceOwnedArtifactSchema(currentAgentId, parsedJson) {
-  const candidates = new Set();
-  for (const [file, rules] of Object.entries(artifactSchema)) {
-    if (rules?.owner === currentAgentId && existsSync(path.join(root, ".harness", "runs", runId, "artifacts", file))) {
-      candidates.add(file);
-    }
-  }
-  for (const item of [
-    ...asArray(parsedJson?.artifactsUpdated),
-    ...asArray(parsedJson?.artifactUpdates)
-  ]) {
-    const artifactPath = typeof item === "string" ? item : item?.path;
-    const file = normalizeArtifactFileName(artifactPath);
-    if (file && artifactSchema[file]?.owner === currentAgentId) candidates.add(file);
+  try {
+    await renderOwnedArtifactPayloads({ root, runId, agentId: currentAgentId, parsedJson, artifactSchema });
+  } catch (error) {
+    console.error(`Cannot capture result for ${currentAgentId}: structured artifact rendering failed.`);
+    console.error(`- ${error.message}`);
+    console.error("The owner agent must provide result JSON artifactPayloads with all required sections; harness renders the Markdown artifact from that structure.");
+    process.exit(1);
   }
 
-  const problems = [];
-  for (const file of candidates) {
-    const rules = artifactSchema[file];
-    const target = path.join(root, ".harness", "runs", runId, "artifacts", file);
-    if (!existsSync(target)) {
-      problems.push(`Missing owned artifact: ${file}`);
-      continue;
-    }
-    const content = await readFile(target, "utf8");
-    for (const heading of rules.required_headings ?? []) {
-      if (!hasMarkdownHeading(content, heading)) problems.push(`Owned artifact missing heading: ${file} -> ${heading}`);
-    }
-  }
+  const problems = await validateOwnedArtifactHeadings({ root, runId, agentId: currentAgentId, parsedJson, artifactSchema });
 
   if (problems.length > 0) {
     console.error(`Cannot capture result for ${currentAgentId}: owned artifact schema validation failed.`);
     for (const problem of problems) console.error(`- ${problem}`);
-    console.error("Ask the same owner agent to rewrite the artifact using the exact required headings, then rerun native-state mark-result.");
+    console.error("Ask the same owner agent to fix artifactPayloads in the result JSON, then rerun native-state mark-result.");
     process.exit(1);
   }
-}
-
-function normalizeArtifactFileName(target) {
-  const normalized = normalizePath(target);
-  const marker = "artifacts/";
-  const index = normalized.lastIndexOf(marker);
-  const file = index >= 0 ? normalized.slice(index + marker.length) : path.posix.basename(normalized);
-  return file && file.endsWith(".md") ? file : "";
-}
-
-function hasMarkdownHeading(content, heading) {
-  const escaped = escapeRegExp(String(heading).trim());
-  return new RegExp(`^#{2,6}\\s+${escaped}\\s*$`, "im").test(content);
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 async function latestResultWriteAt(paths) {

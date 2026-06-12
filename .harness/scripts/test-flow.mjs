@@ -173,6 +173,10 @@ try {
   assertIncludes(requirementPlanTask, "Human-facing summaries, handoff notes, blockers, and coordination comments should match the user's primary language", "human-facing language-following rule");
   assertIncludes(requirementPlanTask, "question text, option labels, option descriptions", "requirements-plan clarification wording rule");
   assertIncludes(requirementPlanTask, "## Artifact Scaffold", "artifact scaffold section");
+  assertIncludes(requirementPlanTask, "## Structured Artifact Payload", "structured artifact payload section");
+  assertIncludes(requirementPlanTask, "### JSON Schema", "structured artifact payload JSON schema");
+  assertIncludes(requirementPlanTask, "artifactPayloads", "structured artifact payload contract");
+  assertIncludes(requirementPlanTask, "Harness renders Markdown", "harness-controlled artifact rendering rule");
   assertIncludes(requirementPlanTask, "Clarification Questions", "requirements-plan clarification heading");
   assertIncludes(requirementPlanTask, "clarificationQuestions", "requirements-plan structured clarification JSON");
   assertIncludes(requirementPlanTask, "return `needs_input`", "requirements-plan needs-input contract");
@@ -470,11 +474,13 @@ try {
   assertIncludes(unconfirmedRequirementsPlan, "Cannot complete requirements-plan before user confirmation", "requirements-plan requires user confirmation");
 
   await writeFile(path.join(planOnlyRunDir, "artifacts", "requirement-plan.md"), "# Requirement Plan\n\n## Clarification Card\n\n- pending\n", "utf8");
-  await seedRequirementsPlanResult(planOnlyRunDir, { status: "needs_input", userConfirmed: false });
+  await seedRequirementsPlanResult(planOnlyRunDir, { status: "needs_input", userConfirmed: false, includePayload: false });
   const invalidArtifactCapture = runCliWithStatus(appDir, ["native-state", planOnlyRunId, "mark-result", "requirements-plan", "needs_input"], { expectedStatus: 1 });
-  assertIncludes(invalidArtifactCapture, "owned artifact schema validation failed", "native-state rejects malformed owner artifact headings");
+  assertIncludes(invalidArtifactCapture, "structured artifact rendering failed", "native-state rejects missing structured artifact payload");
+  assertIncludes(invalidArtifactCapture, "artifactPayloads", "native-state explains structured payload requirement");
 
   await writeFile(path.join(planOnlyRunDir, "artifacts", "requirement-plan.md"), renderValidRequirementPlanArtifact(), "utf8");
+  await seedRequirementsPlanResult(planOnlyRunDir, { status: "needs_input", userConfirmed: false });
   const clarificationCapture = runCli(appDir, ["native-state", planOnlyRunId, "mark-result", "requirements-plan", "needs_input"]);
   assertIncludes(clarificationCapture, "requirements-plan: needs_input", "requirements-plan needs_input captured");
   const clarifyOutput = runCli(appDir, ["clarify", planOnlyRunId]);
@@ -930,7 +936,7 @@ async function markNativeAgentsCompleted(runDir, agentIds) {
   await writeFile(statePath, JSON.stringify(state, null, 2), "utf8");
 }
 
-async function seedRequirementsPlanResult(runDir, { status, userConfirmed }) {
+async function seedRequirementsPlanResult(runDir, { status, userConfirmed, includePayload = true }) {
   const resultDir = path.join(runDir, "logs", "native-subagents");
   await writeFile(path.join(resultDir, "requirements-plan.result.md"), [
     "Agent: requirements-plan",
@@ -942,7 +948,7 @@ async function seedRequirementsPlanResult(runDir, { status, userConfirmed }) {
     "Blockers:",
     "Handoff:"
   ].join("\n"), "utf8");
-  await writeFile(path.join(resultDir, "requirements-plan.result.json"), `${JSON.stringify({
+  const result = {
     agent: "requirements-plan",
     status,
     summary: "clarification required",
@@ -968,5 +974,27 @@ async function seedRequirementsPlanResult(runDir, { status, userConfirmed }) {
     confirmationSource: userConfirmed ? "user accepted Q-01:A" : "",
     tests: [],
     blockers: []
-  }, null, 2)}\n`, "utf8");
+  };
+  if (includePayload) {
+    result.artifactPayloads = {
+      "artifacts/requirement-plan.md": {
+        title: "Requirement Plan",
+        sections: {
+          "Original Request Summary": "Plan a fullstack blog system.",
+          "Historical Context": "No historical context.",
+          "Clarification Card": "ACTION REQUIRED: choose Q-01.",
+          "Requirement Expansion": "- Expand the request.",
+          "Goals": "- Clarify scope.",
+          "Non-Goals": "- Do not write business code.",
+          "Boundary Decisions": "- pending",
+          "Acceptance Criteria Draft": "- AC-01: Planning artifacts are clear.",
+          "Impact Scope Candidates": "- frontend\n- backend",
+          "Clarification Questions": "- Q-01: Which scope should this run use?",
+          "Selected Clarifications": userConfirmed ? "- Q-01:A" : "- none",
+          "Open Questions": userConfirmed ? "- none" : "- Q-01"
+        }
+      }
+    };
+  }
+  await writeFile(path.join(resultDir, "requirements-plan.result.json"), `${JSON.stringify(result, null, 2)}\n`, "utf8");
 }

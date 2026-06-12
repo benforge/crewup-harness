@@ -263,6 +263,10 @@ ${artifactSchemaForAgent(agentId)}
 
 ${artifactScaffoldForAgent(agentId)}
 
+## Structured Artifact Payload
+
+${artifactPayloadContractForAgent(agentId)}
+
 ## Output Contract
 
 ${outputContractFor(agentId)}
@@ -383,6 +387,80 @@ function artifactScaffoldForAgent(agentId) {
     : "- No owned artifact scaffold for this agent.";
 }
 
+function artifactPayloadContractForAgent(agentId) {
+  const outputs = requiredOutputsFor(agentId)
+    .map((item) => item.replace(/^artifacts\//, ""))
+    .filter((item) => item.endsWith(".md"));
+  const payloads = {};
+  for (const output of outputs) {
+    const schema = artifactSchema[output];
+    if (!schema?.required_headings?.length) continue;
+    payloads[`artifacts/${output}`] = {
+      title: artifactTitle(output),
+      sections: Object.fromEntries(schema.required_headings.map((heading) => [heading, "Write this section content here. Use 'none' only when the section is intentionally empty."]))
+    };
+  }
+  if (Object.keys(payloads).length === 0) return "- This agent does not own a schema-rendered artifact.";
+  return [
+    "For every owned artifact you update, put structured content in your `<agent>.result.json` under `artifactPayloads`.",
+    "Do not hand-author Markdown headings. Harness renders Markdown from this JSON and the artifact schema.",
+    "",
+    "### JSON Schema",
+    "",
+    "```json",
+    JSON.stringify(artifactPayloadJsonSchema(payloads), null, 2),
+    "```",
+    "",
+    "```json",
+    JSON.stringify({ artifactPayloads: payloads }, null, 2),
+    "```"
+  ].join("\n");
+}
+
+function artifactPayloadJsonSchema(payloads) {
+  const payloadProperties = {};
+  const requiredPayloads = [];
+  for (const [artifactPath, payload] of Object.entries(payloads)) {
+    requiredPayloads.push(artifactPath);
+    payloadProperties[artifactPath] = {
+      type: "object",
+      required: ["title", "sections"],
+      additionalProperties: false,
+      properties: {
+        title: { type: "string", minLength: 1 },
+        sections: {
+          type: "object",
+          required: Object.keys(payload.sections),
+          additionalProperties: true,
+          properties: Object.fromEntries(Object.keys(payload.sections).map((heading) => [
+            heading,
+            {
+              anyOf: [
+                { type: "string", minLength: 1 },
+                { type: "array", minItems: 1 },
+                { type: "object" }
+              ]
+            }
+          ]))
+        }
+      }
+    };
+  }
+  return {
+    type: "object",
+    required: ["artifactPayloads"],
+    additionalProperties: true,
+    properties: {
+      artifactPayloads: {
+        type: "object",
+        required: requiredPayloads,
+        additionalProperties: false,
+        properties: payloadProperties
+      }
+    }
+  };
+}
+
 function artifactTitle(fileName) {
   return fileName
     .replace(/\.md$/, "")
@@ -396,8 +474,9 @@ function outputContractFor(agentId) {
     "- Write the owned result files yourself:",
     `  - .harness/runs/${runId}/logs/native-subagents/${agentId}.result.md`,
     `  - .harness/runs/${runId}/logs/native-subagents/${agentId}.result.json`,
+    "- If you update any owned Markdown artifact, include `artifactPayloads` in result JSON. Harness renders the Markdown from this structured payload.",
     "- JSON must use `artifactUpdates` and `artifactsUpdated`; do not use `artifacts` as a substitute.",
-    "- Every updated artifact listed in JSON must already exist on disk and be owned by this agent."
+    "- Every updated artifact listed in JSON must be owned by this agent and have a matching `artifactPayloads` entry when it is a Markdown artifact."
   ];
 
   const byAgent = {
