@@ -24,9 +24,11 @@
 | `npx crewup drive <run-id>` | 确定性推进可脚本化步骤 | 能关就关，不能关就输出下一步安全动作 |
 | `npx crewup finish <run-id>` | 证据齐全后尝试 success 收口 | 证据不足会拒绝成功 |
 | `npx crewup archive <run-id> --outcome=...` | 记录非成功结果 | 非成功默认保持 open，除非显式 `--close` |
-| `npx crewup continue <run-id> "..."` | 从已关闭 run 创建延续 run | 继承原 run 模式/profile |
+| `npx crewup continue <run-id> --mode=lite "..."` | 从历史 run 创建小范围延续实现 run | 复用来源证据，但由用户显式选择模式 |
+| `npx crewup continue <run-id> --mode=strict "..."` | 从历史 run 创建完整延续交付 run | 复用来源证据，但由用户显式选择模式 |
+| `npx crewup continue <run-id> --mode=plan "..."` | 从历史 run 创建延续规划 run | 复用来源证据，但由用户显式选择模式 |
 
-真实创建 run 时，普通 `npx crewup run "..."` 会被拒绝，因为必须由使用者明确选择 `--mode`。`--profile` 只保留给旧脚本兼容。
+真实创建 run 时，普通 `npx crewup run "..."` 不会创建 run，而是输出模式选择卡。普通 `npx crewup continue <run-id> "..."` 也不会创建 continuation run，而是输出 continuation 模式选择卡。只有用户显式选择 `--mode=plan|lite|strict|discovery`，或旧自动化显式传入 `--profile`，才会创建真实 run。`--profile` 只保留给旧脚本兼容。
 
 ## 命令分层
 
@@ -57,6 +59,8 @@
 - `使用 CrewUp strict，高风险，新增权限系统。`
 - `使用 CrewUp plan，只规划，不写代码。`
 - `使用 CrewUp discovery，盘点项目结构和后续 run。`
+- `继续这个 run，使用 CrewUp lite，只修复这个运行时 bug。`
+- `继续这个 plan run，使用 CrewUp strict，按已批准计划完整实现。`
 
 主 agent 不应该替用户自动选择 CrewUp 模式。如果用户只是说“帮我改一下”，且没有 CrewUp 信号，就按普通对话或普通代码任务处理，不创建 run。
 

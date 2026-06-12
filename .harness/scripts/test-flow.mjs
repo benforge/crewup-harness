@@ -57,7 +57,11 @@ try {
     "run",
     "Use CrewUp to create a real run without an explicit mode."
   ], { expectedStatus: 1 });
-  assertIncludes(implicitRunOutput, "requires an explicit mode", "real run without mode is rejected");
+  assertIncludes(implicitRunOutput, "CrewUp mode selection required", "real run without mode shows mode picker");
+  assertIncludes(implicitRunOutput, "A. plan", "mode picker explains plan");
+  assertIncludes(implicitRunOutput, "B. lite-v2", "mode picker explains lite-v2");
+  assertIncludes(implicitRunOutput, "C. strict", "mode picker explains strict");
+  assertIncludes(implicitRunOutput, "No run was created", "mode picker does not create a run");
 
   const planOnlyOutput = runCli(appDir, [
     "run",
@@ -118,6 +122,7 @@ try {
   const runtimeContinuationOutput = runCli(appDir, [
     "continue",
     liteV2RunId,
+    "--mode=lite",
     "修复 Next.js runtime console error，页面启动时报错"
   ]);
   assertIncludes(runtimeContinuationOutput, "profile: lite-v2", "small runtime continuation defaults to lite-v2");
@@ -194,6 +199,11 @@ try {
   }
   const planPendingFinish = runCliWithStatus(appDir, ["finish", planOnlyRunId], { expectedStatus: 1 });
   assertIncludes(planPendingFinish, "Cannot finish plan run", "plan finish blocks pending root evidence");
+  const planContinuePickerOutput = runCliWithStatus(appDir, ["continue", planOnlyRunId, "开始实现"], { expectedStatus: 1 });
+  assertIncludes(planContinuePickerOutput, "Source run", "plan continuation picker names source run");
+  assertIncludes(planContinuePickerOutput, "is a plan run", "plan continuation picker detects plan source");
+  assertIncludes(planContinuePickerOutput, "Choose how to use the approved plan", "plan continuation picker explains handoff");
+  assertIncludes(planContinuePickerOutput, "No continuation run was created", "plan continuation picker does not create a run");
 
   const requirementPlanTask = await readFile(path.join(planOnlyRunDir, "tasks", "requirements-plan.task.md"), "utf8");
   assertIncludes(requirementPlanTask, "Original Request Summary", "requirements-plan English heading");
@@ -323,7 +333,13 @@ try {
 
   const forceWithoutReason = runCliWithStatus(appDir, ["transition", counterRunId, "--to=done", "--force"], { expectedStatus: 1 });
   assertIncludes(forceWithoutReason, "transition --force requires --force-reason", "force transition reason guard");
-  const continueOutput = runCli(appDir, ["continue", counterRunId, "Continue the counter MVP after cancellation with the same tiny scope."]);
+  const continuePickerOutput = runCliWithStatus(appDir, ["continue", counterRunId, "Continue the counter MVP after cancellation with the same tiny scope."], { expectedStatus: 1 });
+  assertIncludes(continuePickerOutput, "CrewUp continuation mode selection required", "continue without mode shows mode picker");
+  assertIncludes(continuePickerOutput, "A. plan", "continue mode picker explains plan");
+  assertIncludes(continuePickerOutput, "B. lite-v2", "continue mode picker explains lite-v2");
+  assertIncludes(continuePickerOutput, "C. strict", "continue mode picker explains strict");
+  assertIncludes(continuePickerOutput, "No continuation run was created", "continue mode picker does not create a run");
+  const continueOutput = runCli(appDir, ["continue", counterRunId, "--mode=lite", "Continue the counter MVP after cancellation with the same tiny scope."]);
   const continuationRunId = extractRunId(continueOutput);
   if (!continuationRunId) throw new Error(`Failed to detect continuation runId from output: ${continueOutput}`);
   const continuationInput = await readFile(path.join(appDir, ".harness", "runs", continuationRunId, "input.md"), "utf8");

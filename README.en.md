@@ -39,6 +39,7 @@ A strict workflow does not skip roles just because a task is small. CrewUp reduc
 ## Core Capabilities
 
 - Explicit activation: real runs require an explicit mode such as `--mode=lite`, `--mode=strict`, `--mode=plan`, or `--mode=discovery`
+- Mode picker: without an explicit mode, CrewUp prints choices and creates no run; AI may recommend a mode, but the user chooses it
 - Main-agent boundary: the main agent orchestrates, checks, and summarizes; it does not write owner artifacts or business code
 - Ordered dispatch: `next-agent` returns only subagents whose prerequisites are complete
 - Stable front door: the first runnable agent in a formal run should be `requirements-plan`, not an implementation agent
@@ -126,6 +127,41 @@ When CrewUp is requested in chat, the user must name the mode. The main agent sh
 
 Requests without an explicit CrewUp signal remain normal assistant work.
 
+If a real `run` or `continue` command omits `--mode`, CrewUp prints a mode picker and exits without creating a run. The user can then choose the copied `--mode=plan`, `--mode=lite`, or `--mode=strict` command.
+
+## Choosing A Mode
+
+Users only choose the delivery contract. They do not need to tell the AI whether to run `build`, `test`, `lint`, or which preview service to start. CrewUp agents discover validation from project evidence such as `package.json`, README, CI config, framework config, test folders, and existing scripts.
+
+| Desired outcome | Choose | Example phrase | Changes business code |
+| --- | --- | --- | --- |
+| Clarify requirements, architecture, acceptance criteria, and implementation steps first | `plan` | `Use CrewUp plan. Only plan; do not write code.` | No |
+| Fix one small bug, UI issue, copy issue, component tweak, or one clear phase | `lite` | `Use CrewUp lite. Fix this small issue and run the necessary validation.` | Yes |
+| Deliver a complete feature, cross-module change, full-stack request, or tester/reviewer/release evidence | `strict` | `Use CrewUp strict. Fully implement this requirement.` | Yes |
+| Permissions, database, security, deployment, migration, or broad refactor | `strict --risk=high` | `Use CrewUp strict, high risk, for this change.` | Yes |
+| Map an unfamiliar project, module, stack, risks, and follow-up runs | `discovery` | `Use CrewUp discovery to map this project and recommend next runs.` | No |
+
+Common rule of thumb:
+
+- Need a plan first: use `plan`.
+- Clear small fix: use `lite`.
+- Complete delivery: use `strict`.
+- Security, auth, database, deployment, or broad scope: use `strict --risk=high`.
+
+A successful `plan` run does not silently turn into implementation. Start a continuation run from the approved plan:
+
+```bash
+npx crewup continue <plan-run-id> --mode=lite "Implement only the first phase from the plan"
+npx crewup continue <plan-run-id> --mode=strict "Implement the approved plan fully"
+```
+
+Without `--mode`, CrewUp shows the picker and creates no run:
+
+```bash
+npx crewup run "Localize the whole blog project"
+npx crewup continue <run-id> "Continue implementation"
+```
+
 Mode examples:
 
 - `Use CrewUp lite to fix this low-risk UI bug and update validation/summary.`
@@ -191,7 +227,9 @@ Daily users do not need to remember every script. Prefer `doctor`, `init`, `chec
 | `npx crewup archive <run-id> --outcome=blocked --reason="..."` | Mark a non-success state while keeping the run open by default |
 | `npx crewup archive <run-id> --outcome=blocked --reason="..." --close` | Archive-close a non-success run only when the user explicitly abandons or closes it |
 | `npx crewup cancel <run-id> --reason="..."` | Cancel a run and archive the cancellation without discarding files |
-| `npx crewup continue <run-id> "..."` | Create a new continuation run from a previous run |
+| `npx crewup continue <run-id> --mode=lite "..."` | Create a small scoped continuation run from a previous run |
+| `npx crewup continue <run-id> --mode=strict "..."` | Create a full delivery continuation run from a previous run |
+| `npx crewup continue <run-id> --mode=plan "..."` | Create a planning continuation run from a previous run |
 | `npx crewup finish <run-id>` | Finish and archive the run by policy |
 | `npx crewup learn <run-id>` | Extract candidate lessons without changing future routing |
 | `npx crewup learn-promote <lesson-id>` | Explicitly promote a candidate lesson into Memory Hints |
@@ -238,7 +276,7 @@ Typical planning-to-development flow:
 8. For web/full-stack runs, the main agent starts or reports preview, then runs `preview-smoke` for the URLs the user should open.
 9. `release` writes `artifacts/release-summary.md`, then the run can be reported and archived.
 
-If an open run hits a preview, deployment, build, or functional issue, keep repairing inside the current run and route work to the owning agent. If an archived run later shows a preview, deployment, or functional issue, create a continuation run with `npx crewup continue <run-id> "..."`. The main agent may restart/stop services and rerun preview smoke, but business-code fixes must go through the owning agents.
+If an open run hits a preview, deployment, build, or functional issue, keep repairing inside the current run and route work to the owning agent. If an archived run later shows a preview, deployment, or functional issue, create a continuation run with `npx crewup continue <run-id> --mode=lite "..."` for a small fix or `--mode=strict` for full delivery. The main agent may restart/stop services and rerun preview smoke, but business-code fixes must go through the owning agents.
 
 Normally, users should describe the goal and constraints; requirements/architect artifacts and impact scope should decide which implementation agents are needed. Negation-aware routing only applies when the user has explicitly excluded a scope, so CrewUp does not start irrelevant owner agents just to confirm they are irrelevant.
 
@@ -305,6 +343,7 @@ See the full matrix in [Test Matrix](./docs/test-matrix.en.md).
 | --- | --- |
 | [Workflow](./docs/harness-workflow.en.md) | Command flow, profiles, and run lifecycle |
 | [模式治理](./docs/mode-governance.md) | 中文说明：聊天怎么指定模式、每种模式生成什么、怎么算完成、卡住怎么办 |
+| [Mode Picker](./docs/mode-picker.en.md) | What happens when a run or continuation command omits an explicit mode |
 | [Lite](./docs/lite-v2.en.md) | Lightweight opt-in flow for small low-risk implementation tasks |
 | [Runbook](./docs/runbook.en.md) | How to judge health, completion, blockers, cancellation, and continuation |
 | [Command Governance](./docs/command-governance.en.md) | Daily/internal/maintenance command tiers plus complete, incomplete, blocked, and canceled outcome rules |

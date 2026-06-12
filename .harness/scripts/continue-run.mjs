@@ -4,6 +4,7 @@ import path from "node:path";
 import { resolveScriptPath } from "./lib/script-root.mjs";
 import { modeLabel } from "./lib/workflow-modes.mjs";
 import { analyzeWorkload } from "./lib/workload-analysis.mjs";
+import { renderContinueModePicker } from "./lib/mode-picker.mjs";
 
 const root = process.cwd();
 const args = process.argv.slice(2);
@@ -28,6 +29,11 @@ try {
   sourceState = JSON.parse(readFileSync(path.join(root, ".harness", "runs", sourceRunId, "state.json"), "utf8"));
 } catch {
   sourceState = null;
+}
+
+if (!explicitMode && !explicitProfile) {
+  console.error(renderContinueModePicker({ sourceRunId, requestText: text, sourceState }));
+  process.exit(1);
 }
 
 const continuationProfile = resolveContinuationProfile({ sourceState, text, explicitMode, explicitProfile, risk });

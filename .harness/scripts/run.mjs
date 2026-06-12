@@ -8,6 +8,7 @@ import { isNativeAgentEnvironment, readAgentEnvironment } from "./lib/agent-runt
 import { semanticSlugFromText } from "./lib/naming.mjs";
 import { writeRunState, writeRunStatus } from "./lib/run-lifecycle.mjs";
 import { assertKnownMode, modeHelpText, modeLabel, profileFromMode } from "./lib/workflow-modes.mjs";
+import { renderRunModePicker } from "./lib/mode-picker.mjs";
 
 const root = process.cwd();
 const args = process.argv.slice(2);
@@ -31,7 +32,7 @@ const summary = [];
 const inputText = text?.trim() ?? "";
 
 if (!runIdArg && !dryRun && !modeArg && !explicitProfileArg) {
-  console.error(modeHelpText());
+  console.error(renderRunModePicker({ requestText: inputText }));
   process.exit(1);
 }
 

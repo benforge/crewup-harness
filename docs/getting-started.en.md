@@ -98,6 +98,8 @@ Use CrewUp strict to build a tiny counter web app and run the full workflow. Acc
 
 When the user explicitly asks for CrewUp in chat, the user must name the mode. The main agent should run `npx crewup run --mode=<mode> "<request>"`, extract the runId, then continue orchestration with `next-agent` or `drive`.
 
+If a real `run` or `continue` command omits `--mode`, CrewUp prints a mode picker and exits without creating a run. Choose `plan` for planning only, `lite` for a small low-risk implementation, or `strict` for full multi-agent delivery.
+
 ## Observe Dispatch
 
 After you have a runId:
@@ -211,10 +213,10 @@ Archive does not mean success. Only `finish` or `archive --outcome=success` repr
 To continue from a blocked/partial/canceled run:
 
 ```bash
-npx crewup continue <run-id> "Continue from the previous blocker and reuse the existing requirement and architecture."
+npx crewup continue <run-id> --mode=lite "Continue from the previous blocker and reuse the existing requirement and architecture."
 ```
 
-This creates a new run and includes the source run's `RUN_STATUS.md`, `RUN_SUMMARY.md`, requirements, and architecture artifacts in the new input context.
+This creates a new run and includes the source run's `RUN_STATUS.md`, `RUN_SUMMARY.md`, requirements, and architecture artifacts in the new input context. `continue` also requires an explicit mode; without it, CrewUp prints a continuation picker and creates no run.
 
 If the run started a preview service:
 

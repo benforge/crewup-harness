@@ -33,7 +33,9 @@ These are the stable commands regular users and the main agent should treat as t
 | `npx crewup finish <run-id>` | Attempt successful closeout when evidence is ready | Cannot replace validation; refuses success when evidence is incomplete |
 | `npx crewup archive <run-id> --outcome=...` | Record a non-success outcome | Non-success stays open by default unless `--close` is explicit |
 | `npx crewup cancel <run-id> --reason="..."` | User intentionally stops this run | Closes as canceled while preserving evidence |
-| `npx crewup continue <run-id> "..."` | Continue from an archived run | Creates a new continuation run |
+| `npx crewup continue <run-id> --mode=lite "..."` | Continue from a previous run with a small scoped implementation | Reuses source evidence, but the user chooses the mode explicitly |
+| `npx crewup continue <run-id> --mode=strict "..."` | Continue from a previous run with full delivery | Reuses source evidence, but the user chooses the mode explicitly |
+| `npx crewup continue <run-id> --mode=plan "..."` | Continue from a previous run with planning only | Reuses source evidence, but the user chooses the mode explicitly |
 
 ### Tier 2: Strict Operator Commands
 
@@ -113,7 +115,8 @@ These commands recover abnormal state, support older runs, or maintain runtime f
 Selection rules:
 
 - No explicit CrewUp signal means no run.
-- A real `crewup run` requires explicit `--mode` or the compatibility `--profile`; plain `npx crewup run "..."` is rejected.
+- A real `crewup run` requires explicit `--mode` or the compatibility `--profile`; plain `npx crewup run "..."` prints the mode picker and creates no run.
+- A real `crewup continue` also requires explicit `--mode` or the compatibility `--profile`; plain `npx crewup continue <run-id> "..."` prints the continuation picker and creates no continuation run.
 - `--profile` remains a compatibility alias for existing automation, but new user-facing docs and chat prompts should use `--mode`.
 - The main agent must not auto-select a mode for the user; in chat, the user must name the desired CrewUp mode.
 - If a lite run discovers high-risk scope, stop lightweight success closeout, record blocked/partial, and create or recommend a strict continuation.

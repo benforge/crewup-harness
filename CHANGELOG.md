@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.8
+
+- Added an explicit mode picker for `crewup run` and `crewup continue` when no `--mode` or compatibility `--profile` is provided; CrewUp now recommends a mode but creates no run until the user chooses one.
+- Changed continuation behavior so follow-up runs no longer inherit or infer a mode silently; users choose `plan`, `lite`, or `strict` before a continuation run is created.
+- Updated README, getting-started, command governance, and mode governance docs with clearer mode boundaries, plan-to-implementation handoff guidance, and user-facing examples.
+- Added flow coverage for no-mode run/continue picker behavior and plan-run continuation choices.
+
 ## 0.4.6
 
 - Added generated Markdown schema coverage for script/mode-produced files such as `spec-freeze.md`, `archive-reminder.md`, lite-v2 root files, plan-only root files, and discovery root files.
