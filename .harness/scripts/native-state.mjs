@@ -1,6 +1,7 @@
 import { open, readFile, stat, unlink, writeFile } from "node:fs/promises";
 import { existsSync, unlinkSync } from "node:fs";
 import path from "node:path";
+import { parse as parseYaml } from "yaml";
 import { implementationPlanSkipReason, isImplementationAgentUnassigned } from "./lib/implementation-plan-scope.mjs";
 import { writeOwnerAgentIds } from "./lib/agent-roles.mjs";
 import { readRunState, writeRunState, writeRunStatus } from "./lib/run-lifecycle.mjs";
@@ -31,6 +32,7 @@ process.on("exit", () => {
 
 const state = JSON.parse(stripBom(await readFile(statePath, "utf8")));
 const runLifecycleState = await readRunState(root, runId).catch(() => null);
+const artifactSchema = parseYaml(await readFile(path.join(root, ".harness", "config", "artifact-schema.yaml"), "utf8"))?.artifacts ?? {};
 
 switch (command) {
   case "status":
@@ -92,6 +94,7 @@ switch (command) {
         process.exit(1);
       }
       enforceRequirementsPlanConfirmation({ status: value, resultJsonPath, parsedJson });
+      await enforceOwnedArtifactSchema(agentId, parsedJson);
       const latestWriteAt = await latestResultWriteAt([resultPath, resultJsonPath]);
       if (
         agent.result_captured_at
@@ -658,6 +661,7 @@ async function reconcileResults(current) {
     const resultJsonPath = agent.result_json_path ?? resultPath?.replace(/\.result\.md$/, ".result.json");
     if (!resultPath || !existsSync(resolveWorkspacePath(resultPath))) continue;
     const parsedJson = await readResultJson(resultJsonPath, { expectedAgent: agent.agent });
+    await enforceOwnedArtifactSchema(agent.agent, parsedJson);
     const status = parsedJson.status;
     if (!["completed", "blocked", "needs_input"].includes(status)) continue;
     const latestWriteAt = await latestResultWriteAt([resultPath, resultJsonPath]);
@@ -690,6 +694,61 @@ async function reconcileResults(current) {
   } else {
     console.log(`Reconciled native results: ${changed}`);
   }
+}
+
+async function enforceOwnedArtifactSchema(currentAgentId, parsedJson) {
+  const candidates = new Set();
+  for (const [file, rules] of Object.entries(artifactSchema)) {
+    if (rules?.owner === currentAgentId && existsSync(path.join(root, ".harness", "runs", runId, "artifacts", file))) {
+      candidates.add(file);
+    }
+  }
+  for (const item of [
+    ...asArray(parsedJson?.artifactsUpdated),
+    ...asArray(parsedJson?.artifactUpdates)
+  ]) {
+    const artifactPath = typeof item === "string" ? item : item?.path;
+    const file = normalizeArtifactFileName(artifactPath);
+    if (file && artifactSchema[file]?.owner === currentAgentId) candidates.add(file);
+  }
+
+  const problems = [];
+  for (const file of candidates) {
+    const rules = artifactSchema[file];
+    const target = path.join(root, ".harness", "runs", runId, "artifacts", file);
+    if (!existsSync(target)) {
+      problems.push(`Missing owned artifact: ${file}`);
+      continue;
+    }
+    const content = await readFile(target, "utf8");
+    for (const heading of rules.required_headings ?? []) {
+      if (!hasMarkdownHeading(content, heading)) problems.push(`Owned artifact missing heading: ${file} -> ${heading}`);
+    }
+  }
+
+  if (problems.length > 0) {
+    console.error(`Cannot capture result for ${currentAgentId}: owned artifact schema validation failed.`);
+    for (const problem of problems) console.error(`- ${problem}`);
+    console.error("Ask the same owner agent to rewrite the artifact using the exact required headings, then rerun native-state mark-result.");
+    process.exit(1);
+  }
+}
+
+function normalizeArtifactFileName(target) {
+  const normalized = normalizePath(target);
+  const marker = "artifacts/";
+  const index = normalized.lastIndexOf(marker);
+  const file = index >= 0 ? normalized.slice(index + marker.length) : path.posix.basename(normalized);
+  return file && file.endsWith(".md") ? file : "";
+}
+
+function hasMarkdownHeading(content, heading) {
+  const escaped = escapeRegExp(String(heading).trim());
+  return new RegExp(`^#{2,6}\\s+${escaped}\\s*$`, "im").test(content);
+}
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 async function latestResultWriteAt(paths) {

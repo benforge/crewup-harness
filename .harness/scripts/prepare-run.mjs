@@ -357,6 +357,10 @@ function artifactScaffoldForAgent(agentId) {
     .map((item) => item.replace(/^artifacts\//, ""))
     .filter((item) => item.endsWith(".md"));
   const sections = [];
+  if (outputs.length > 0) {
+    sections.push("Copy this skeleton structure for each owned artifact. Keep every `##` heading exactly as shown; add content under headings, not by renaming headings.");
+    sections.push("");
+  }
   for (const output of outputs) {
     const schema = artifactSchema[output];
     if (!schema?.required_headings?.length) continue;

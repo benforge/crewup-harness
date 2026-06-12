@@ -469,7 +469,12 @@ try {
   const unconfirmedRequirementsPlan = runCliWithStatus(appDir, ["native-state", planOnlyRunId, "mark-result", "requirements-plan", "completed"], { expectedStatus: 1 });
   assertIncludes(unconfirmedRequirementsPlan, "Cannot complete requirements-plan before user confirmation", "requirements-plan requires user confirmation");
 
+  await writeFile(path.join(planOnlyRunDir, "artifacts", "requirement-plan.md"), "# Requirement Plan\n\n## Clarification Card\n\n- pending\n", "utf8");
   await seedRequirementsPlanResult(planOnlyRunDir, { status: "needs_input", userConfirmed: false });
+  const invalidArtifactCapture = runCliWithStatus(appDir, ["native-state", planOnlyRunId, "mark-result", "requirements-plan", "needs_input"], { expectedStatus: 1 });
+  assertIncludes(invalidArtifactCapture, "owned artifact schema validation failed", "native-state rejects malformed owner artifact headings");
+
+  await writeFile(path.join(planOnlyRunDir, "artifacts", "requirement-plan.md"), renderValidRequirementPlanArtifact(), "utf8");
   const clarificationCapture = runCli(appDir, ["native-state", planOnlyRunId, "mark-result", "requirements-plan", "needs_input"]);
   assertIncludes(clarificationCapture, "requirements-plan: needs_input", "requirements-plan needs_input captured");
   const clarifyOutput = runCli(appDir, ["clarify", planOnlyRunId]);
@@ -852,6 +857,9 @@ Plan a fullstack blog system.
 
 ## Historical Context
 No historical context.
+
+## Clarification Card
+- Ready for user confirmation.
 
 ## Requirement Expansion
 - Expand the request.

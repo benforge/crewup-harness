@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.4
+
+- Hardened native result capture: `native-state mark-result` and `reconcile-results` now reject completed owner artifacts that are missing required schema headings, so malformed `requirement-plan.md`, `requirement.md`, `architecture.md`, or `implementation-plan.md` cannot be captured and discovered only at final gate time.
+- Strengthened generated subagent task prompts with an explicit required artifact skeleton and exact heading instructions for owned artifacts.
+- Added flow coverage proving malformed owner artifact headings are rejected before native result capture succeeds.
+
 ## 0.4.3
 
 - Changed requirement and tester guidance so users no longer need to provide build/test/lint commands in requests; CrewUp agents discover validation from project evidence such as package manifests, README, CI config, framework config, and tests.
